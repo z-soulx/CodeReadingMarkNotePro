@@ -1,7 +1,7 @@
 <idea-plugin>
-    <id>jp.kitabatakep.intellij.plugins.CodeReadingNote</id>
-    <name>Code Reading Note</name>
-    <vendor email="kitabatake.programmer@gmail.com">kitabatakep</vendor>
+    <id>soulx.CodeReadingMarkNotePro</id>
+    <name>Code Reading mark Note pro</name>
+    <vendor email="170918810@qq.com">soulx</vendor>
     <version>2023.3.3</version>
     <idea-version since-build="231" until-build="233.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -10,7 +10,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
-        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Note" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
+        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading mark Note pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
 
     </extensions>
     <projectListeners>
