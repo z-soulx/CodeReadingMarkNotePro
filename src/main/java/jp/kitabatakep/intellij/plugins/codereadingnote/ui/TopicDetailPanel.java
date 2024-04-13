@@ -4,10 +4,12 @@ import com.intellij.ide.DataManager;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.startup.StartupManager;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -235,13 +237,20 @@ class TopicDetailPanel extends JPanel
             TopicLine topicLine = (TopicLine) value;
             VirtualFile file = topicLine.file();
 
-            PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-            if (fileOrDir != null) {
-                setIcon(fileOrDir.getIcon(0));
-            }
+//            PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+//            if (fileOrDir != null) {
+//                setIcon(fileOrDir.getIcon(0));
+//            }
+            ApplicationManager.getApplication().runReadAction(() -> {
+                PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+                if (fileOrDir != null) {
+                    setIcon(fileOrDir.getIcon(0));
+                }
+            });
 
             if (topicLine.isValid()) {
-                append(file.getName() + ":" + (topicLine.line()+1));
+//                append(file.getName() + ":" + (topicLine.line()+1));
+                append(topicLine.note().substring(0,Math.min(topicLine.note().length(),20)));
                 append(" (" + topicLine.pathForDisplay() + ")", SimpleTextAttributes.GRAY_ATTRIBUTES);
             } else {
                 append(topicLine.pathForDisplay() + ":" + (topicLine.line()+1), SimpleTextAttributes.ERROR_ATTRIBUTES);

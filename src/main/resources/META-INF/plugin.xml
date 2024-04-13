@@ -13,7 +13,10 @@
         <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Note" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
 
     </extensions>
-
+    <projectListeners>
+    <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"
+              class="jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemarkEditorManagerListener"/>
+   </projectListeners>
     <actions>
         <action
                 icon="MyIcons.PLUGIN"

@@ -81,6 +81,10 @@ public class Topic implements Comparable<Topic>
         return lines.iterator();
     }
 
+    public ArrayList<TopicLine> getLines() {
+        return lines;
+    }
+
     public void changeLineOrder(TopicLine line, int index)
     {
         lines.remove(line);

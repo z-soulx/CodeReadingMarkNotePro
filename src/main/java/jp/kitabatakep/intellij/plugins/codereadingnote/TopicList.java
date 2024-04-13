@@ -46,4 +46,8 @@ public class TopicList
     {
         this.topics = topics;
     }
+
+    public ArrayList<Topic> getTopics() {
+        return topics;
+    }
 }
