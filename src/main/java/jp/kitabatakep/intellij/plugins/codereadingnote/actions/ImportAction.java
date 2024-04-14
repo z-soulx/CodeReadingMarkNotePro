@@ -17,9 +17,12 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.TopicListImporter;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicListNotifier;
 import org.jdom.Document;
 import org.jdom.JDOMException;
+import org.jdom.input.DOMBuilder;
 import org.jdom.input.SAXBuilder;
 import org.jetbrains.annotations.NotNull;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.IOException;
 
@@ -63,6 +66,11 @@ public class ImportAction extends AnAction
 
         SAXBuilder builder = new SAXBuilder();
         Document document = null;
+       /* DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder2 = factory.newDocumentBuilder();
+        org.w3c.dom.Document document1 = builder2.parse(new File(files[0].getPath()));
+        DOMBuilder domBuilder = new DOMBuilder();
+        document = domBuilder.build(document1);*/
         try {
              document = builder.build(new File(files[0].getPath()));
         } catch (JDOMException ex) {

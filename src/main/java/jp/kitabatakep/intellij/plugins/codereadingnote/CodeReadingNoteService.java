@@ -42,6 +42,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
 
     public static CodeReadingNoteService getInstance(@NotNull Project project)
     {
+        // project.getService(CodeReadingNoteService.class);
         return ServiceManager.getService(project, CodeReadingNoteService.class);
     }
 

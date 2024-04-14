@@ -7,6 +7,7 @@ import com.intellij.openapi.fileChooser.FileChooserFactory;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.util.JDOMUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
@@ -15,6 +16,7 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicListExporter;
 import org.jdom.Document;
 import org.jdom.Element;
+import org.jdom.JDOMInterner;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
 import org.jetbrains.annotations.NotNull;
@@ -78,6 +80,7 @@ public class ExportAction extends AnAction
         xmlOutput.setFormat(Format.getPrettyFormat());
         Element state = TopicListExporter.export(service.getTopicList().iterator());
         try {
+//            JDOMUtil.write(new Document(state), fileOutputStream);
             xmlOutput.output(new Document(state), fileOutputStream);
         } catch (IOException ex) {
             ex.printStackTrace();
