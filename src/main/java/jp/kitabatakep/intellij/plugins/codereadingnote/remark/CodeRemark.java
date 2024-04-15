@@ -35,11 +35,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.io.Serial;
+//import java.io.Serial;
 import java.io.Serializable;
 
 public class CodeRemark implements Serializable, Navigatable {
-    @Serial
+//    @Serial
     private static final long serialVersionUID = 5906557169110070235L;
     @Deprecated
     private String projectName;
