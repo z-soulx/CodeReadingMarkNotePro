@@ -32,6 +32,6 @@ public class CodeRemarkRepositoryFactory {
 
     @SuppressWarnings("deprecation")
     public static CodeReadingNoteService getInstance(@NotNull final Project project) {
-        return ServiceManager.getService(project, CodeReadingNoteService.class);
+        return project.getService(CodeReadingNoteService.class);
     }
 }

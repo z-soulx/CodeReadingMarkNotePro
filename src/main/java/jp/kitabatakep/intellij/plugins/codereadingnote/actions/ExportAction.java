@@ -11,19 +11,18 @@ import com.intellij.openapi.util.JDOMUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicListExporter;
 import org.jdom.Document;
 import org.jdom.Element;
-import org.jdom.JDOMInterner;
-import org.jdom.output.Format;
-import org.jdom.output.XMLOutputter;
 import org.jetbrains.annotations.NotNull;
-
-import java.io.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 public class ExportAction extends AnAction
 {
@@ -76,12 +75,12 @@ public class ExportAction extends AnAction
             return;
         }
 
-        XMLOutputter xmlOutput = new XMLOutputter();
-        xmlOutput.setFormat(Format.getPrettyFormat());
+//        XMLOutputter xmlOutput = new XMLOutputter();
+//        xmlOutput.setFormat(Format.getPrettyFormat());
         Element state = TopicListExporter.export(service.getTopicList().iterator());
         try {
-//            JDOMUtil.write(new Document(state), fileOutputStream);
-            xmlOutput.output(new Document(state), fileOutputStream);
+            JDOMUtil.write(new Document(state), fileOutputStream);
+//            xmlOutput.output(new Document(state), fileOutputStream);
         } catch (IOException ex) {
             ex.printStackTrace();
             Messages.showErrorDialog(project, "Fail to save. Please try again.", AppConstants.appName + "Save");
