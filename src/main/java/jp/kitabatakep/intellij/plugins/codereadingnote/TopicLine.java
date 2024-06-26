@@ -60,6 +60,7 @@ public class TopicLine implements Navigatable
     }
 
     public int line() { return line; }
+    public void modifyLine(int newLine) {  line = newLine; }
 
     public String relativePath() { return relativePath; }
 
@@ -92,7 +93,7 @@ public class TopicLine implements Navigatable
         return file != null && file.isValid();
     }
 
-    private OpenFileDescriptor openFileDescriptor()
+    public OpenFileDescriptor openFileDescriptor()
     {
         return new OpenFileDescriptor(project, file, line, -1, true);
     }

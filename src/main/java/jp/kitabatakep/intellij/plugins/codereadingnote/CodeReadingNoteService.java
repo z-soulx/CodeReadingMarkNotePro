@@ -96,6 +96,16 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
         return sorted.filter(stateFilter).sorted(this.stateComparator()).collect(Collectors.toList());
     }
 
+    public List<TopicLine> listSource(Project project, @NotNull VirtualFile file) {
+        List<TopicLine> collect = topicList.getTopics().stream().
+            filter(topic -> topic.getLines().stream()
+                .anyMatch(topicLine -> topicLine.file().equals(file)))
+            .flatMap(topic -> topic.getLines().stream())
+            .collect(Collectors.toList());
+        return collect;
+
+    }
+
     private Predicate<CodeRemark> stateFilter(String fileName, String contentHash, Integer lineNumber) {
         return (codeRemark) -> {
             final boolean fileNameMatch = StringUtils.isEmpty(fileName) || StringUtils.equals(fileName, codeRemark.getFileName());

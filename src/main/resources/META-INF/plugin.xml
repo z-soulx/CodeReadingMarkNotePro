@@ -11,7 +11,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
         <toolWindow icon="MyIcons.PLUGIN" id="Code Reading mark Note pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
-
+        <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
     </extensions>
     <projectListeners>
     <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"
