@@ -27,8 +27,13 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.remark;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorCustomElementRenderer;
 import com.intellij.openapi.editor.ex.EditorEx;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.TextEditor;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
+import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import org.jetbrains.annotations.NotNull;
 
 public class EditorUtils {
@@ -38,7 +43,17 @@ public class EditorUtils {
             return ((EditorEx) editor).getVirtualFile();
         return null;
     }
+public static void addLineCodeRemark(Project project,   TopicLine _topicLine) {
+    FileEditorManager instance = FileEditorManager.getInstance(project);
+    Editor editor = getEditor(instance, _topicLine.file());
+    EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), StringUtils.spNote(_topicLine.note()));
+}
+    public static Editor getEditor(@NotNull final FileEditorManager source, @NotNull final VirtualFile file) {
+        final FileEditor fileEditor = source.getSelectedEditor(file);
+        if (!(fileEditor instanceof TextEditor)) return null;
 
+        return ((TextEditor) fileEditor).getEditor();
+    }
     public static int getLineNumber(@NotNull final Editor editor) {
         return editor.getDocument().getLineNumber(
                 editor.getCaretModel().getOffset());

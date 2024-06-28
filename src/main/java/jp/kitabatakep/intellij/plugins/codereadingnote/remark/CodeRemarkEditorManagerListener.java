@@ -45,6 +45,13 @@ public class CodeRemarkEditorManagerListener implements FileEditorManagerListene
 
         CodeRemarkRepositoryFactory.getInstance(project).list(project, file).forEach(codeRemark -> {
             EditorUtils.addAfterLineCodeRemark(editor, codeRemark.getLineNumber(), codeRemark.getText());
+//            BookmarkManager.getInstance(project).getFileBookmarks(file).stream().forEach(r -> {
+//                if (codeRemark.getBookmarkHash() == r.hashCode()) {
+//                    System.out.println(codeRemark.getLineNumber()+"--"+r.getLine()+"::"+r.getMnemonic()+"::"+r.getDescription());
+//                    System.out.println(r.hashCode());
+//                }
+//
+//            });
         });
     }
 

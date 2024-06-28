@@ -90,6 +90,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             codeRemark.setProjectName(project.getName());
             codeRemark.setContentHash(CodeRemark.createContentHash(project, topicLine.file()));
             codeRemark.setText(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
+            codeRemark.setBookmarkHash(topicLine.bookmarkHash());
             return  codeRemark;
         }).sorted(stateComparator());
         final Predicate<CodeRemark> stateFilter = this.stateFilter(file.getName(), CodeRemark.createContentHash(project,file), null);

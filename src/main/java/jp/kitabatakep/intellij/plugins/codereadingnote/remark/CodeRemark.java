@@ -48,6 +48,15 @@ public class CodeRemark implements Serializable, Navigatable {
     private String contentHash; // relativePath.md5() or fileBody.bytes().md5()
     private int lineNumber;
     private String text;
+    private int bookmarkHash;
+
+    public int getBookmarkHash() {
+        return bookmarkHash;
+    }
+
+    public void setBookmarkHash(int bookmarkHash) {
+        this.bookmarkHash = bookmarkHash;
+    }
 
     private transient OpenFileDescriptor target;
 

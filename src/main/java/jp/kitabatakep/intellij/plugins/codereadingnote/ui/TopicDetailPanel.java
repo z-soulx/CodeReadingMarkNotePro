@@ -1,15 +1,18 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.ide.DataManager;
-import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.ide.bookmarks.Bookmark;
+import com.intellij.ide.bookmarks.BookmarkManager;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.EditorFactory;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.startup.StartupManager;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -22,11 +25,11 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.ui.EditableModel;
 import com.intellij.util.ui.UIUtil;
+import java.util.Collection;
 import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicNotifier;
-import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicAddAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
 import javax.swing.*;
@@ -38,6 +41,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Iterator;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
+import org.jetbrains.annotations.NotNull;
 
 class TopicDetailPanel extends JPanel
 {
@@ -92,12 +97,32 @@ class TopicDetailPanel extends JPanel
             public void lineAdded(Topic _topic, TopicLine _topicLine)
             {
                 if (_topic == topic) {
+                    Bookmark bookmark = addBookmark(_topicLine.file(), _topicLine.line(),_topicLine.note());
+                    if (bookmark != null)
+                    _topicLine.setBookmarkHash(bookmark.hashCode());
                     topicLineListModel.addElement(_topicLine);
+                    EditorUtils.addLineCodeRemark(project,_topicLine);
                 }
             }
         });
     }
+    public Bookmark addBookmark(@NotNull VirtualFile file, int line, String note) {
+        BookmarkManager bookmarkManager = BookmarkManager.getInstance(project);
+        Document document = FileDocumentManager.getInstance().getDocument(file);
 
+        if (document != null && line < document.getLineCount()) {
+//            int offset = document.getLineStartOffset(line);
+//            OpenFileDescriptor descriptor = new OpenFileDescriptor(project, file, line);
+            Bookmark bookmark = bookmarkManager.addTextBookmark(file, line, note.substring(0, Math.min(note.length(), 20)));
+            Collection<Bookmark> fileBookmarks = bookmarkManager.getFileBookmarks(file);
+
+            return bookmark;
+            // 执行自定义逻辑
+//            executeCustomLogic(bookmark, descriptor);
+        }
+        return null;
+
+    }
     @Override
     public void removeNotify()
     {
