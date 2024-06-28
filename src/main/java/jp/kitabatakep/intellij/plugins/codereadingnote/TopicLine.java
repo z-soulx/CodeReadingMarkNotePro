@@ -20,6 +20,7 @@ public class TopicLine implements Navigatable
     private boolean inProject;
     private String relativePath;
     private String url;
+    private int bookmarkHash;
 
     public static TopicLine createByAction(Project project, Topic topic, VirtualFile file, int line, String note)
     {
@@ -60,6 +61,9 @@ public class TopicLine implements Navigatable
     }
 
     public int line() { return line; }
+    public int bookmarkHash() { return bookmarkHash; }
+    public void setBookmarkHash(int hash) {  bookmarkHash = hash;}
+    public void modifyLine(int newLine) {  line = newLine; }
 
     public String relativePath() { return relativePath; }
 
@@ -92,7 +96,7 @@ public class TopicLine implements Navigatable
         return file != null && file.isValid();
     }
 
-    private OpenFileDescriptor openFileDescriptor()
+    public OpenFileDescriptor openFileDescriptor()
     {
         return new OpenFileDescriptor(project, file, line, -1, true);
     }

@@ -34,7 +34,9 @@ public class StringUtils {
     public static boolean isEmpty(final String text) {
         return null == text || "".equals(text.trim());
     }
-
+    public static String spNote(String note){
+        return note.substring(0, Math.min(note.length(), 20));
+    }
     public static boolean isNotEmpty(final String text) {
         return !isEmpty(text);
     }

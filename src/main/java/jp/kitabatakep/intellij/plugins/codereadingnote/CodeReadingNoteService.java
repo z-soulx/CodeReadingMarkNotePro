@@ -5,6 +5,13 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemark;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.MyBookmarkListener;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
+import org.jetbrains.annotations.NotNull;
+
+import org.jdom.Element;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -35,6 +42,9 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     {
         this.project = project;
         topicList = new TopicList(project);
+
+//        new MyBookmarkListener(project);
+
     }
 
     public static CodeReadingNoteService getInstance(@NotNull Project project)
@@ -87,10 +97,21 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             codeRemark.setProjectName(project.getName());
             codeRemark.setContentHash(CodeRemark.createContentHash(project, topicLine.file()));
             codeRemark.setText(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
+            codeRemark.setBookmarkHash(topicLine.bookmarkHash());
             return  codeRemark;
         }).sorted(stateComparator());
         final Predicate<CodeRemark> stateFilter = this.stateFilter(file.getName(), CodeRemark.createContentHash(project,file), null);
         return sorted.filter(stateFilter).sorted(this.stateComparator()).collect(Collectors.toList());
+    }
+
+    public List<TopicLine> listSource(Project project, @NotNull VirtualFile file) {
+        List<TopicLine> collect = topicList.getTopics().stream().
+            filter(topic -> topic.getLines().stream()
+                .anyMatch(topicLine -> topicLine.file().equals(file)))
+            .flatMap(topic -> topic.getLines().stream())
+            .collect(Collectors.toList());
+        return collect;
+
     }
 
     private Predicate<CodeRemark> stateFilter(String fileName, String contentHash, Integer lineNumber) {
