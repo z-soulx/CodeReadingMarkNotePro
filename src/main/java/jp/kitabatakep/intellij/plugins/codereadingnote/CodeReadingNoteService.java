@@ -7,6 +7,7 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemark;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.MyBookmarkListener;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,6 +39,9 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     {
         this.project = project;
         topicList = new TopicList(project);
+
+//        new MyBookmarkListener(project);
+
     }
 
     public static CodeReadingNoteService getInstance(@NotNull Project project)
