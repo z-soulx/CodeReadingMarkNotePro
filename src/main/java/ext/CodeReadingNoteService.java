@@ -40,7 +40,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
 
     public CodeReadingNoteService(Project project) {
         this.project = project;
-        addFileSystemListener();
+        addFileSystemListener(); //监控有效，但是startOffset没什么区别，定位还是原来的行
         addVcsListener();
     }
 
