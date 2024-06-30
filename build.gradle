@@ -1,12 +1,12 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij' version '0.7.3'
+    id 'org.jetbrains.intellij' version '1.17.0'
 }
 
 group 'jp.kitabatakep'
-version '2021.3.3'
+version '2023.3.1'
 
-sourceCompatibility = 1.8
+sourceCompatibility = 17
 
 repositories {
     mavenCentral()
@@ -14,12 +14,12 @@ repositories {
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
 }
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
-    version '2021.3'
+    version.set('2023.3.3')
 }
 
 //runIde {
@@ -37,6 +37,6 @@ patchPluginXml {
         stripTag(stripTag(file(path).text, "html"), "body")
     }
 
-    pluginDescription bodyInnerHTML("src/main/resources/META-INF/description.html")
-    changeNotes bodyInnerHTML("src/main/resources/META-INF/changeNotes.html")
+    pluginDescription.set(provider{ bodyInnerHTML("src/main/resources/META-INF/description.html") })
+    changeNotes.set(provider{ bodyInnerHTML("src/main/resources/META-INF/changeNotes.html") } )
 }

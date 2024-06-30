@@ -39,7 +39,8 @@ public class TopicListImporter
                         Integer.parseInt(lineString),
                         topicLineElement.getChild("note").getText(),
                         inProject.equals("true"),
-                        topicLineElement.getChild("relativePath").getText()
+                        topicLineElement.getChild("relativePath").getText(),
+                        topicLineElement.getChild("bookmarkUid").getText()
                     );
                     topicLines.add(topicLine);
                 }

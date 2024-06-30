@@ -1,15 +1,13 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.ide.DataManager;
-import com.intellij.ide.bookmarks.Bookmark;
-import com.intellij.ide.bookmarks.BookmarkManager;
+import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.event.DocumentListener;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
@@ -27,29 +25,25 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.ui.EditableModel;
 import com.intellij.util.ui.UIUtil;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.Collection;
-import java.util.Iterator;
-import javax.swing.DefaultListModel;
-import javax.swing.JList;
-import javax.swing.JPanel;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListSelectionModel;
-import javax.swing.SwingUtilities;
 import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicNotifier;
+import jp.kitabatakep.intellij.plugins.codereadingnote.actions.FixLineRemarkAction;
+import jp.kitabatakep.intellij.plugins.codereadingnote.actions.ShowBookmarkUidAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
-import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.Iterator;
+import java.util.UUID;
 
 class TopicDetailPanel extends JPanel {
 
@@ -98,24 +92,19 @@ class TopicDetailPanel extends JPanel {
 			public void lineRemoved(Topic _topic, TopicLine _topicLine) {
 				if (_topic == topic) {
 					topicLineListModel.removeElement(_topicLine);
-					BookmarkManager.getInstance(project).getFileBookmarks(_topicLine.file()).stream().forEach(r -> {
-              if (r.hashCode() == _topicLine.bookmarkHash() || r.getDescription().equals(StringUtils.spNote(_topicLine.note()))) {
-	              BookmarkManager instance = BookmarkManager.getInstance(project);
-	              instance
-		                  .removeBookmark(r);
-
-              }
-					});
+					BookmarkUtils.removeMachBookmark(_topicLine,project);
+					EditorUtils.removeLineCodeRemark(project,_topicLine);
 				}
 			}
 
 			@Override
 			public void lineAdded(Topic _topic, TopicLine _topicLine) {
 				if (_topic == topic) {
-					Bookmark bookmark = addBookmark(_topicLine.file(), _topicLine.line(), _topicLine.note());
-            if (bookmark != null) {
-                _topicLine.setBookmarkHash(bookmark.hashCode());
-            }
+					String uid = UUID.randomUUID().toString();
+					Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
+					if (bookmark != null) {
+						_topicLine.setBookmarkUid(uid);
+					}
 					topicLineListModel.addElement(_topicLine);
 					EditorUtils.addLineCodeRemark(project, _topicLine);
 				}
@@ -123,24 +112,9 @@ class TopicDetailPanel extends JPanel {
 		});
 	}
 
-	public Bookmark addBookmark(@NotNull VirtualFile file, int line, String note) {
-		BookmarkManager bookmarkManager = BookmarkManager.getInstance(project);
-		Document document = FileDocumentManager.getInstance().getDocument(file);
 
-		if (document != null && line < document.getLineCount()) {
-//            int offset = document.getLineStartOffset(line);
-//            OpenFileDescriptor descriptor = new OpenFileDescriptor(project, file, line);
-			Bookmark bookmark = bookmarkManager.addTextBookmark(file, line,
-					note.substring(0, Math.min(note.length(), 20)));
-			Collection<Bookmark> fileBookmarks = bookmarkManager.getFileBookmarks(file);
 
-			return bookmark;
-			// 执行自定义逻辑
-//            executeCustomLogic(bookmark, descriptor);
-		}
-		return null;
 
-	}
 
 	@Override
 	public void removeNotify() {
@@ -191,6 +165,8 @@ class TopicDetailPanel extends JPanel {
 				if (SwingUtilities.isRightMouseButton(e)) {
 					DefaultActionGroup actions = new DefaultActionGroup();
 					actions.add(new TopicLineRemoveAction(project, (v) -> new Pair<>(topic, topicLine)));
+					actions.add(new ShowBookmarkUidAction(project, (v) -> new Pair<>(topic, topicLine)));
+					actions.add(new FixLineRemarkAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new TopicLineMoveToGroupAction(topicLine));
 					JBPopupFactory.getInstance().createActionGroupPopup(
 							null,

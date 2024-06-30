@@ -31,6 +31,7 @@ public class TopicListExporter
                 topicLineElement.addContent(new Element("inProject").addContent(String.valueOf(topicLine.inProject())));
                 topicLineElement.addContent(new Element("url").addContent(topicLine.url()));
                 topicLineElement.addContent(new Element("note").addContent(topicLine.note()));
+                topicLineElement.addContent(new Element("bookmarkUid").addContent(topicLine.getBookmarkUid()));
                 topicLineElement.addContent(
                     new Element("relativePath").addContent(topicLine.inProject() ? topicLine.relativePath() : "")
                 );

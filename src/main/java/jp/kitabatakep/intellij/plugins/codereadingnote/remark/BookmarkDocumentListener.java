@@ -54,12 +54,9 @@ public class BookmarkDocumentListener implements DocumentListener {
 			CodeRemarkRepositoryFactory.getInstance(project).listSource(project, virtualFile).forEach(
 					r -> {
 						for (Inlay<? extends CodeRemarkEditorInlineInlayRenderer> inlay : inlays) {
-							if (r.note().substring(0, Math.min(r.note().length(), 20)).equals(inlay.getRenderer().getText())) {
+							if (StringUtils.spNote(r.note()).equals(inlay.getRenderer().getText())) {
 								int offset = inlay.getOffset();
-
 								int line = document.getLineNumber(offset);
-//								RangeMarker rangeMarker = r.openFileDescriptor().getRangeMarker();
-//								int lineNumber = document.getLineNumber(rangeMarker.getStartOffset());
 								r.modifyLine(line);
 							}
 						}

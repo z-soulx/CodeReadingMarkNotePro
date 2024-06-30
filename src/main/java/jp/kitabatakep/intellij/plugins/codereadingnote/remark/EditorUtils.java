@@ -36,6 +36,8 @@ import com.intellij.openapi.vfs.VirtualFile;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import org.jetbrains.annotations.NotNull;
 
+import static com.intellij.diff.util.DiffUtil.getLineCount;
+
 public class EditorUtils {
 
     public static VirtualFile getVirtualFile(@NotNull final Editor editor) {
@@ -43,10 +45,18 @@ public class EditorUtils {
             return ((EditorEx) editor).getVirtualFile();
         return null;
     }
-public static void addLineCodeRemark(Project project,   TopicLine _topicLine) {
-    FileEditorManager instance = FileEditorManager.getInstance(project);
-    Editor editor = getEditor(instance, _topicLine.file());
-    EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), StringUtils.spNote(_topicLine.note()));
+
+    public static void addLineCodeRemark(Project project, TopicLine _topicLine) {
+        FileEditorManager instance = FileEditorManager.getInstance(project);
+        Editor editor = getEditor(instance, _topicLine.file());
+        EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), StringUtils.spNote(_topicLine.note()));
+    }
+
+    public static void removeLineCodeRemark(Project project, TopicLine _topicLine) {
+        FileEditorManager instance = FileEditorManager.getInstance(project);
+        Editor editor = getEditor(instance, _topicLine.file());
+        if(editor != null)
+        EditorUtils.clearAfterLineEndCodeRemark(editor, _topicLine.line());
 }
     public static Editor getEditor(@NotNull final FileEditorManager source, @NotNull final VirtualFile file) {
         final FileEditor fileEditor = source.getSelectedEditor(file);
@@ -68,7 +78,7 @@ public static void addLineCodeRemark(Project project,   TopicLine _topicLine) {
         try {
             // if exists, clear it.
             clearAfterLineEndElement(editor, lineNumber, renderer.getClass());
-
+            if (lineNumber > editor.getDocument().getLineCount()) return;
             final int endOffset = editor.getDocument().getLineEndOffset(lineNumber);
             editor.getInlayModel().addAfterLineEndElement(endOffset, true, renderer);
         } catch (final Throwable e) {
