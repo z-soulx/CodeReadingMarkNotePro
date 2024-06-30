@@ -20,7 +20,9 @@ public class TopicLine implements Navigatable
     private boolean inProject;
     private String relativePath;
     private String url;
+    @Deprecated
     private int bookmarkHash;
+    private String bookmarkUid;
 
     public static TopicLine createByAction(Project project, Topic topic, VirtualFile file, int line, String note)
     {
@@ -31,7 +33,7 @@ public class TopicLine implements Navigatable
             VfsUtilCore.getRelativePath(file, projectBase), file.getUrl());
     }
 
-    public static TopicLine createByImport(Project project, Topic topic, String url, int line, String note, boolean inProject, String relativePath)
+    public static TopicLine createByImport(Project project, Topic topic, String url, int line, String note, boolean inProject, String relativePath, String bookmarkUid)
     {
         VirtualFile file;
         String projectBase = project.getBasePath();
@@ -40,7 +42,7 @@ public class TopicLine implements Navigatable
         } else {
             file = VirtualFileManager.getInstance().findFileByUrl(url);
         }
-        return new TopicLine(project, topic, file, line, note, inProject, relativePath, url);
+        return new TopicLine(project, topic, file, line, note, inProject, relativePath, url,bookmarkUid);
     }
 
     private TopicLine(Project project, Topic topic, VirtualFile file, int line, String note, boolean inProject, String relativePath, String url)
@@ -54,6 +56,18 @@ public class TopicLine implements Navigatable
         this.relativePath = relativePath;
         this.url = url;
     }
+    private TopicLine(Project project, Topic topic, VirtualFile file, int line, String note, boolean inProject, String relativePath, String url,String bookmarkUid)
+    {
+        this.project = project;
+        this.topic = topic;
+        this.line = line;
+        this.note = note;
+        this.file = file;
+        this.inProject = inProject;
+        this.relativePath = relativePath;
+        this.url = url;
+        this.bookmarkUid = bookmarkUid;
+    }
 
     public VirtualFile file()
     {
@@ -63,6 +77,15 @@ public class TopicLine implements Navigatable
     public int line() { return line; }
     public int bookmarkHash() { return bookmarkHash; }
     public void setBookmarkHash(int hash) {  bookmarkHash = hash;}
+
+    public String getBookmarkUid() {
+        return bookmarkUid;
+    }
+
+    public void setBookmarkUid(String bookmarkUid) {
+        this.bookmarkUid = bookmarkUid;
+    }
+
     public void modifyLine(int newLine) {  line = newLine; }
 
     public String relativePath() { return relativePath; }

@@ -86,6 +86,10 @@ public class ManagementPanel extends JPanel
         actions.add(new TopicRemoveAction(project, (v) -> {
             return topicList.getSelectedValue();
         }));
+        actions.add(new FixRemarkAction(project));
+        actions.add(new FixTopicRemarkAction(project,(v) -> {
+            return topicList.getSelectedValue();
+        }));
         actions.addSeparator();
         actions.add(new ExportAction());
         actions.add(new ImportAction());

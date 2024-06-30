@@ -56,4 +56,16 @@ public class StringUtils {
             return val.substring(0, maxLength - 1) + "...";
         return val;
     }
+    public static String extractUUID(String input) {
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+
+        int dollarIndex = input.indexOf('$');
+        if (dollarIndex != -1 && dollarIndex + 1 < input.length()) {
+            return input.substring(dollarIndex + 1);
+        }
+
+        return null;
+    }
 }

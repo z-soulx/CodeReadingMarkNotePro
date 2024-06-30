@@ -24,6 +24,9 @@
 
 package jp.kitabatakep.intellij.plugins.codereadingnote.remark;
 
+import com.intellij.ide.bookmark.Bookmark;
+import com.intellij.ide.bookmark.BookmarkGroup;
+import com.intellij.ide.bookmark.BookmarksManager;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -31,7 +34,10 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.fileEditor.TextEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
 
 public class CodeRemarkEditorManagerListener implements FileEditorManagerListener {
 
@@ -42,17 +48,17 @@ public class CodeRemarkEditorManagerListener implements FileEditorManagerListene
 
         final Editor editor = getEditor(source, file);
         if (null == editor) return; // Skipped.
-
-        CodeRemarkRepositoryFactory.getInstance(project).list(project, file).forEach(codeRemark -> {
+        List<CodeRemark> machRemarklist = CodeRemarkRepositoryFactory.getInstance(project).list(project, file);
+//        fixOffset(machRemarklist,project);
+        machRemarklist
+        .forEach(codeRemark -> {
             EditorUtils.addAfterLineCodeRemark(editor, codeRemark.getLineNumber(), codeRemark.getText());
-//            BookmarkManager.getInstance(project).getFileBookmarks(file).stream().forEach(r -> {
-//                if (codeRemark.getBookmarkHash() == r.hashCode()) {
-//                    System.out.println(codeRemark.getLineNumber()+"--"+r.getLine()+"::"+r.getMnemonic()+"::"+r.getDescription());
-//                    System.out.println(r.hashCode());
-//                }
-//
-//            });
         });
+    }
+
+    private void fixOffset(List<CodeRemark> machRemarklist, Project project) {
+        //wait dev
+       BookmarkUtils.getAllBookmark(project);
     }
 
     private Editor getEditor(@NotNull final FileEditorManager source, @NotNull final VirtualFile file) {

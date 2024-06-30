@@ -1,7 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote;
 
 import com.intellij.openapi.components.PersistentStateComponent;
-import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
@@ -20,6 +19,10 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemark;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
+import org.jdom.Element;
+import org.jetbrains.annotations.NotNull;
 
 @State(
     name = AppConstants.appName,
