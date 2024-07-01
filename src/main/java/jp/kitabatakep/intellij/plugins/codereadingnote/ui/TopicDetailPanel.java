@@ -1,7 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.ide.DataManager;
-import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
@@ -33,8 +32,6 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.actions.FixLineRemarkActi
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.ShowBookmarkUidAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -43,7 +40,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Iterator;
-import java.util.UUID;
 
 class TopicDetailPanel extends JPanel {
 
@@ -87,26 +83,19 @@ class TopicDetailPanel extends JPanel {
 		add(contentPane);
 
 		MessageBus messageBus = project.getMessageBus();
-		messageBus.connect().subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
+		//此处监听的目的，只是删除管理ui的模型，所以_topic == topic 判断，并不适合删除和插入的监听
+		messageBus.connect().subscribe(TopicNotifier.TOPIC_UI_OP_NOTIFIER_TOPIC, new TopicNotifier() {
 			@Override
 			public void lineRemoved(Topic _topic, TopicLine _topicLine) {
 				if (_topic == topic) {
 					topicLineListModel.removeElement(_topicLine);
-					BookmarkUtils.removeMachBookmark(_topicLine,project);
-					EditorUtils.removeLineCodeRemark(project,_topicLine);
 				}
 			}
 
 			@Override
 			public void lineAdded(Topic _topic, TopicLine _topicLine) {
 				if (_topic == topic) {
-					String uid = UUID.randomUUID().toString();
-					Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
-					if (bookmark != null) {
-						_topicLine.setBookmarkUid(uid);
-					}
 					topicLineListModel.addElement(_topicLine);
-					EditorUtils.addLineCodeRemark(project, _topicLine);
 				}
 			}
 		});

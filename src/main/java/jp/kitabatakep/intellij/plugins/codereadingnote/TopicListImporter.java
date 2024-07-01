@@ -32,6 +32,7 @@ public class TopicListImporter
                 for (Element topicLineElement : topicLinesElement.getChildren("topicLine")) {
                     String lineString = topicLineElement.getChild("line").getText();
                     String inProject = topicLineElement.getChild("inProject").getText();
+                    Element bookmarkUid = topicLineElement.getChild("bookmarkUid");
                     TopicLine topicLine = TopicLine.createByImport(
                         project,
                         topic,
@@ -40,7 +41,7 @@ public class TopicListImporter
                         topicLineElement.getChild("note").getText(),
                         inProject.equals("true"),
                         topicLineElement.getChild("relativePath").getText(),
-                        topicLineElement.getChild("bookmarkUid").getText()
+                        bookmarkUid != null ? bookmarkUid.getText() : null
                     );
                     topicLines.add(topicLine);
                 }
@@ -48,6 +49,7 @@ public class TopicListImporter
                 topics.add(topic);
             }
         } catch (NullPointerException e) {
+            e.printStackTrace();
             throw new FormatException(e.getMessage());
         }
 

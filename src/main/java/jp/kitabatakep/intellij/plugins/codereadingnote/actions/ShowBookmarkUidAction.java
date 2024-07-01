@@ -10,6 +10,7 @@ import com.intellij.openapi.util.Pair;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
@@ -33,7 +34,7 @@ public class ShowBookmarkUidAction extends AnAction
     public void actionPerformed(@NotNull AnActionEvent e)
     {
         Pair<Topic, TopicLine> payload = fetcher.apply(null);
-        if (payload.getSecond() == null) { return; }
-        Messages.showInfoMessage(project,payload.getSecond().getBookmarkUid(),"Show BookmarkUid");
+        if (payload.getSecond() == null ) { return; }
+        Messages.showInfoMessage(project,StringUtils.emptyDefault(payload.getSecond().getBookmarkUid(),"Not relevant (无关联)"),"Show BookmarkUid");
     }
 }

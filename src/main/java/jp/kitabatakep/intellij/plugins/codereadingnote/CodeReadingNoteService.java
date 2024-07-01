@@ -42,9 +42,8 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     {
         this.project = project;
         topicList = new TopicList(project);
-
+        project.getMessageBus().connect().subscribe(TopicNotifier.TOPIC_OP_EXTENSION_NOTIFIER_TOPIC,new NormalOpTopicNotifierImple(project));
 //        new MyBookmarkListener(project);
-
     }
 
     public static CodeReadingNoteService getInstance(@NotNull Project project)

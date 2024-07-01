@@ -124,6 +124,7 @@ public class ManagementPanel extends JPanel
         topicList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         topicList.setCellRenderer(new TopicListCellRenderer<Topic>());
+        // 监听ui的选择，并初始化面板的内容展示
         topicList.addListSelectionListener(e -> {
             Topic topic = topicList.getSelectedValue();
             if (topic == null) {
