@@ -53,7 +53,8 @@ public class BookmarkUtils {
         }
     }
     public static Bookmark machBookmark(TopicLine _topicLine, BookmarkGroup group) {
-        for (com.intellij.ide.bookmark.Bookmark bookmark : group.getBookmarks()) {
+       if (group == null) return null;
+        for (Bookmark bookmark : group.getBookmarks()) {
             String description = group.getDescription(bookmark);
             if (StringUtils.extractUUID(description).equals(_topicLine.getBookmarkUid())) {
                 return bookmark;

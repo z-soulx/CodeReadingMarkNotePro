@@ -5,6 +5,7 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import java.util.Optional;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemark;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.MyBookmarkListener;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
@@ -90,11 +91,12 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     public List<CodeRemark> list(Project project, @NotNull VirtualFile file) {
         Stream<CodeRemark> sorted = topicList.getTopics().stream().flatMap(topic -> topic.getLines().stream()).map(topicLine -> {
             CodeRemark codeRemark = new CodeRemark();
-            codeRemark.setFileName(topicLine.file().getName());
-            codeRemark.setFileUrl(topicLine.file().getCanonicalPath());
+            Optional<VirtualFile> fileOptional = Optional.ofNullable(topicLine.file());
+            codeRemark.setFileName(fileOptional.map(r -> r.getName()).orElse("not found"));
+            codeRemark.setFileUrl(fileOptional.map(r -> r.getCanonicalPath()).orElse("not found"));
             codeRemark.setLineNumber(topicLine.line());
             codeRemark.setProjectName(project.getName());
-            codeRemark.setContentHash(CodeRemark.createContentHash(project, topicLine.file()));
+            codeRemark.setContentHash(fileOptional.isPresent() ? CodeRemark.createContentHash(project, fileOptional.get()) : "not found");
             codeRemark.setText(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
             codeRemark.setBookmarkHash(topicLine.bookmarkHash());
             return  codeRemark;
