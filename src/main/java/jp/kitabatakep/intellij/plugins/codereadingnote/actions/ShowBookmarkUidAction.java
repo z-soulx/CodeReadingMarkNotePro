@@ -14,7 +14,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
-public class ShowBookmarkUidAction extends AnAction
+public class ShowBookmarkUidAction extends CommonAnAction
 {
     Project project;
     Function<Void, Pair<Topic, TopicLine>> fetcher;

@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
-public class TopicRemoveAction extends AnAction
+public class TopicRemoveAction extends CommonAnAction
 {
     Function<Void, Topic> topicFetcher;
     Project project;

@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class FixTopicRemarkAction extends AnAction
+public class FixTopicRemarkAction extends CommonAnAction
 {
     private Project project;
     private Function<Void, Topic> topicFetcher;

@@ -11,11 +11,10 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vcs.BranchChangeListener;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.event.DocumentListener;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileAdapter;
-import com.intellij.openapi.vfs.VirtualFileEvent;
-import com.intellij.openapi.vfs.VirtualFileManager;
+import com.intellij.openapi.vfs.*;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.vfs.newvfs.BulkFileListener;
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.messages.MessageBusConnection;
 import org.jdom.Element;
@@ -23,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 //@State(
@@ -78,6 +78,22 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     }
 
     private void addFileSystemListener() {
+//        MessageBusConnection connection = project.getMessageBus().connect();
+//        connection.subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
+//            @Override
+//            public void after(@NotNull List<? extends VFileEvent> events) {
+//                for (VFileEvent event : events) {
+//                    if (event.isFromSave()) {
+//                        // 确认事件类型为 "内容更改" 并且不是新建或删除事件
+//                        if (event.getFile() != null) {
+//                            VirtualFile file = event.getFile();
+//                            // 调用原有的 updateRangeMarker 方法
+//                            updateRangeMarker(file);
+//                        }
+//                    }
+//                }
+//            }
+//        });
         VirtualFileManager.getInstance().addVirtualFileListener(new VirtualFileAdapter() {
             @Override
             public void contentsChanged(@NotNull VirtualFileEvent event) {

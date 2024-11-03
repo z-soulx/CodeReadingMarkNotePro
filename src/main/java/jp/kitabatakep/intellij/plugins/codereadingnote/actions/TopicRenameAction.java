@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
-public class TopicRenameAction extends AnAction
+public class TopicRenameAction extends CommonAnAction
 {
     Function<Void, Topic> topicFetcher;
 

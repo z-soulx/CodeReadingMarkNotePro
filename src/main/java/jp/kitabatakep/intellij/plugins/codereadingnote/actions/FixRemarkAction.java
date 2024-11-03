@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class FixRemarkAction extends AnAction
+public class FixRemarkAction extends CommonAnAction
 {
     private Project project;
     public FixRemarkAction(Project project) {

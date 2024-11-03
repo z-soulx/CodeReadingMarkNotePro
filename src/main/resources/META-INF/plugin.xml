@@ -2,8 +2,8 @@
     <id>soulx.CodeReadingMarkNotePro</id>
     <name>Code Reading mark Note pro</name>
     <vendor email="170918810@qq.com">soulx</vendor>
-    <version>2021.3.1</version>
-    <idea-version since-build="213" until-build="213.*"/>
+    <version>2024.1</version>
+    <idea-version since-build="241" until-build="241.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->
     <depends>com.intellij.modules.platform</depends>

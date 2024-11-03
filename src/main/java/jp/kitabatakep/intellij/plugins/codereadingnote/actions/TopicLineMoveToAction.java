@@ -6,7 +6,7 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import org.jetbrains.annotations.NotNull;
 
-public class TopicLineMoveToAction extends AnAction
+public class TopicLineMoveToAction extends CommonAnAction
 {
     private final Topic moveTo;
     private final TopicLine topicLine;

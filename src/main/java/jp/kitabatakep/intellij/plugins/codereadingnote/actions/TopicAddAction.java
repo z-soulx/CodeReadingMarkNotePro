@@ -8,7 +8,7 @@ import com.intellij.openapi.ui.Messages;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import org.jetbrains.annotations.NotNull;
 
-public class TopicAddAction extends AnAction
+public class TopicAddAction extends CommonAnAction
 {
     public TopicAddAction() {
         super("New Topic", "NewTopic", AllIcons.General.Add);

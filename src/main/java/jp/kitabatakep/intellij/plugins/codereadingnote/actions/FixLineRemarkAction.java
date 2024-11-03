@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class FixLineRemarkAction extends AnAction
+public class FixLineRemarkAction extends CommonAnAction
 {
     Project project;
     Function<Void, Pair<Topic, TopicLine>> fetcher;

@@ -2,6 +2,7 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.SimpleColoredComponent;

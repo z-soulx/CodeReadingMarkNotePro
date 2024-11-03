@@ -1,6 +1,8 @@
 [English](./README_en.md)
 
 基于开源项目[ CodeReadingNote](https://github.com/kitabatake/CodeReadingNote)： 直接兼容
+- todo
+  - 功能topic分层 
 
 借鉴：@xoyojank 修复了它的每次打开CodeReadingNote报错问题
 

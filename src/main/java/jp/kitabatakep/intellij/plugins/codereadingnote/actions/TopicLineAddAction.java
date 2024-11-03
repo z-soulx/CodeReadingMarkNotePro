@@ -23,7 +23,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-public class TopicLineAddAction extends AnAction
+public class TopicLineAddAction extends CommonAnAction
 {
     @Override
     public void update(AnActionEvent event) {

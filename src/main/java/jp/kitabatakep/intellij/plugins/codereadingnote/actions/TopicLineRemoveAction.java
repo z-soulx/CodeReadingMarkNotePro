@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
-public class TopicLineRemoveAction extends AnAction
+public class TopicLineRemoveAction extends CommonAnAction
 {
     Function<Void, Pair<Topic, TopicLine>> fetcher;
 
