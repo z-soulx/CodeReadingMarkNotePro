@@ -93,7 +93,9 @@ class TopicDetailPanel extends JPanel {
 				if (_topic == topic) {
 					topicLineListModel.removeElement(_topicLine);
 					BookmarkUtils.removeMachBookmark(_topicLine,project);
-					EditorUtils.removeLineCodeRemark(project,_topicLine);
+					// Mobile monitoring that does not rely on Panel
+					//移动不依赖Panel的监听
+//					EditorUtils.removeLineCodeRemark(project,_topicLine);
 				}
 			}
 
@@ -106,7 +108,9 @@ class TopicDetailPanel extends JPanel {
 						_topicLine.setBookmarkUid(uid);
 					}
 					topicLineListModel.addElement(_topicLine);
-					EditorUtils.addLineCodeRemark(project, _topicLine);
+					// Mobile monitoring that does not rely on Panel
+					//移动不依赖Panel的监听
+//					EditorUtils.addLineCodeRemark(project, _topicLine);
 				}
 			}
 		});
@@ -251,12 +255,24 @@ class TopicDetailPanel extends JPanel {
 //            if (fileOrDir != null) {
 //                setIcon(fileOrDir.getIcon(0));
 //            }
+//			ApplicationManager.getApplication().runReadAction(() -> {
+//				PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+//				if (fileOrDir != null) {
+//					setIcon(fileOrDir.getIcon(0));
+//				}
+//			});
 			ApplicationManager.getApplication().runReadAction(() -> {
+				// 在read-action中执行读取PSI树的操作
 				PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+				Icon icon = fileOrDir.getIcon(0);
 				if (fileOrDir != null) {
-					setIcon(fileOrDir.getIcon(0));
+					// 确保 setIcon 操作在 EDT 上执行
+					SwingUtilities.invokeLater(() -> {
+						setIcon(icon);
+					});
 				}
 			});
+
 
 			if (topicLine.isValid()) {
 //                append(file.getName() + ":" + (topicLine.line()+1));

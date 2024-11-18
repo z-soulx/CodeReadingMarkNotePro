@@ -1,5 +1,7 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote;
 
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
@@ -8,7 +10,11 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.pom.Navigatable;
 
+import javax.swing.*;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class TopicLine implements Navigatable
 {

@@ -3,7 +3,7 @@
     <name>Code Reading mark Note pro</name>
     <vendor email="170918810@qq.com">soulx</vendor>
     <version>2024.1</version>
-    <idea-version since-build="241" until-build="241.*"/>
+    <idea-version since-build="243" until-build="*.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->
     <depends>com.intellij.modules.platform</depends>

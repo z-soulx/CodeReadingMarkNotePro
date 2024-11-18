@@ -1,21 +1,20 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote;
 
+import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemark;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.MyBookmarkListener;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.util.messages.MessageBus;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.*;
 import org.jetbrains.annotations.NotNull;
 
 import org.jdom.Element;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,9 +41,34 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     {
         this.project = project;
         topicList = new TopicList(project);
-
+        starConfit(project);
 //        new MyBookmarkListener(project);
+        addMyListener(project);
 
+    }
+
+    private void starConfit(Project project) {
+
+    }
+
+    private void addMyListener(Project project) {
+        MessageBus messageBus = project.getMessageBus();
+        messageBus.connect().subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
+            @Override
+            public void lineRemoved(Topic _topic, TopicLine _topicLine) {
+                    EditorUtils.removeLineCodeRemark(project,_topicLine);
+            }
+
+            @Override
+            public void lineAdded(Topic _topic, TopicLine _topicLine) {
+                    String uid = UUID.randomUUID().toString();
+                    Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
+                    if (bookmark != null) {
+                        _topicLine.setBookmarkUid(uid);
+                    }
+                    EditorUtils.addLineCodeRemark(project, _topicLine);
+            }
+        });
     }
 
     public static CodeReadingNoteService getInstance(@NotNull Project project)

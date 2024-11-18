@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'jp.kitabatakep'
-version '2024.1.0'
+version '2024.3.0'
 
 sourceCompatibility = 17
 
@@ -19,7 +19,7 @@ dependencies {
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
-    version .set('2024.1')
+    version.set('2024.3')
 }
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
