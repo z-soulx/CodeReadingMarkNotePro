@@ -27,9 +27,7 @@ public class BookmarkUtils {
         if (document != null && line < document.getLineCount()) {
             com.intellij.ide.bookmarks.Bookmark bookmark = createBookmark(project,file, line,
                     note.substring(0, Math.min(note.length(), 10)).concat("$").concat(uid));
-//            BookmarkManager bookmarkManager = BookmarkManager.getInstance(project);
-//            com.intellij.ide.bookmarks.Bookmark bookmark = bookmarkManager.addTextBookmark(file, line,
-//                    note.substring(0, Math.min(note.length(), 10)).concat("$").concat(uid));
+//            Old BookmarkManager API was deprecated, now using BookmarksManager
 //			Bookmark bookmark = new Bookmark(file.getPath(),line,note.substring(0, Math.min(note.length(), 20)));
             BookmarksManager instance = BookmarksManager.getInstance(project);
             com.intellij.ide.bookmark.Bookmark bookmark1 = instance.createBookmark(bookmark);

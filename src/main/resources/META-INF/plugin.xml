@@ -3,6 +3,7 @@
     <name>Code Reading mark Note pro</name>
     <vendor email="170918810@qq.com">soulx</vendor>
     <version>2024.1</version>
+    <!-- 版本兼容性：最低支持2024.3，兼容所有2025版本 -->
     <idea-version since-build="243" until-build="*.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->

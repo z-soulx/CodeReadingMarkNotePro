@@ -150,8 +150,7 @@ public class ManagementPanel extends JPanel
                             new TopicRemoveAction(project, (v) -> {
                                 return topic;
                             }),
-                            AnActionEvent.createFromDataContext(ActionPlaces.UNKNOWN, null, dataId -> null)
-//                        ActionUtil.createEmptyEvent()
+                            ActionUtil.createEmptyEvent()
                     );
                 }
             }

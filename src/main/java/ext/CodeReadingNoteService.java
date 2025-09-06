@@ -78,27 +78,20 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     }
 
     private void addFileSystemListener() {
-//        MessageBusConnection connection = project.getMessageBus().connect();
-//        connection.subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
-//            @Override
-//            public void after(@NotNull List<? extends VFileEvent> events) {
-//                for (VFileEvent event : events) {
-//                    if (event.isFromSave()) {
-//                        // 确认事件类型为 "内容更改" 并且不是新建或删除事件
-//                        if (event.getFile() != null) {
-//                            VirtualFile file = event.getFile();
-//                            // 调用原有的 updateRangeMarker 方法
-//                            updateRangeMarker(file);
-//                        }
-//                    }
-//                }
-//            }
-//        });
-        VirtualFileManager.getInstance().addVirtualFileListener(new VirtualFileAdapter() {
+        MessageBusConnection connection = project.getMessageBus().connect();
+        connection.subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
             @Override
-            public void contentsChanged(@NotNull VirtualFileEvent event) {
-                VirtualFile file = event.getFile();
-                updateRangeMarker(file);
+            public void after(@NotNull List<? extends VFileEvent> events) {
+                for (VFileEvent event : events) {
+                    if (event.isFromSave()) {
+                        // 确认事件类型为 "内容更改" 并且不是新建或删除事件
+                        if (event.getFile() != null) {
+                            VirtualFile file = event.getFile();
+                            // 调用原有的 updateRangeMarker 方法
+                            updateRangeMarker(file);
+                        }
+                    }
+                }
             }
         });
     }
