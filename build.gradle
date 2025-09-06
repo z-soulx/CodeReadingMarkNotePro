@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'jp.kitabatakep'
-version '2024.3.0'  // 插件版本号 - 发布新版本时更新此行
+version '2.0.0'  // 插件版本号 - 发布新版本时更新此行
 
 sourceCompatibility = 17
 
@@ -20,6 +20,8 @@ dependencies {
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
     version.set('2024.3')  // 编译时依赖的IntelliJ版本 - 使用最低支持版本确保向后兼容
+    type.set('IC')         // 使用Community版本进行编译，确保更好的兼容性
+    plugins.set([])        // 明确声明不依赖其他插件
 }
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
@@ -40,9 +42,9 @@ patchPluginXml {
         stripTag(stripTag(file(path).text, "html"), "body")
     }
 
-    // 设置版本兼容范围 - 向前兼容（最低2024.3，兼容2025版本）
+    // 设置版本兼容范围 - 向前兼容（最低2024.3，兼容到2025.3）
     sinceBuild.set('243')    // 最低支持版本：2024.3 (构建号243)
-    untilBuild.set('')       // 最高支持版本：无限制，支持2025.1/2025.2等所有未来版本
+    untilBuild.set('253.*')  // 最高支持版本：2025.3.x (需要时可手动更新到更高版本)
     
     pluginDescription.set(provider{ bodyInnerHTML("src/main/resources/META-INF/description.html") })
     changeNotes.set(provider{ bodyInnerHTML("src/main/resources/META-INF/changeNotes.html") } )
@@ -50,8 +52,10 @@ patchPluginXml {
 
 // 插件验证配置 - 验证向前兼容性
 runPluginVerifier {
-    // 测试版本：当前支持的最低版本 + 最新开发版本（包含2025.x）
-    ideVersions.set(['2024.3', 'LATEST-EAP-SNAPSHOT'])
+    // 测试版本：覆盖支持的版本范围
+    ideVersions.set(['2024.3', '2025.1', '2025.2'])
     // 设置失败级别，只关注严重的兼容性问题
-    failureLevel.set([RunPluginVerifierTask.FailureLevel.COMPATIBILITY_PROBLEMS])
+    failureLevel.set(['COMPATIBILITY_PROBLEMS'])
+    // 下载目录配置
+    downloadDir.set(file("${project.buildDir}/pluginVerifier/ides"))
 }
