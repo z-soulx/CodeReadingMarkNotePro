@@ -1,6 +1,7 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.actions;
 
 import com.google.common.collect.Lists;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.*;
@@ -22,6 +23,7 @@ import com.intellij.util.ui.JBDimension;
 import com.intellij.util.ui.UIUtil;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
+import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicList;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.MyEditorTextField;
@@ -240,63 +242,165 @@ public class TopicLineAddAction extends CommonAnAction {
             topics.add(topic);
         }
 
-        // Create the JDialog
-        JDialog dialog = new JDialog((Frame) null, "Select Topic With Note", true);
+        // Create the JDialog with enhanced layout for group selection
+        JDialog dialog = new JDialog((Frame) null, "Add to Topic (with Group)", true);
         dialog.setLayout(new BorderLayout());
 
-        // Create a JList for topics
+        // Create main panel with three columns: Topic, Group, Note
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        
+        // Left panel: Topic selection
+        JPanel topicPanel = new JPanel(new BorderLayout());
+        topicPanel.setBorder(BorderFactory.createTitledBorder("Select Topic"));
+        
         JBList<Topic> topicJList = new JBList<>(topics.toArray(new Topic[0]));
         topicJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        // 设置自定义渲染器
         topicJList.setCellRenderer(new MyCellRenderer<>());
-
-        JScrollPane listScrollPane = new JScrollPane(topicJList);
-
-
-        // Create the note input field (MyEditorTextField)
+        JScrollPane topicScrollPane = new JScrollPane(topicJList);
+        topicScrollPane.setPreferredSize(new JBDimension(200, 200));
+        topicPanel.add(topicScrollPane, BorderLayout.CENTER);
+        
+        // Middle panel: Group selection
+        JPanel groupPanel = new JPanel(new BorderLayout());
+        groupPanel.setBorder(BorderFactory.createTitledBorder("Select Group (Optional)"));
+        
+        DefaultListModel<Object> groupListModel = new DefaultListModel<>();
+        JBList<Object> groupJList = new JBList<>(groupListModel);
+        groupJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        groupJList.setCellRenderer(new GroupCellRenderer());
+        JScrollPane groupScrollPane = new JScrollPane(groupJList);
+        groupScrollPane.setPreferredSize(new JBDimension(200, 200));
+        groupPanel.add(groupScrollPane, BorderLayout.CENTER);
+        
+        // Right panel: Note input
+        JPanel notePanel = new JPanel(new BorderLayout());
+        notePanel.setBorder(BorderFactory.createTitledBorder("Note (Optional)"));
+        
         MyEditorTextField noteInputField = new MyEditorTextField(project, FileTypeManager.getInstance().getStdFileType("Markdown"));
         noteInputField.setOneLineMode(false);
         noteInputField.setPlaceholder("[Optional] note input area");
+        noteInputField.setPreferredSize(new JBDimension(250, 200));
+        notePanel.add(noteInputField, BorderLayout.CENTER);
+        
+        // Button panel
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton addButton = new JButton("Add to Topic");
+        JButton cancelButton = new JButton("Cancel");
+        buttonPanel.add(addButton);
+        buttonPanel.add(cancelButton);
+        
+        // Layout main panel
+        JPanel topGroupPanel = new JPanel(new BorderLayout());
+        topGroupPanel.add(topicPanel, BorderLayout.WEST);
+        topGroupPanel.add(groupPanel, BorderLayout.CENTER);
+        
+        mainPanel.add(topGroupPanel, BorderLayout.WEST);
+        mainPanel.add(notePanel, BorderLayout.CENTER);
+        
+        dialog.add(mainPanel, BorderLayout.CENTER);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
 
-        // Set preferred size for note input field
-        int listWidth = topicJList.getPreferredSize().width;
-        noteInputField.setPreferredSize(new JBDimension(listWidth, 80));
-//        noteInputField.setPreferredSize(new JBDimension(240, 80));
-
-        // Add components to the dialog
-        dialog.add(listScrollPane, BorderLayout.WEST);
-        dialog.add(noteInputField, BorderLayout.EAST);
-
-        // Add a listener for item selection from JList
+        // Topic selection listener - updates group list
         topicJList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 Topic selectedTopic = topicJList.getSelectedValue();
-                if (selectedTopic != null) {
-                    dialog.setVisible(false); // Close the dialog on selection
-                    selectedTopic.addLine(TopicLine.createByAction(project, selectedTopic, file, line, noteInputField.getText()));
-                }
+                updateGroupList(selectedTopic, groupListModel);
             }
         });
-
-        // Set the dialog size and location
-//        dialog.setSize(new Dimension(300, 300));
-//        dialog.pack();
-//        dialog.setLocationRelativeTo(editor.getComponent()); // Show dialog relative to the editor
-//        dialog.setVisible(true);
-
-        ApplicationManager.getApplication().executeOnPooledThread(() -> {
-
-                // Any suspend function or async work can be done here safely
-                // For example:
-                // someAsyncWork()
-                SwingUtilities.invokeLater(() -> {
-                    // Updates UI in EDT thread
-                    dialog.pack();
-                    dialog.setLocationRelativeTo(editor.getComponent());
-                    dialog.setVisible(true);
-                });
+        
+        // Add button listener
+        addButton.addActionListener(e -> {
+            Topic selectedTopic = topicJList.getSelectedValue();
+            if (selectedTopic != null) {
+                Object selectedGroup = groupJList.getSelectedValue();
+                String noteText = noteInputField.getText();
+                
+                TopicLine newLine = TopicLine.createByAction(project, selectedTopic, file, line, noteText);
+                
+                if (selectedGroup instanceof TopicGroup) {
+                    // Add to selected group
+                    selectedTopic.addLineToGroup(newLine, ((TopicGroup) selectedGroup).name());
+                } else if (selectedGroup instanceof String) {
+                    String groupOption = (String) selectedGroup;
+                    if (groupOption.startsWith("+")) {
+                        // Create new group
+                        String newGroupName = JOptionPane.showInputDialog(dialog, 
+                            "Enter new group name:", "Create New Group", 
+                            JOptionPane.QUESTION_MESSAGE);
+                        if (newGroupName != null && !newGroupName.trim().isEmpty()) {
+                            selectedTopic.addLineToGroup(newLine, newGroupName.trim());
+                        } else {
+                            return; // Cancel if no group name provided
+                        }
+                    } else {
+                        // "No Group" option - add directly to topic
+                        selectedTopic.addLine(newLine);
+                    }
+                } else {
+                    // Default: add to topic directly (ungrouped)
+                    selectedTopic.addLine(newLine);
+                }
+                
+                dialog.setVisible(false);
+                dialog.dispose();
+            }
         });
+        
+        // Cancel button listener
+        cancelButton.addActionListener(e -> {
+            dialog.setVisible(false);
+            dialog.dispose();
+        });
+
+        // Show dialog
+        ApplicationManager.getApplication().executeOnPooledThread(() -> {
+            SwingUtilities.invokeLater(() -> {
+                dialog.pack();
+                dialog.setLocationRelativeTo(editor.getComponent());
+                dialog.setVisible(true);
+            });
+        });
+    }
+    
+    private void updateGroupList(Topic topic, DefaultListModel<Object> groupListModel) {
+        groupListModel.clear();
+        
+        if (topic != null) {
+            // Add "No Group" option
+            groupListModel.addElement("No Group (Direct to Topic)");
+            
+            // Add existing groups
+            for (TopicGroup group : topic.getGroups()) {
+                groupListModel.addElement(group);
+            }
+            
+            // Add "Create New Group" option
+            groupListModel.addElement("+ Create New Group");
+        }
+    }
+    
+    private static class GroupCellRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                                                      boolean isSelected, boolean cellHasFocus) {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            
+            if (value instanceof TopicGroup) {
+                TopicGroup group = (TopicGroup) value;
+                setText(group.name() + " (" + group.getLineCount() + " lines)");
+                setIcon(AllIcons.Nodes.Folder);
+            } else if (value instanceof String) {
+                String text = (String) value;
+                setText(text);
+                if (text.startsWith("+")) {
+                    setIcon(AllIcons.General.Add);
+                } else {
+                    setIcon(AllIcons.Actions.Unselectall);
+                }
+            }
+            
+            return this;
+        }
     }
 
 

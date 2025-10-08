@@ -29,6 +29,9 @@ public class TopicLine implements Navigatable
     @Deprecated
     private int bookmarkHash;
     private String bookmarkUid;
+    
+    // 新增：分组引用
+    private TopicGroup group;
 
     public static TopicLine createByAction(Project project, Topic topic, VirtualFile file, int line, String note)
     {
@@ -118,6 +121,23 @@ public class TopicLine implements Navigatable
     }
 
     public Topic topic() { return topic; }
+    
+    // 新增：分组相关方法
+    public TopicGroup getGroup() { 
+        return group; 
+    }
+    
+    public void setGroup(TopicGroup group) { 
+        this.group = group; 
+    }
+    
+    public boolean hasGroup() {
+        return group != null;
+    }
+    
+    public String getGroupName() {
+        return group != null ? group.name() : null;
+    }
 
     public boolean inProject() { return inProject; }
 

@@ -2,77 +2,138 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBSplitter;
-import com.intellij.ui.SimpleColoredComponent;
-import com.intellij.ui.SimpleTextAttributes;
-import com.intellij.ui.components.JBList;
-import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.ui.JBUI;
-import com.intellij.util.ui.UIUtil;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.*;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.text.SimpleDateFormat;
 import java.util.Iterator;
 
 public class ManagementPanel extends JPanel
 {
     private Project project;
-
     private CodeReadingNoteService service;
-    private JBList<Topic> topicList;
-    private DefaultListModel<Topic> topicListModel;
-
-    private Topic selectedTopic;
+    
+    // New tree-based UI components
+    private TopicTreePanel topicTreePanel;
     private TopicDetailPanel topicDetailPanel;
+    
+    // Current selection state
+    private Topic selectedTopic;
+    private TopicGroup selectedGroup;
+    private TopicLine selectedTopicLine;
 
     public ManagementPanel(Project project)
     {
         super(new BorderLayout());
         this.project = project;
         service = CodeReadingNoteService.getInstance(project);
+        
+        initComponents();
+        setupLayout();
+        setupEventHandlers();
+    }
+    
+    private void initComponents() {
+        topicTreePanel = new TopicTreePanel(project);
         topicDetailPanel = new TopicDetailPanel(project);
-        initTopicList();
+        
+        // Set up tree selection listener
+        topicTreePanel.setSelectionListener(new TopicTreePanel.TopicTreeSelectionListener() {
+            @Override
+            public void onTopicSelected(Topic topic) {
+                selectedTopic = topic;
+                selectedGroup = null;
+                selectedTopicLine = null;
+                topicDetailPanel.setTopic(topic);
+            }
 
+            @Override
+            public void onGroupSelected(TopicGroup group) {
+                selectedTopic = group.getParentTopic();
+                selectedGroup = group;
+                selectedTopicLine = null;
+                topicDetailPanel.setGroup(group);
+            }
+
+            @Override
+            public void onUngroupedLinesSelected(Topic topic) {
+                // 新增：处理点击Ungrouped Lines文件夹的情况
+                // 显示该Topic的未分组TopicLine列表
+                selectedTopic = topic;
+                selectedGroup = null;
+                selectedTopicLine = null;
+                topicDetailPanel.setUngroupedLines(topic);
+            }
+
+            @Override
+            public void onTopicLineSelected(TopicLine topicLine) {
+                selectedTopic = topicLine.topic();
+                selectedGroup = null;
+                selectedTopicLine = topicLine;
+                topicDetailPanel.setTopicLine(topicLine);
+            }
+
+            @Override
+            public void onSelectionCleared() {
+                selectedTopic = null;
+                selectedGroup = null;
+                selectedTopicLine = null;
+                topicDetailPanel.clear();
+            }
+        });
+    }
+    
+    private void setupLayout() {
         JBSplitter splitPane = new JBSplitter(0.15f);
         splitPane.setSplitterProportionKey(AppConstants.appName + "ManagementPanel.splitter");
         splitPane.setHonorComponentsMinimumSize(false);
 
-        splitPane.setFirstComponent(new JBScrollPane(topicList));
+        splitPane.setFirstComponent(topicTreePanel);
         splitPane.setSecondComponent(topicDetailPanel);
 
         add(actionToolBar(), BorderLayout.PAGE_START);
         add(splitPane);
-
+    }
+    
+    private void setupEventHandlers() {
         MessageBus messageBus = project.getMessageBus();
         messageBus.connect().subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier()
         {
             @Override
             public void topicAdded(Topic topic)
             {
-                topicListModel.add(0, topic);
+                topicTreePanel.loadTopics();
+                topicTreePanel.selectTopic(topic);
             }
 
             @Override
             public void topicRemoved(Topic topic)
             {
-                topicListModel.removeElement(topic);
+                topicTreePanel.loadTopics();
+                topicDetailPanel.clear();
             }
 
             @Override
             public void topicsLoaded() {
-                clear();
-                Iterator<Topic> iterator = service.getTopicList().iterator();
-                while (iterator.hasNext()) {
-                    topicListModel.addElement(iterator.next());
-                }
+                topicTreePanel.loadTopics();
+            }
+        });
+        
+        // Listen for topic changes to refresh the tree
+        messageBus.connect().subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
+            @Override
+            public void lineAdded(Topic topic, TopicLine line) {
+                topicTreePanel.refreshTopic(topic);
+            }
+
+            @Override
+            public void lineRemoved(Topic topic, TopicLine line) {
+                topicTreePanel.refreshTopic(topic);
             }
         });
     }
@@ -81,20 +142,22 @@ public class ManagementPanel extends JPanel
     {
         DefaultActionGroup actions = new DefaultActionGroup();
         actions.add(new TopicAddAction());
-        actions.add(new TopicRenameAction((v) -> {
-            return topicList.getSelectedValue();
-        }));
-        actions.add(new TopicRemoveAction(project, (v) -> {
-            return topicList.getSelectedValue();
-        }));
+        actions.add(new TopicRenameAction((v) -> getSelectedTopic()));
+        actions.add(new TopicRemoveAction(project, (v) -> getSelectedTopic()));
+        
+        // Subgroup-related actions
+        actions.addSeparator();
+        actions.add(new GroupAddAction(() -> getSelectedTopic()));
+        actions.add(new GroupRenameAction(() -> getSelectedGroup()));
+        actions.add(new GroupRemoveAction(() -> getSelectedGroup()));
+        actions.add(new LineToGroupMoveAction(() -> getSelectedTopicLine()));
+        
+        actions.addSeparator();
         actions.add(new FixRemarkAction(project));
-        actions.add(new FixTopicRemarkAction(project,(v) -> {
-            return topicList.getSelectedValue();
-        }));
+        actions.add(new FixTopicRemarkAction(project,(v) -> getSelectedTopic()));
         actions.addSeparator();
         actions.add(new ExportAction());
         actions.add(new ImportAction());
-
 
         ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar(AppConstants.appName, actions, true);
         actionToolbar.setReservePlaceAutoPopupIcon(false);
@@ -105,83 +168,26 @@ public class ManagementPanel extends JPanel
         toolBar.setOpaque(false);
         return toolBar;
     }
-
+    
+    // Getter methods for actions
+    public Topic getSelectedTopic() {
+        return selectedTopic;
+    }
+    
+    public TopicGroup getSelectedGroup() {
+        return selectedGroup;
+    }
+    
+    public TopicLine getSelectedTopicLine() {
+        return selectedTopicLine;
+    }
+    
+    // Legacy method for backward compatibility
     private void clear()
     {
         selectedTopic = null;
-        topicListModel.clear();
+        selectedGroup = null;
+        selectedTopicLine = null;
         topicDetailPanel.clear();
-    }
-
-    private void initTopicList()
-    {
-        Iterator<Topic> iterator = service.getTopicList().iterator();
-        topicListModel = new DefaultListModel<>();
-        while (iterator.hasNext()) {
-            topicListModel.addElement(iterator.next());
-        }
-
-        topicList = new JBList<>(topicListModel);
-        topicList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        topicList.setCellRenderer(new TopicListCellRenderer<Topic>());
-        topicList.addListSelectionListener(e -> {
-            Topic topic = topicList.getSelectedValue();
-            if (topic == null) {
-                topicDetailPanel.clear();
-            } else if (selectedTopic == null || selectedTopic != topic) {
-                selectedTopic = topic;
-                topicDetailPanel.setTopic(topic);
-            }
-        });
-
-        if (topicListModel.size() > 0) {
-            topicList.setSelectedIndex(0);
-        }
-
-        topicList.addKeyListener(new KeyAdapter()
-        {
-            @Override
-            public void keyPressed(KeyEvent e)
-            {
-                if (e.getKeyCode() == KeyEvent.VK_DELETE || e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-                    Topic topic = topicList.getSelectedValue();
-                    ActionUtil.performActionDumbAwareWithCallbacks(
-                            new TopicRemoveAction(project, (v) -> {
-                                return topic;
-                            }),
-                            ActionUtil.createEmptyEvent()
-                    );
-                }
-            }
-        });
-    }
-
-    private static class TopicListCellRenderer<T> extends SimpleColoredComponent implements ListCellRenderer<T>
-    {
-        private TopicListCellRenderer() {
-            setOpaque(true);
-        }
-
-        public Component getListCellRendererComponent(
-            JList list,
-            Object value,
-            int index,
-            boolean isSelected,
-            boolean cellHasFocus)
-        {
-            clear();
-
-            Topic topic = (Topic) value;
-            append(topic.name());
-            append(
-                " (" + new SimpleDateFormat("yyyy/MM/dd HH:mm").format(topic.updatedAt()) + ")",
-                SimpleTextAttributes.GRAY_ATTRIBUTES
-            );
-
-            setForeground(UIUtil.getListSelectionForeground(isSelected));
-            setBackground(UIUtil.getListSelectionBackground(isSelected));
-            return this;
-        }
     }
 }
