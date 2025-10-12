@@ -18,7 +18,7 @@ public class TopicGroup implements Comparable<TopicGroup> {
     private Date createdAt;
     private Date updatedAt;
     private ArrayList<TopicLine> lines = new ArrayList<>();
-    private boolean expanded = true; // Default to expanded state
+    private boolean expanded = false; // 默认收缩状态，用户可以手动展开需要的分组
     private Topic parentTopic;
     private Project project;
 

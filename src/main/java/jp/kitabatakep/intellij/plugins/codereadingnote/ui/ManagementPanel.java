@@ -145,12 +145,16 @@ public class ManagementPanel extends JPanel
         actions.add(new TopicRenameAction((v) -> getSelectedTopic()));
         actions.add(new TopicRemoveAction(project, (v) -> getSelectedTopic()));
         
-        // Subgroup-related actions
+        // Group-related actions
         actions.addSeparator();
         actions.add(new GroupAddAction(() -> getSelectedTopic()));
         actions.add(new GroupRenameAction(() -> getSelectedGroup()));
         actions.add(new GroupRemoveAction(() -> getSelectedGroup()));
         actions.add(new LineToGroupMoveAction(() -> getSelectedTopicLine()));
+        
+        // Tree operations - 树操作
+        actions.addSeparator();
+        actions.add(new CollapseAllAction(() -> topicTreePanel)); // 一键全收缩按钮
         
         actions.addSeparator();
         actions.add(new FixRemarkAction(project));
@@ -160,6 +164,11 @@ public class ManagementPanel extends JPanel
         actions.add(new ImportAction());
 
         ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar(AppConstants.appName, actions, true);
+        
+        // 修复警告：设置toolbar的target component，确保actions能正确获取上下文
+        // 使用topicTreePanel作为target，因为大部分actions都依赖于tree的选择状态
+        actionToolbar.setTargetComponent(topicTreePanel);
+        
         actionToolbar.setReservePlaceAutoPopupIcon(false);
         actionToolbar.setMinimumButtonSize(new Dimension(20, 20));
 

@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.*;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.event.DocumentListener;
@@ -310,39 +311,50 @@ public class TopicLineAddAction extends CommonAnAction {
         
         // Add button listener
         addButton.addActionListener(e -> {
-            Topic selectedTopic = topicJList.getSelectedValue();
-            if (selectedTopic != null) {
-                Object selectedGroup = groupJList.getSelectedValue();
-                String noteText = noteInputField.getText();
-                
-                TopicLine newLine = TopicLine.createByAction(project, selectedTopic, file, line, noteText);
-                
-                if (selectedGroup instanceof TopicGroup) {
-                    // Add to selected group
-                    selectedTopic.addLineToGroup(newLine, ((TopicGroup) selectedGroup).name());
-                } else if (selectedGroup instanceof String) {
-                    String groupOption = (String) selectedGroup;
-                    if (groupOption.startsWith("+")) {
-                        // Create new group
-                        String newGroupName = JOptionPane.showInputDialog(dialog, 
-                            "Enter new group name:", "Create New Group", 
-                            JOptionPane.QUESTION_MESSAGE);
-                        if (newGroupName != null && !newGroupName.trim().isEmpty()) {
-                            selectedTopic.addLineToGroup(newLine, newGroupName.trim());
+            try {
+                Topic selectedTopic = topicJList.getSelectedValue();
+                if (selectedTopic != null) {
+                    Object selectedGroup = groupJList.getSelectedValue();
+                    String noteText = noteInputField.getText();
+                    
+                    TopicLine newLine = TopicLine.createByAction(project, selectedTopic, file, line, noteText);
+                    
+                    if (selectedGroup instanceof TopicGroup) {
+                        // Add to selected group
+                        selectedTopic.addLineToGroup(newLine, ((TopicGroup) selectedGroup).name());
+                    } else if (selectedGroup instanceof String) {
+                        String groupOption = (String) selectedGroup;
+                        if (groupOption.startsWith("+")) {
+                            // Create new group
+                            String newGroupName = JOptionPane.showInputDialog(dialog, 
+                                "Enter new group name:", "Create New Group", 
+                                JOptionPane.QUESTION_MESSAGE);
+                            if (newGroupName != null && !newGroupName.trim().isEmpty()) {
+                                selectedTopic.addLineToGroup(newLine, newGroupName.trim());
+                            } else {
+                                return; // Cancel if no group name provided
+                            }
                         } else {
-                            return; // Cancel if no group name provided
+                            // "No Group" option - add directly to topic
+                            selectedTopic.addLine(newLine);
                         }
                     } else {
-                        // "No Group" option - add directly to topic
+                        // Default: add to topic directly (ungrouped)
                         selectedTopic.addLine(newLine);
                     }
-                } else {
-                    // Default: add to topic directly (ungrouped)
-                    selectedTopic.addLine(newLine);
+                    
+                    // 确保在EDT线程中关闭对话框
+                    SwingUtilities.invokeLater(() -> {
+                        dialog.setVisible(false);
+                        dialog.dispose();
+                    });
                 }
-                
-                dialog.setVisible(false);
-                dialog.dispose();
+            } catch (Exception ex) {
+                // 记录异常但不中断用户操作
+                Logger.getInstance(TopicLineAddAction.class).warn("Error adding topic line", ex);
+                JOptionPane.showMessageDialog(dialog, 
+                    "Error adding topic line: " + ex.getMessage(), 
+                    "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
         
@@ -354,11 +366,11 @@ public class TopicLineAddAction extends CommonAnAction {
 
         // Show dialog
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
-            SwingUtilities.invokeLater(() -> {
-                dialog.pack();
-                dialog.setLocationRelativeTo(editor.getComponent());
-                dialog.setVisible(true);
-            });
+                SwingUtilities.invokeLater(() -> {
+                    dialog.pack();
+                    dialog.setLocationRelativeTo(editor.getComponent());
+                    dialog.setVisible(true);
+                });
         });
     }
     
@@ -431,3 +443,5 @@ public class TopicLineAddAction extends CommonAnAction {
         }
     }
 }
+
+

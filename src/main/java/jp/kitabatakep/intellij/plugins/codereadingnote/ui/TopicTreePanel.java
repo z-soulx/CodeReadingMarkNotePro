@@ -228,7 +228,8 @@ public class TopicTreePanel extends JPanel {
             }
             
             treeModel.reload();
-            expandAllTopics();
+            // 移除自动展开所有Topic的调用，让Topic默认保持收缩状态
+            // expandAllTopics(); // 注释掉自动展开，用户可以手动展开需要的Topic
         });
     }
     
@@ -271,7 +272,8 @@ public class TopicTreePanel extends JPanel {
                 }
                 
                 treeModel.nodeStructureChanged(topicNode);
-                expandNode(topicNode);
+                // 移除自动展开Topic的调用，让Topic保持收缩状态
+                // expandNode(topicNode); // 注释掉自动展开，用户可以手动展开需要的Topic
             }
         });
     }
@@ -331,6 +333,154 @@ public class TopicTreePanel extends JPanel {
         return null;
     }
     
+    /**
+     * Collapse all groups in all topics, and also collapse topics and ungrouped folders
+     * 收缩所有Topic、所有Group和所有Ungrouped文件夹
+     */
+    public void collapseAllGroups() {
+        SwingUtilities.invokeLater(() -> {
+            // 遍历所有节点，收缩TOPIC、GROUP和UNGROUPED_LINES_FOLDER类型的节点
+            collapseAllNodes(rootNode);
+            topicTree.updateUI();
+        });
+    }
+    
+    /**
+     * Expand all groups in all topics, and also expand topics and ungrouped folders
+     * 展开所有Topic、所有Group和所有Ungrouped文件夹
+     */
+    public void expandAllGroups() {
+        SwingUtilities.invokeLater(() -> {
+            // 遍历所有节点，展开TOPIC、GROUP和UNGROUPED_LINES_FOLDER类型的节点
+            expandAllNodes(rootNode);
+            topicTree.updateUI();
+        });
+    }
+    
+    /**
+     * Check if all collapsible nodes are currently collapsed
+     * 检查所有可收缩的节点是否都处于收缩状态
+     */
+    public boolean areAllNodesCollapsed() {
+        return checkAllNodesCollapsed(rootNode);
+    }
+    
+    /**
+     * Recursively collapse all collapsible nodes (topics, groups, ungrouped folders)
+     * 递归收缩所有可收缩的节点（Topic、Group、Ungrouped文件夹）
+     */
+    private void collapseAllNodes(DefaultMutableTreeNode node) {
+        // 先递归处理所有子节点
+        for (int i = 0; i < node.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
+            collapseAllNodes(child);
+        }
+        
+        // 然后处理当前节点（从叶子节点向根节点收缩）
+        if (node instanceof TopicTreeNode) {
+            TopicTreeNode treeNode = (TopicTreeNode) node;
+            TreePath path = new TreePath(treeNode.getPath());
+            
+            switch (treeNode.getNodeType()) {
+                case TOPIC:
+                    // 收缩Topic节点
+                    topicTree.collapsePath(path);
+                    break;
+                case GROUP:
+                    // 收缩Group节点并更新TopicGroup的expanded状态
+                    topicTree.collapsePath(path);
+                    TopicGroup group = treeNode.getGroup();
+                    if (group != null) {
+                        group.setExpanded(false);
+                    }
+                    break;
+                case UNGROUPED_LINES_FOLDER:
+                    // 收缩Ungrouped Lines文件夹节点
+                    topicTree.collapsePath(path);
+                    break;
+                default:
+                    // TOPIC_LINE节点不需要收缩
+                    break;
+            }
+        }
+    }
+    
+    /**
+     * Recursively expand all collapsible nodes (topics, groups, ungrouped folders)
+     * 递归展开所有可收缩的节点（Topic、Group、Ungrouped文件夹）
+     */
+    private void expandAllNodes(DefaultMutableTreeNode node) {
+        // 先处理当前节点（从根节点向叶子节点展开）
+        if (node instanceof TopicTreeNode) {
+            TopicTreeNode treeNode = (TopicTreeNode) node;
+            TreePath path = new TreePath(treeNode.getPath());
+            
+            switch (treeNode.getNodeType()) {
+                case TOPIC:
+                    // 展开Topic节点
+                    topicTree.expandPath(path);
+                    break;
+                case GROUP:
+                    // 展开Group节点并更新TopicGroup的expanded状态
+                    topicTree.expandPath(path);
+                    TopicGroup group = treeNode.getGroup();
+                    if (group != null) {
+                        group.setExpanded(true);
+                    }
+                    break;
+                case UNGROUPED_LINES_FOLDER:
+                    // 展开Ungrouped Lines文件夹节点
+                    topicTree.expandPath(path);
+                    break;
+                default:
+                    // TOPIC_LINE节点不需要展开
+                    break;
+            }
+        }
+        
+        // 然后递归处理所有子节点
+        for (int i = 0; i < node.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
+            expandAllNodes(child);
+        }
+    }
+    
+    /**
+     * Recursively check if all collapsible nodes are collapsed
+     * 递归检查所有可收缩的节点是否都处于收缩状态
+     */
+    private boolean checkAllNodesCollapsed(DefaultMutableTreeNode node) {
+        // 检查当前节点
+        if (node instanceof TopicTreeNode) {
+            TopicTreeNode treeNode = (TopicTreeNode) node;
+            TreePath path = new TreePath(treeNode.getPath());
+            
+            switch (treeNode.getNodeType()) {
+                case TOPIC:
+                case GROUP:
+                case UNGROUPED_LINES_FOLDER:
+                    // 如果任何一个可收缩节点是展开的，返回false
+                    if (topicTree.isExpanded(path)) {
+                        return false;
+                    }
+                    break;
+                default:
+                    // TOPIC_LINE节点不影响判断
+                    break;
+            }
+        }
+        
+        // 递归检查所有子节点
+        for (int i = 0; i < node.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
+            if (!checkAllNodesCollapsed(child)) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
     public TopicGroup getSelectedGroup() {
         if (selectedNode != null && selectedNode.getNodeType() == TopicTreeNode.NodeType.GROUP) {
             return selectedNode.getGroup();
