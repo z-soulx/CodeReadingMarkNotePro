@@ -4,10 +4,12 @@ import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBSplitter;
+import com.intellij.ui.components.JBTabbedPane;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.ui.JBUI;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.search.SearchService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -21,6 +23,7 @@ public class ManagementPanel extends JPanel
     // New tree-based UI components
     private TopicTreePanel topicTreePanel;
     private TopicDetailPanel topicDetailPanel;
+    private SearchPanel searchPanel; // 搜索面板
     
     // Current selection state
     private Topic selectedTopic;
@@ -41,6 +44,7 @@ public class ManagementPanel extends JPanel
     private void initComponents() {
         topicTreePanel = new TopicTreePanel(project);
         topicDetailPanel = new TopicDetailPanel(project);
+        searchPanel = new SearchPanel(project);
         
         // Set up tree selection listener
         topicTreePanel.setSelectionListener(new TopicTreePanel.TopicTreeSelectionListener() {
@@ -86,18 +90,80 @@ public class ManagementPanel extends JPanel
                 topicDetailPanel.clear();
             }
         });
+        
+        // Set up search panel listener
+        searchPanel.setResultListener(result -> {
+            // 当搜索结果被选中时，在树中高亮并显示详情
+            Topic topic = result.getTopic();
+            TopicGroup group = result.getGroup();
+            TopicLine line = result.getTopicLine();
+            
+            // 在树中选择对应的节点
+            if (group != null) {
+                topicTreePanel.selectGroupLine(group, line);
+            } else {
+                topicTreePanel.selectUngroupedLine(topic, line);
+            }
+            
+            // 在详情面板中显示
+            selectedTopic = topic;
+            selectedGroup = group;
+            selectedTopicLine = line;
+            topicDetailPanel.setTopicLine(line);
+            
+            // 切换到树视图标签页
+            JTabbedPane tabbedPane = findTabbedPane();
+            if (tabbedPane != null) {
+                tabbedPane.setSelectedIndex(0); // 切换到第一个标签页（树视图）
+            }
+        });
+        
+        // 更新搜索面板的数据源
+        updateSearchData();
+    }
+    
+    // 查找TabbedPane（用于搜索结果跳转）
+    private JTabbedPane findTabbedPane() {
+        Component parent = getParent();
+        while (parent != null) {
+            if (parent instanceof JTabbedPane) {
+                return (JTabbedPane) parent;
+            }
+            if (parent instanceof JComponent) {
+                for (Component child : ((JComponent) parent).getComponents()) {
+                    if (child instanceof JTabbedPane) {
+                        return (JTabbedPane) child;
+                    }
+                }
+            }
+            parent = parent.getParent();
+        }
+        return null;
+    }
+    
+    // 更新搜索面板的数据源
+    private void updateSearchData() {
+        if (searchPanel != null && service != null) {
+            searchPanel.setTopics(service.getTopicList().getTopics());
+        }
     }
     
     private void setupLayout() {
+        // 创建主视图（树视图）
         JBSplitter splitPane = new JBSplitter(0.15f);
         splitPane.setSplitterProportionKey(AppConstants.appName + "ManagementPanel.splitter");
         splitPane.setHonorComponentsMinimumSize(false);
 
         splitPane.setFirstComponent(topicTreePanel);
         splitPane.setSecondComponent(topicDetailPanel);
+        
+        // 创建选项卡面板
+        JBTabbedPane tabbedPane = new JBTabbedPane();
+        tabbedPane.addTab("Tree View", splitPane);
+        tabbedPane.addTab("Search", searchPanel);
 
         add(actionToolBar(), BorderLayout.PAGE_START);
-        add(splitPane);
+        add(tabbedPane, BorderLayout.CENTER);
     }
     
     private void setupEventHandlers() {
@@ -109,6 +175,7 @@ public class ManagementPanel extends JPanel
             {
                 topicTreePanel.loadTopics();
                 topicTreePanel.selectTopic(topic);
+                updateSearchData(); // 更新搜索数据
             }
 
             @Override
@@ -116,11 +183,13 @@ public class ManagementPanel extends JPanel
             {
                 topicTreePanel.loadTopics();
                 topicDetailPanel.clear();
+                updateSearchData(); // 更新搜索数据
             }
 
             @Override
             public void topicsLoaded() {
                 topicTreePanel.loadTopics();
+                updateSearchData(); // 更新搜索数据
             }
         });
         
@@ -129,11 +198,13 @@ public class ManagementPanel extends JPanel
             @Override
             public void lineAdded(Topic topic, TopicLine line) {
                 topicTreePanel.refreshTopic(topic);
+                updateSearchData(); // 更新搜索数据
             }
 
             @Override
             public void lineRemoved(Topic topic, TopicLine line) {
                 topicTreePanel.refreshTopic(topic);
+                updateSearchData(); // 更新搜索数据
             }
         });
     }

@@ -503,4 +503,78 @@ public class TopicTreePanel extends JPanel {
             topicTree.scrollPathToVisible(path);
         }
     }
+    
+    /**
+     * 选择Group中的特定TopicLine
+     */
+    public void selectGroupLine(TopicGroup group, TopicLine line) {
+        Topic topic = group.getParentTopic();
+        TopicTreeNode topicNode = findTopicNode(topic);
+        if (topicNode == null) {
+            return;
+        }
+        
+        // 展开Topic节点
+        TreePath topicPath = new TreePath(treeModel.getPathToRoot(topicNode));
+        topicTree.expandPath(topicPath);
+        
+        // 查找Group节点
+        for (int i = 0; i < topicNode.getChildCount(); i++) {
+            TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(i);
+            if (childNode.getNodeType() == TopicTreeNode.NodeType.GROUP && 
+                childNode.getGroup() == group) {
+                // 展开Group节点
+                TreePath groupPath = new TreePath(treeModel.getPathToRoot(childNode));
+                topicTree.expandPath(groupPath);
+                
+                // 查找TopicLine节点
+                for (int j = 0; j < childNode.getChildCount(); j++) {
+                    TopicTreeNode lineNode = (TopicTreeNode) childNode.getChildAt(j);
+                    if (lineNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE && 
+                        lineNode.getTopicLine() == line) {
+                        TreePath linePath = new TreePath(treeModel.getPathToRoot(lineNode));
+                        topicTree.setSelectionPath(linePath);
+                        topicTree.scrollPathToVisible(linePath);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * 选择Ungrouped中的特定TopicLine
+     */
+    public void selectUngroupedLine(Topic topic, TopicLine line) {
+        TopicTreeNode topicNode = findTopicNode(topic);
+        if (topicNode == null) {
+            return;
+        }
+        
+        // 展开Topic节点
+        TreePath topicPath = new TreePath(treeModel.getPathToRoot(topicNode));
+        topicTree.expandPath(topicPath);
+        
+        // 查找Ungrouped文件夹节点
+        for (int i = 0; i < topicNode.getChildCount(); i++) {
+            TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(i);
+            if (childNode.getNodeType() == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER) {
+                // 展开Ungrouped文件夹节点
+                TreePath ungroupedPath = new TreePath(treeModel.getPathToRoot(childNode));
+                topicTree.expandPath(ungroupedPath);
+                
+                // 查找TopicLine节点
+                for (int j = 0; j < childNode.getChildCount(); j++) {
+                    TopicTreeNode lineNode = (TopicTreeNode) childNode.getChildAt(j);
+                    if (lineNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE && 
+                        lineNode.getTopicLine() == line) {
+                        TreePath linePath = new TreePath(treeModel.getPathToRoot(lineNode));
+                        topicTree.setSelectionPath(linePath);
+                        topicTree.scrollPathToVisible(linePath);
+                        return;
+                    }
+                }
+            }
+        }
+    }
 }

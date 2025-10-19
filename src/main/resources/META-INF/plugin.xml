@@ -1,11 +1,11 @@
 <idea-plugin>
     <id>soulx.CodeReadingMarkNotePro</id>
-    <name>Code Reading mark Note pro</name>
+    <name>Code Reading Mark Note Pro</name>
     <vendor email="170918810@qq.com" url="https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro">soulx</vendor>
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>2.0.0</version>
+    <version>3.2.0</version>
     <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
     <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -16,7 +16,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
-        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading mark Note pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
+        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
         <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
     </extensions>
     <projectListeners>

@@ -93,7 +93,7 @@
 ```xml
 <extensions defaultExtensionNs="com.intellij">
     <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
-    <toolWindow id="Code Reading mark Note pro" anchor="bottom" factoryClass="..." />
+    <toolWindow id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="..." />
     <editorFactoryDocumentListener implementation="..." />
 </extensions>
 ```
