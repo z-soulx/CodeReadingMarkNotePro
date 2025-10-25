@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.2.0</version>
+    <version>3.2.1</version>
     <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
     <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html

@@ -47,6 +47,8 @@
 - [ ] TopicLine跳转到代码功能正常
 - [ ] 导入/导出功能正常
 - [ ] Bookmark集成功能正常
+- [ ] **Bug修复测试1**: 删除TopicLine引用的文件后，列表不再抛出NPE
+- [ ] **Bug修复测试2**: 跨分支场景（切换到文件不存在的分支），打开文件不再抛出NPE
 
 ### 4. 兼容性测试
 - [ ] IntelliJ IDEA 2024.3 测试通过
@@ -115,6 +117,11 @@ src/main/java/jp/kitabatakep/intellij/plugins/codereadingnote/
   - 添加标签页（Tree View / Search）
 - `src/main/java/jp/kitabatakep/intellij/plugins/codereadingnote/ui/TopicTreePanel.java`
   - 新增 `selectGroupLine()` 和 `selectUngroupedLine()` 方法
+- `src/main/java/jp/kitabatakep/intellij/plugins/codereadingnote/ui/TopicDetailPanel.java`
+  - 修复 NullPointerException：先检查 null 再获取图标
+  - 修复 lineAdded 回调中的潜在 NPE
+- `src/main/java/jp/kitabatakep/intellij/plugins/codereadingnote/CodeReadingNoteService.java`
+  - 修复 list() 和 listSource() 方法的跨分支 NPE 问题
 - `src/main/resources/META-INF/plugin.xml`
   - 修复工具窗口ID大小写
   - 更新版本号

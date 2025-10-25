@@ -96,15 +96,18 @@ class TopicDetailPanel extends JPanel {
 				}
 			}
 
-			@Override
-			public void lineAdded(Topic _topic, TopicLine _topicLine) {
-				if (_topic == topic) {
+		@Override
+		public void lineAdded(Topic _topic, TopicLine _topicLine) {
+			if (_topic == topic) {
+				// 只有当文件存在时才添加书签
+				if (_topicLine.file() != null) {
 					String uid = UUID.randomUUID().toString();
 					Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
 					if (bookmark != null) {
 						_topicLine.setBookmarkUid(uid);
 					}
-					topicLineListModel.addElement(_topicLine);
+				}
+				topicLineListModel.addElement(_topicLine);
 					// Mobile monitoring that does not rely on Panel
 					//移动不依赖Panel的监听
 //					EditorUtils.addLineCodeRemark(project, _topicLine);
@@ -258,17 +261,17 @@ class TopicDetailPanel extends JPanel {
 //					setIcon(fileOrDir.getIcon(0));
 //				}
 //			});
-			ApplicationManager.getApplication().runReadAction(() -> {
-				// 在read-action中执行读取PSI树的操作
-				PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+		ApplicationManager.getApplication().runReadAction(() -> {
+			// 在read-action中执行读取PSI树的操作
+			PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+			if (fileOrDir != null) {
 				Icon icon = fileOrDir.getIcon(0);
-				if (fileOrDir != null) {
-					// 确保 setIcon 操作在 EDT 上执行
-					SwingUtilities.invokeLater(() -> {
-						setIcon(icon);
-					});
-				}
-			});
+				// 确保 setIcon 操作在 EDT 上执行
+				SwingUtilities.invokeLater(() -> {
+					setIcon(icon);
+				});
+			}
+		});
 
 
 			if (topicLine.isValid()) {

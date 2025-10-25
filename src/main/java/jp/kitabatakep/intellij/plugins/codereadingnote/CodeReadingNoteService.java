@@ -113,26 +113,30 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     public String lastImportDir() { return lastImportDir != null ? lastImportDir : ""; }
     public void setLastImportDir(String lastImportDir) { this.lastImportDir = lastImportDir; }
     public List<CodeRemark> list(Project project, @NotNull VirtualFile file) {
-        Stream<CodeRemark> sorted = topicList.getTopics().stream().flatMap(topic -> topic.getLines().stream()).map(topicLine -> {
-            CodeRemark codeRemark = new CodeRemark();
-            codeRemark.setFileName(topicLine.file().getName());
-            codeRemark.setFileUrl(topicLine.file().getCanonicalPath());
-            codeRemark.setLineNumber(topicLine.line());
-            codeRemark.setProjectName(project.getName());
-            codeRemark.setContentHash(CodeRemark.createContentHash(project, topicLine.file()));
-            codeRemark.setText(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
-            codeRemark.setBookmarkHash(topicLine.bookmarkHash());
-            return  codeRemark;
-        }).sorted(stateComparator());
+        Stream<CodeRemark> sorted = topicList.getTopics().stream()
+            .flatMap(topic -> topic.getLines().stream())
+            .filter(topicLine -> topicLine.file() != null)  // 过滤掉file为null的TopicLine
+            .map(topicLine -> {
+                CodeRemark codeRemark = new CodeRemark();
+                codeRemark.setFileName(topicLine.file().getName());
+                codeRemark.setFileUrl(topicLine.file().getCanonicalPath());
+                codeRemark.setLineNumber(topicLine.line());
+                codeRemark.setProjectName(project.getName());
+                codeRemark.setContentHash(CodeRemark.createContentHash(project, topicLine.file()));
+                codeRemark.setText(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
+                codeRemark.setBookmarkHash(topicLine.bookmarkHash());
+                return  codeRemark;
+            }).sorted(stateComparator());
         final Predicate<CodeRemark> stateFilter = this.stateFilter(file.getName(), CodeRemark.createContentHash(project,file), null);
         return sorted.filter(stateFilter).sorted(this.stateComparator()).collect(Collectors.toList());
     }
 
     public List<TopicLine> listSource(Project project, @NotNull VirtualFile file) {
-        List<TopicLine> collect = topicList.getTopics().stream().
-            filter(topic -> topic.getLines().stream()
-                .anyMatch(topicLine -> topicLine.file().equals(file)))
+        List<TopicLine> collect = topicList.getTopics().stream()
+            .filter(topic -> topic.getLines().stream()
+                .anyMatch(topicLine -> topicLine.file() != null && topicLine.file().equals(file)))
             .flatMap(topic -> topic.getLines().stream())
+            .filter(topicLine -> topicLine.file() != null)  // 过滤掉file为null的TopicLine
             .collect(Collectors.toList());
         return collect;
 
