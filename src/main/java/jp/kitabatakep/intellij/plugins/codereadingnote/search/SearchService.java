@@ -1,5 +1,11 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.search;
 
+import com.intellij.ide.bookmark.Bookmark;
+import com.intellij.ide.bookmark.BookmarkGroup;
+import com.intellij.ide.bookmark.BookmarksManager;
+import com.intellij.ide.bookmark.LineBookmark;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.VirtualFile;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
@@ -282,6 +288,109 @@ public class SearchService {
         }
         
         return text;
+    }
+    
+    /**
+     * 搜索所有 Bookmarks
+     * @param project 当前项目
+     * @param query 搜索关键词
+     * @return Bookmark 搜索结果列表
+     */
+    public static List<BookmarkSearchResult> searchBookmarks(Project project, String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        query = query.trim();
+        List<BookmarkSearchResult> results = new ArrayList<>();
+        
+        BookmarksManager bookmarksManager = BookmarksManager.getInstance(project);
+        
+        // 遍历所有 bookmark 组
+        for (BookmarkGroup group : bookmarksManager.getGroups()) {
+            String groupName = group.getName();
+            
+            // 遍历组中的所有 bookmarks
+            for (Bookmark bookmark : group.getBookmarks()) {
+                String description = group.getDescription(bookmark);
+                
+                // 如果没有描述，跳过
+                if (description == null || description.isEmpty()) {
+                    continue;
+                }
+                
+                // 计算相似度
+                double score = calculateSimilarity(description, query);
+                
+                // 只返回评分大于阈值的结果
+                if (score > 0.1) {
+                    // 获取文件和行号信息
+                    VirtualFile file = null;
+                    int line = -1;
+                    
+                    if (bookmark instanceof LineBookmark) {
+                        LineBookmark lineBookmark = (LineBookmark) bookmark;
+                        file = lineBookmark.getFile();
+                        line = lineBookmark.getLine();
+                    }
+                    
+                    results.add(new BookmarkSearchResult(
+                        bookmark, description, groupName, file, line, score
+                    ));
+                }
+            }
+        }
+        
+        // 按评分排序
+        Collections.sort(results);
+        
+        return results;
+    }
+    
+    /**
+     * 根据搜索范围进行搜索
+     * @param project 当前项目
+     * @param topics Topic 列表
+     * @param query 搜索关键词
+     * @param scope 搜索范围
+     * @return 统一的搜索结果对象
+     */
+    public static UnifiedSearchResults searchWithScope(Project project, List<Topic> topics, 
+                                                       String query, SearchScope scope) {
+        UnifiedSearchResults results = new UnifiedSearchResults();
+        
+        switch (scope) {
+            case TOPICS_ONLY:
+                results.topicResults = search(topics, query);
+                break;
+                
+            case BOOKMARKS_ONLY:
+                results.bookmarkResults = searchBookmarks(project, query);
+                break;
+                
+            case ALL:
+                results.topicResults = search(topics, query);
+                results.bookmarkResults = searchBookmarks(project, query);
+                break;
+        }
+        
+        return results;
+    }
+    
+    /**
+     * 统一的搜索结果容器
+     */
+    public static class UnifiedSearchResults {
+        public List<SearchResult> topicResults = new ArrayList<>();
+        public List<BookmarkSearchResult> bookmarkResults = new ArrayList<>();
+        
+        public int getTotalCount() {
+            return topicResults.size() + bookmarkResults.size();
+        }
+        
+        public boolean isEmpty() {
+            return topicResults.isEmpty() && bookmarkResults.isEmpty();
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.icons.AllIcons;
+import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
@@ -9,6 +10,8 @@ import com.intellij.ui.components.JBTextField;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
+import jp.kitabatakep.intellij.plugins.codereadingnote.search.BookmarkSearchResult;
+import jp.kitabatakep.intellij.plugins.codereadingnote.search.SearchScope;
 import jp.kitabatakep.intellij.plugins.codereadingnote.search.SearchService;
 
 import javax.swing.*;
@@ -24,25 +27,37 @@ import java.util.List;
 
 /**
  * 搜索面板组件
- * 包含搜索框和搜索结果展示
+ * 包含搜索框、搜索范围选择和搜索结果展示
+ * 支持搜索 Topics 和 IDEA 原生 Bookmarks
  */
 public class SearchPanel extends JPanel {
     private final Project project;
     private final JBTextField searchField;
-    private final JBList<SearchResultItem> resultList;
-    private final DefaultListModel<SearchResultItem> resultListModel;
+    private final JComboBox<SearchScope> scopeComboBox;
+    private final JBList<UnifiedSearchResultItem> resultList;
+    private final DefaultListModel<UnifiedSearchResultItem> resultListModel;
     private final JLabel statusLabel;
     
     private List<Topic> topics = new ArrayList<>();
+    private SearchScope currentScope = SearchScope.TOPICS_ONLY;
     private SearchResultListener resultListener;
     
     /**
-     * 搜索结果项
+     * 统一的搜索结果项接口
      */
-    public static class SearchResultItem {
+    public interface UnifiedSearchResultItem {
+        String getDisplayText();
+        void navigate();
+        Object getUnderlyingObject();
+    }
+    
+    /**
+     * Topic 搜索结果项
+     */
+    public static class TopicSearchResultItem implements UnifiedSearchResultItem {
         private final SearchService.SearchResult result;
         
-        public SearchResultItem(SearchService.SearchResult result) {
+        public TopicSearchResultItem(SearchService.SearchResult result) {
             this.result = result;
         }
         
@@ -51,40 +66,32 @@ public class SearchPanel extends JPanel {
         }
         
         @Override
-        public String toString() {
+        public String getDisplayText() {
             TopicLine line = result.getTopicLine();
             Topic topic = result.getTopic();
             TopicGroup group = result.getGroup();
             
-            // 格式：[Topic名称] > [Group名称] > 中文注释 (类名:行号) - 相似度
             StringBuilder sb = new StringBuilder();
             sb.append("<html>");
+            sb.append("<span style='color:#6897BB;'>[Topic: ").append(topic.name()).append("]</span>");
             
-            // Topic名称
-            sb.append("<span style='color:#6897BB;'>[").append(topic.name()).append("]</span>");
-            
-            // Group名称（如果有）
             if (group != null) {
                 sb.append(" <span style='color:#9876AA;'>▸ [").append(group.name()).append("]</span>");
             } else {
                 sb.append(" <span style='color:#808080;'>▸ [Ungrouped]</span>");
             }
             
-            // 主要内容
             sb.append(" ▸ ");
             
-            // 中文注释（高亮）
             String note = line.note();
             if (note != null && !note.isEmpty()) {
                 sb.append("<b>").append(note).append("</b>");
             }
             
-            // 类名和行号
             sb.append(" <span style='color:#808080;'>(");
-            sb.append(line.pathForDisplay()).append(":").append(line.line());
+            sb.append(line.pathForDisplay()).append(":").append(line.line() + 1);
             sb.append(")</span>");
             
-            // 相似度评分
             int scorePercent = (int) (result.getScore() * 100);
             String scoreColor = scorePercent > 70 ? "#50FA7B" : (scorePercent > 40 ? "#FFB86C" : "#FF5555");
             sb.append(" <span style='color:").append(scoreColor).append(";'>")
@@ -92,6 +99,83 @@ public class SearchPanel extends JPanel {
             
             sb.append("</html>");
             return sb.toString();
+        }
+        
+        @Override
+        public void navigate() {
+            TopicLine line = result.getTopicLine();
+            if (line != null && line.canNavigate()) {
+                line.navigate(true);
+            }
+        }
+        
+        @Override
+        public Object getUnderlyingObject() {
+            return result;
+        }
+        
+        @Override
+        public String toString() {
+            return getDisplayText();
+        }
+    }
+    
+    /**
+     * Bookmark 搜索结果项
+     */
+    public static class BookmarkSearchResultItem implements UnifiedSearchResultItem {
+        private final BookmarkSearchResult result;
+        
+        public BookmarkSearchResultItem(BookmarkSearchResult result) {
+            this.result = result;
+        }
+        
+        public BookmarkSearchResult getResult() {
+            return result;
+        }
+        
+        @Override
+        public String getDisplayText() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("<html>");
+            sb.append("<span style='color:#FF6B6B;'>[Bookmark: ").append(result.getGroupName()).append("]</span>");
+            sb.append(" ▸ ");
+            sb.append("<b>").append(result.getDescription()).append("</b>");
+            
+            if (result.getFile() != null) {
+                sb.append(" <span style='color:#808080;'>(");
+                sb.append(result.getFile().getName());
+                if (result.getLine() >= 0) {
+                    sb.append(":").append(result.getLine() + 1);
+                }
+                sb.append(")</span>");
+            }
+            
+            int scorePercent = (int) (result.getScore() * 100);
+            String scoreColor = scorePercent > 70 ? "#50FA7B" : (scorePercent > 40 ? "#FFB86C" : "#FF5555");
+            sb.append(" <span style='color:").append(scoreColor).append(";'>")
+              .append(scorePercent).append("%</span>");
+            
+            sb.append("</html>");
+            return sb.toString();
+        }
+        
+        @Override
+        public void navigate() {
+            Bookmark bookmark = result.getBookmark();
+            if (bookmark != null && bookmark.canNavigate()) {
+                bookmark.navigate(true);
+            }
+        }
+        
+        @Override
+        public Object getUnderlyingObject() {
+            return result;
+        }
+        
+        @Override
+        public String toString() {
+            return getDisplayText();
         }
     }
     
@@ -108,7 +192,20 @@ public class SearchPanel extends JPanel {
         setLayout(new BorderLayout(5, 5));
         setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         
-        // 创建搜索框面板
+        // 顶部面板：搜索范围 + 搜索框 + 清除按钮
+        JPanel topPanel = new JPanel(new BorderLayout(5, 0));
+        
+        // 搜索范围选择下拉框
+        scopeComboBox = new JComboBox<>(SearchScope.values());
+        scopeComboBox.setSelectedItem(SearchScope.TOPICS_ONLY);
+        scopeComboBox.setMaximumSize(new Dimension(200, 30));
+        scopeComboBox.setToolTipText("Select search scope");
+        scopeComboBox.addActionListener(e -> {
+            currentScope = (SearchScope) scopeComboBox.getSelectedItem();
+            performSearch(); // 重新搜索
+        });
+        
+        // 搜索框面板
         JPanel searchBoxPanel = new JPanel(new BorderLayout(5, 0));
         
         // 搜索图标
@@ -132,7 +229,11 @@ public class SearchPanel extends JPanel {
         });
         searchBoxPanel.add(clearButton, BorderLayout.EAST);
         
-        add(searchBoxPanel, BorderLayout.NORTH);
+        // 组装顶部面板
+        topPanel.add(scopeComboBox, BorderLayout.WEST);
+        topPanel.add(searchBoxPanel, BorderLayout.CENTER);
+        
+        add(topPanel, BorderLayout.NORTH);
         
         // 创建结果列表
         resultListModel = new DefaultListModel<>();
@@ -213,7 +314,7 @@ public class SearchPanel extends JPanel {
      * 显示右键上下文菜单
      */
     private void showContextMenu(MouseEvent e) {
-        SearchResultItem selectedItem = resultList.getSelectedValue();
+        UnifiedSearchResultItem selectedItem = resultList.getSelectedValue();
         if (selectedItem == null) {
             return;
         }
@@ -225,10 +326,12 @@ public class SearchPanel extends JPanel {
         navigateToCodeItem.addActionListener(event -> navigateToCode());
         popupMenu.add(navigateToCodeItem);
         
-        // Menu item 2: Locate in tree view
-        JMenuItem locateInTreeItem = new JMenuItem("Locate in Tree View (Switch to Tree)", AllIcons.General.Locate);
-        locateInTreeItem.addActionListener(event -> locateInTreeView());
-        popupMenu.add(locateInTreeItem);
+        // Menu item 2: Locate in tree view (只对 Topic 结果有效)
+        if (selectedItem instanceof TopicSearchResultItem) {
+            JMenuItem locateInTreeItem = new JMenuItem("Locate in Tree View (Switch to Tree)", AllIcons.General.Locate);
+            locateInTreeItem.addActionListener(event -> locateInTreeView());
+            popupMenu.add(locateInTreeItem);
+        }
         
         popupMenu.show(resultList, e.getX(), e.getY());
     }
@@ -237,31 +340,27 @@ public class SearchPanel extends JPanel {
      * 跳转到代码位置
      */
     private void navigateToCode() {
-        SearchResultItem selectedItem = resultList.getSelectedValue();
+        UnifiedSearchResultItem selectedItem = resultList.getSelectedValue();
         if (selectedItem == null) {
             return;
         }
         
-        TopicLine line = selectedItem.getResult().getTopicLine();
-        
-        // 使用TopicLine的navigate方法跳转到代码
-        if (line != null && line.canNavigate()) {
-            line.navigate(true);
-        }
+        selectedItem.navigate();
     }
     
     /**
-     * 在树视图中定位（原有的联动功能）
+     * 在树视图中定位（只对Topic结果）
      */
     private void locateInTreeView() {
-        SearchResultItem selectedItem = resultList.getSelectedValue();
-        if (selectedItem == null) {
+        UnifiedSearchResultItem selectedItem = resultList.getSelectedValue();
+        if (selectedItem == null || !(selectedItem instanceof TopicSearchResultItem)) {
             return;
         }
         
-        // 调用原有的resultListener来触发树视图联动
+        // 调用resultListener来触发树视图联动
         if (resultListener != null) {
-            resultListener.onResultSelected(selectedItem.getResult());
+            TopicSearchResultItem topicItem = (TopicSearchResultItem) selectedItem;
+            resultListener.onResultSelected(topicItem.getResult());
         }
     }
     
@@ -293,26 +392,38 @@ public class SearchPanel extends JPanel {
         // 在后台线程执行搜索
         SwingUtilities.invokeLater(() -> {
             try {
-                List<SearchService.SearchResult> results = SearchService.search(topics, query);
+                SearchService.UnifiedSearchResults results = SearchService.searchWithScope(
+                    project, topics, query, currentScope
+                );
                 
                 // 更新UI
                 SwingUtilities.invokeLater(() -> {
                     resultListModel.clear();
                     
-                    for (SearchService.SearchResult result : results) {
-                        resultListModel.addElement(new SearchResultItem(result));
+                    // 添加 Topic 搜索结果
+                    for (SearchService.SearchResult result : results.topicResults) {
+                        resultListModel.addElement(new TopicSearchResultItem(result));
+                    }
+                    
+                    // 添加 Bookmark 搜索结果
+                    for (BookmarkSearchResult result : results.bookmarkResults) {
+                        resultListModel.addElement(new BookmarkSearchResultItem(result));
                     }
                     
                     // 更新状态
                     if (results.isEmpty()) {
                         statusLabel.setText("No matching results found");
                     } else {
-                        statusLabel.setText("Found " + results.size() + " result(s)");
+                        statusLabel.setText(String.format("Found %d result(s) - Topics: %d, Bookmarks: %d", 
+                            results.getTotalCount(),
+                            results.topicResults.size(),
+                            results.bookmarkResults.size()));
                     }
                 });
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
                     statusLabel.setText("Search error: " + ex.getMessage());
+                    ex.printStackTrace();
                 });
             }
         });
@@ -342,8 +453,8 @@ public class SearchPanel extends JPanel {
                                                      int index, boolean isSelected, boolean cellHasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             
-            if (value instanceof SearchResultItem) {
-                label.setText(value.toString());
+            if (value instanceof UnifiedSearchResultItem) {
+                label.setText(((UnifiedSearchResultItem) value).getDisplayText());
                 label.setBorder(BorderFactory.createEmptyBorder(3, 5, 3, 5));
             }
             
@@ -351,4 +462,3 @@ public class SearchPanel extends JPanel {
         }
     }
 }
-
