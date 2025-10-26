@@ -6,8 +6,6 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.wm.ToolWindow;
-import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.util.messages.MessageBus;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.*;
 import org.jetbrains.annotations.NotNull;
@@ -61,12 +59,15 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
 
             @Override
             public void lineAdded(Topic _topic, TopicLine _topicLine) {
+                // 单一来源：这里负责创建并绑定 Bookmark UUID
+                if (_topicLine.file() != null) {
                     String uid = UUID.randomUUID().toString();
                     Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
                     if (bookmark != null) {
                         _topicLine.setBookmarkUid(uid);
                     }
-                    EditorUtils.addLineCodeRemark(project, _topicLine);
+                }
+                EditorUtils.addLineCodeRemark(project, _topicLine);
             }
         });
     }

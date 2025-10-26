@@ -1,11 +1,16 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
+import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.ActionPlaces;
+import com.intellij.openapi.actionSystem.ActionPopupMenu;
+import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Pair;
 import com.intellij.ui.TreeSpeedSearch;
 import com.intellij.ui.components.JBScrollPane;
-import com.intellij.ui.tree.TreeVisitor;
-import com.intellij.util.messages.MessageBus;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.actions.FixLineRemarkAction;
+import jp.kitabatakep.intellij.plugins.codereadingnote.actions.FixTopicRemarkAction;
 
 import javax.swing.*;
 import javax.swing.event.TreeExpansionEvent;
@@ -94,21 +99,30 @@ public class TopicTreePanel extends JPanel {
             }
         });
         
-        // Double-click listener for navigation
+        // Mouse listener for double-click navigation and context menu
         topicTree.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    TreePath path = topicTree.getPathForLocation(e.getX(), e.getY());
-                    if (path != null && path.getLastPathComponent() instanceof TopicTreeNode) {
-                        TopicTreeNode node = (TopicTreeNode) path.getLastPathComponent();
-                        if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
-                            TopicLine line = node.getTopicLine();
-                            if (line != null && line.canNavigate()) {
-                                line.navigate(true);
-                            }
+                TreePath path = topicTree.getPathForLocation(e.getX(), e.getY());
+                if (path == null) return;
+                
+                if (!(path.getLastPathComponent() instanceof TopicTreeNode)) return;
+                TopicTreeNode node = (TopicTreeNode) path.getLastPathComponent();
+                
+                // Double-click navigation
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
+                        TopicLine line = node.getTopicLine();
+                        if (line != null && line.canNavigate()) {
+                            line.navigate(true);
                         }
                     }
+                }
+                
+                // Right-click context menu
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    topicTree.setSelectionPath(path); // 先选中节点
+                    showContextMenu(e, node);
                 }
             }
         });
@@ -575,6 +589,64 @@ public class TopicTreePanel extends JPanel {
                     }
                 }
             }
+        }
+    }
+    
+    /**
+     * 显示右键菜单
+     */
+    private void showContextMenu(MouseEvent e, TopicTreeNode node) {
+        DefaultActionGroup actions = new DefaultActionGroup();
+        
+        try {
+            switch (node.getNodeType()) {
+                case TOPIC:
+                    // Topic 节点的右键菜单
+                    Topic topic = node.getTopic();
+                    if (topic != null) {
+                        FixTopicRemarkAction fixTopicAction = new FixTopicRemarkAction(project, (v) -> topic);
+                        actions.add(fixTopicAction);
+                        System.out.println("[DEBUG] Added FixTopicRemarkAction for topic: " + topic.name());
+                        // 可以添加更多 Topic 相关的操作
+                    }
+                    break;
+                    
+                case TOPIC_LINE:
+                    // TopicLine 节点的右键菜单
+                    TopicLine line = node.getTopicLine();
+                    if (line != null) {
+                        Topic parentTopic = line.topic();
+                        FixLineRemarkAction fixLineAction = new FixLineRemarkAction(project, (v) -> new Pair<>(parentTopic, line));
+                        actions.add(fixLineAction);
+                        System.out.println("[DEBUG] Added FixLineRemarkAction for line: " + line.line());
+                        // 可以添加更多 TopicLine 相关的操作
+                    }
+                    break;
+                    
+                case GROUP:
+                    // Group 节点的右键菜单（将来可以添加）
+                    break;
+                    
+                default:
+                    // 其他类型不显示菜单
+                    System.out.println("[DEBUG] Unknown node type: " + node.getNodeType());
+                    return;
+            }
+            
+            System.out.println("[DEBUG] Action count: " + actions.getChildrenCount());
+            
+            if (actions.getChildrenCount() > 0) {
+                // Use Swing popup menu backed by ActionSystem for best compatibility
+                ActionPopupMenu popupMenu = ActionManager.getInstance()
+                        .createActionPopupMenu(ActionPlaces.POPUP, actions);
+                popupMenu.getComponent().show(topicTree, e.getX(), e.getY());
+                System.out.println("[DEBUG] Popup menu shown (ActionPopupMenu)");
+            } else {
+                System.out.println("[DEBUG] No actions to show");
+            }
+        } catch (Exception ex) {
+            System.err.println("[ERROR] Failed to show context menu: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 }

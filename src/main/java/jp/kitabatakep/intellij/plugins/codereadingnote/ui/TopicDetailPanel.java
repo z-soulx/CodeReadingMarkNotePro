@@ -1,25 +1,21 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
-import com.intellij.ide.DataManager;
-import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
+import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.ActionPlaces;
+import com.intellij.openapi.actionSystem.ActionPopupMenu;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.util.PsiUtilCore;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.RowsDnDSupport;
 import com.intellij.ui.SimpleColoredComponent;
 import com.intellij.ui.SimpleTextAttributes;
-import com.intellij.ui.awt.RelativePoint;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.messages.MessageBus;
@@ -31,7 +27,6 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.actions.ShowBookmarkUidAc
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -40,7 +35,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Iterator;
-import java.util.UUID;
 
 class TopicDetailPanel extends JPanel {
 
@@ -99,20 +93,20 @@ class TopicDetailPanel extends JPanel {
 		@Override
 		public void lineAdded(Topic _topic, TopicLine _topicLine) {
 			if (_topic == topic) {
-				// 只有当文件存在时才添加书签
-				if (_topicLine.file() != null) {
-					String uid = UUID.randomUUID().toString();
-					Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
-					if (bookmark != null) {
-						_topicLine.setBookmarkUid(uid);
+				// 单一来源：书签与 UUID 绑定交由 CodeReadingNoteService 处理
+				// 这里只维护列表，避免重复添加
+				boolean exists = false;
+				for (int i = 0; i < topicLineListModel.size(); i++) {
+					if (topicLineListModel.get(i) == _topicLine) {
+						exists = true;
+						break;
 					}
 				}
-				topicLineListModel.addElement(_topicLine);
-					// Mobile monitoring that does not rely on Panel
-					//移动不依赖Panel的监听
-//					EditorUtils.addLineCodeRemark(project, _topicLine);
+				if (!exists) {
+					topicLineListModel.addElement(_topicLine);
 				}
 			}
+		}
 		});
 	}
 
@@ -167,19 +161,38 @@ class TopicDetailPanel extends JPanel {
 				}
 
 				if (SwingUtilities.isRightMouseButton(e)) {
-					DefaultActionGroup actions = new DefaultActionGroup();
-					actions.add(new TopicLineRemoveAction(project, (v) -> new Pair<>(topic, topicLine)));
-					actions.add(new ShowBookmarkUidAction(project, (v) -> new Pair<>(topic, topicLine)));
-					actions.add(new FixLineRemarkAction(project, (v) -> new Pair<>(topic, topicLine)));
-					actions.add(new TopicLineMoveToGroupAction(topicLine));
-					JBPopupFactory.getInstance().createActionGroupPopup(
-							null,
-							actions,
-							DataManager.getInstance().getDataContext(topicLineList),
-							false,
-							null,
-							10
-					).show(new RelativePoint(e));
+					try {
+						DefaultActionGroup actions = new DefaultActionGroup();
+						
+						System.out.println("[DEBUG DetailPanel] Creating context menu for TopicLine: " + topicLine.line());
+						
+						TopicLineRemoveAction removeAction = new TopicLineRemoveAction(project, (v) -> new Pair<>(topic, topicLine));
+						actions.add(removeAction);
+						System.out.println("[DEBUG DetailPanel] Added Remove action");
+						
+						ShowBookmarkUidAction bookmarkAction = new ShowBookmarkUidAction(project, (v) -> new Pair<>(topic, topicLine));
+						actions.add(bookmarkAction);
+						System.out.println("[DEBUG DetailPanel] Added ShowBookmarkUid action");
+						
+						FixLineRemarkAction fixAction = new FixLineRemarkAction(project, (v) -> new Pair<>(topic, topicLine));
+						actions.add(fixAction);
+						System.out.println("[DEBUG DetailPanel] Added FixLineRemark action");
+						
+						TopicLineMoveToGroupAction moveAction = new TopicLineMoveToGroupAction(topicLine);
+						actions.add(moveAction);
+						System.out.println("[DEBUG DetailPanel] Added MoveTo action");
+						
+						System.out.println("[DEBUG DetailPanel] Total actions: " + actions.getChildrenCount());
+						
+						ActionPopupMenu popupMenu = ActionManager.getInstance()
+								.createActionPopupMenu(ActionPlaces.POPUP, actions);
+						popupMenu.getComponent().show(topicLineList, e.getX(), e.getY());
+						
+						System.out.println("[DEBUG DetailPanel] Popup shown");
+					} catch (Exception ex) {
+						System.err.println("[ERROR DetailPanel] Failed to show context menu: " + ex.getMessage());
+						ex.printStackTrace();
+					}
 				}
 			}
 		});
@@ -249,7 +262,7 @@ class TopicDetailPanel extends JPanel {
 				boolean cellHasFocus) {
 			clear();
 			TopicLine topicLine = (TopicLine) value;
-			VirtualFile file = topicLine.file();
+            VirtualFile file = topicLine.file();
 
 //            PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
 //            if (fileOrDir != null) {
@@ -261,17 +274,14 @@ class TopicDetailPanel extends JPanel {
 //					setIcon(fileOrDir.getIcon(0));
 //				}
 //			});
-		ApplicationManager.getApplication().runReadAction(() -> {
-			// 在read-action中执行读取PSI树的操作
-			PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-			if (fileOrDir != null) {
-				Icon icon = fileOrDir.getIcon(0);
-				// 确保 setIcon 操作在 EDT 上执行
-				SwingUtilities.invokeLater(() -> {
-					setIcon(icon);
-				});
-			}
-		});
+            // Use lightweight icon retrieval that does not force heavy indexing on EDT.
+            // We avoid PSI and fall back to file type icons to stay fast.
+            if (file != null) {
+                Icon icon = file.getFileType().getIcon();
+                if (icon != null) {
+                    setIcon(icon);
+                }
+            }
 
 
 			if (topicLine.isValid()) {

@@ -1,7 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.util.messages.MessageBus;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -90,11 +89,9 @@ public class TopicGroup implements Comparable<TopicGroup> {
         // 设置TopicLine的分组引用
         line.setGroup(this);
         touch();
-
-        // Notify listeners
-        MessageBus messageBus = project.getMessageBus();
-        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
-        publisher.lineAdded(parentTopic, line);
+        
+        // 注意：不在这里发送 lineAdded 通知
+        // 通知应该由 Topic 层统一发送，避免重复通知
     }
 
     public void removeLine(TopicLine line) {
@@ -102,11 +99,9 @@ public class TopicGroup implements Comparable<TopicGroup> {
         // 清除TopicLine的分组引用
         line.setGroup(null);
         touch();
-
-        // Notify listeners
-        MessageBus messageBus = project.getMessageBus();
-        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
-        publisher.lineRemoved(parentTopic, line);
+        
+        // 注意：不在这里发送 lineRemoved 通知
+        // 通知应该由 Topic 层统一发送，避免重复通知
     }
 
     public Iterator<TopicLine> linesIterator() {

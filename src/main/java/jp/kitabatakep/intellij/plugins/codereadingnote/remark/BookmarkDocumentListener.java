@@ -46,26 +46,52 @@ public class BookmarkDocumentListener implements DocumentListener {
 			if (project == null) {
 				return;
 			}
-			// 获取当前 Inlay 模型
+			
+			// 🔧 修复：使用 Inlay 的实际位置更新 TopicLine
+			// Inlay 会自动跟随文档变化移动，我们只需要读取它的新位置
 			List<Inlay<? extends CodeRemarkEditorInlineInlayRenderer>> inlays = editor.getInlayModel()
 					.getAfterLineEndElementsInRange(0, document.getTextLength(),
 							CodeRemarkEditorInlineInlayRenderer.class);
-			if (CollectionUtils.isEmpty(inlays)) return;
-			CodeRemarkRepositoryFactory.getInstance(project).listSource(project, virtualFile).forEach(
-					r -> {
-						for (Inlay<? extends CodeRemarkEditorInlineInlayRenderer> inlay : inlays) {
-							if (StringUtils.spNote(r.note()).equals(inlay.getRenderer().getText())) {
-								int offset = inlay.getOffset();
-								int line = document.getLineNumber(offset);
-								r.modifyLine(line);
+			
+			if (CollectionUtils.isEmpty(inlays)) {
+				return;
+			}
+			
+			// 获取该文件的所有 TopicLine
+			List<jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine> topicLines = 
+					CodeRemarkRepositoryFactory.getInstance(project).listSource(project, virtualFile);
+			
+			if (CollectionUtils.isEmpty(topicLines)) {
+				return;
+			}
+			
+			// 🔧 修复：通过 note 内容匹配 TopicLine 和 Inlay
+			// 更新 TopicLine 的行号为 Inlay 的实际行号
+			for (jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine topicLine : topicLines) {
+				String notePrefix = StringUtils.spNote(topicLine.note());
+				
+				for (Inlay<? extends CodeRemarkEditorInlineInlayRenderer> inlay : inlays) {
+					if (notePrefix.equals(inlay.getRenderer().getText())) {
+						try {
+							int offset = inlay.getOffset();
+							int newLine = document.getLineNumber(offset);
+							
+							// 只在行号真的变化时才更新
+							if (newLine != topicLine.line()) {
+								LOG.debug(String.format("Updating TopicLine from line %d to %d", 
+										topicLine.line(), newLine));
+								topicLine.modifyLine(newLine);
 							}
+						} catch (Exception e) {
+							LOG.warn("Failed to update TopicLine position", e);
 						}
+						break; // 找到匹配的就跳出
 					}
-			);
-
+				}
+			}
 
 		} catch (Exception e) {
-			LOG.info("perceivedLineChange error", e);
+			LOG.warn("documentChanged error", e);
 		}
 	}
 

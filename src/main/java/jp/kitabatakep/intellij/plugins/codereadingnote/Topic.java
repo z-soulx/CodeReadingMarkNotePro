@@ -1,5 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote;
 
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.messages.MessageBus;
 import org.jetbrains.annotations.NotNull;
@@ -10,6 +11,7 @@ import java.util.Iterator;
 
 public class Topic implements Comparable<Topic>
 {
+
     private String name;
     private String note;
     private Date updatedAt;
@@ -73,8 +75,14 @@ public class Topic implements Comparable<Topic>
     public void addLine(TopicLine line)
     {
         // 默认添加到ungroupedLines（保持历史兼容）
-        ungroupedLines.add(line);
-        lines.add(line); // 保持废弃字段同步
+        if (!ungroupedLines.contains(line)) {
+            ungroupedLines.add(line);
+        }
+
+        if (!lines.contains(line)) {
+            lines.add(line); // 保持废弃字段同步
+        }
+
         line.setGroup(null); // 确保没有分组引用
         updatedAt = new Date();
 
@@ -200,6 +208,11 @@ public class Topic implements Comparable<Topic>
         // 添加到目标分组
         targetGroup.addLine(line);
         touch();
+        
+        // 发送通知（由 Topic 层统一管理）
+        MessageBus messageBus = project.getMessageBus();
+        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+        publisher.lineAdded(this, line);
     }
     
     public void moveLineToUngrouped(TopicLine line) {
