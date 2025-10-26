@@ -27,7 +27,7 @@ public enum SearchScope {
     
     @Override
     public String toString() {
-        return displayName + " (" + chineseDisplay + ")";
+        return displayName;
     }
 }
 
