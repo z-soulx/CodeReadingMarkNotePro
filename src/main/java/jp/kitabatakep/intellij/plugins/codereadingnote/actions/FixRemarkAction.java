@@ -7,8 +7,11 @@ import com.intellij.notification.NotificationType;
 import com.intellij.notification.Notifications;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
+import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.BatchFixDialog;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.FixPreviewData;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.LineFixResult;
@@ -26,7 +29,11 @@ public class FixRemarkAction extends CommonAnAction {
     private final Project project;
     
     public FixRemarkAction(Project project) {
-        super("Sync All Positions", "Sync all TopicLine positions to Bookmarks", AllIcons.Actions.ForceRefresh);
+        super(
+            CodeReadingNoteBundle.message("action.fix.all"),
+            CodeReadingNoteBundle.message("action.fix.all.description"),
+            AllIcons.Actions.ForceRefresh
+        );
         this.project = project;
     }
 
@@ -43,12 +50,16 @@ public class FixRemarkAction extends CommonAnAction {
         FixPreviewData previewData = collectFixInfo(service);
         
         if (previewData.isEmpty()) {
-            showNotification("No Items to Fix", "No TopicLine found", NotificationType.INFORMATION);
+            showNotification(
+                CodeReadingNoteBundle.message("message.fix.no.items"),
+                CodeReadingNoteBundle.message("message.fix.no.topicline"),
+                NotificationType.INFORMATION
+            );
             return;
         }
         
         // Show preview dialog
-        String title = "Fix All TopicLine Positions";
+        String title = CodeReadingNoteBundle.message("message.fix.title.all");
         BatchFixDialog dialog = new BatchFixDialog(
                 project, 
                 new FixPreviewData(previewData.getResults(), title)
@@ -84,7 +95,7 @@ public class FixRemarkAction extends CommonAnAction {
                     results.add(new LineFixResult(topicLine, bookmarkLine));
                 });
         
-        return new FixPreviewData(results, "Fix All TopicLine Positions");
+        return new FixPreviewData(results, CodeReadingNoteBundle.message("message.fix.title.all"));
     }
     
     /**
@@ -112,7 +123,13 @@ public class FixRemarkAction extends CommonAnAction {
         
         for (LineFixResult result : toFix) {
             if (result.getBookmarkLine() != null) {
-                result.getTopicLine().modifyLine(result.getBookmarkLine());
+                TopicLine topicLine = result.getTopicLine();
+                // 移除旧的 remark
+                EditorUtils.removeLineCodeRemark(project, topicLine);
+                // 更新行号
+                topicLine.modifyLine(result.getBookmarkLine());
+                // 添加新的 remark
+                EditorUtils.addLineCodeRemark(project, topicLine);
                 successCount++;
             } else {
                 failCount++;
@@ -121,18 +138,22 @@ public class FixRemarkAction extends CommonAnAction {
         
         // Show result notification
         StringBuilder message = new StringBuilder();
-        message.append(String.format("✅ Successfully fixed %d TopicLine(s)", successCount));
+        message.append(CodeReadingNoteBundle.message("message.fix.success", successCount));
         
         if (failCount > 0) {
-            message.append(String.format("\n❌ Failed %d item(s)", failCount));
+            message.append("\n").append(CodeReadingNoteBundle.message("message.fix.failed", failCount));
         }
         
         // Add statistics
         if (previewData.getSyncedCount() > 0) {
-            message.append(String.format("\n✓ %d synced (no fix needed)", previewData.getSyncedCount()));
+            message.append("\n").append(CodeReadingNoteBundle.message("message.fix.synced", previewData.getSyncedCount()));
         }
         
-        showNotification("Global Position Fixed", message.toString(), NotificationType.INFORMATION);
+        showNotification(
+            CodeReadingNoteBundle.message("message.fix.result.global"),
+            message.toString(),
+            NotificationType.INFORMATION
+        );
     }
     
     /**

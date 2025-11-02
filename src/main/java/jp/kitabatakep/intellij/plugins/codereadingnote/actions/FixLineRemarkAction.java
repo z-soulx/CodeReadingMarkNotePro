@@ -11,6 +11,7 @@ import com.intellij.openapi.util.Pair;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.LineFixResult;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.SingleLineFixDialog;
 import org.jetbrains.annotations.NotNull;
@@ -88,8 +89,14 @@ public class FixLineRemarkAction extends CommonAnAction {
         int oldLine = result.getOldLine();
         int newLine = result.getNewLine();
         
+        // 移除旧的 remark
+        EditorUtils.removeLineCodeRemark(project, topicLine);
+        
         // 执行修复
         topicLine.modifyLine(newLine);
+        
+        // 添加新的 remark
+        EditorUtils.addLineCodeRemark(project, topicLine);
         
         // Show success notification
         String message = String.format("✅ %s:%d → %d", 

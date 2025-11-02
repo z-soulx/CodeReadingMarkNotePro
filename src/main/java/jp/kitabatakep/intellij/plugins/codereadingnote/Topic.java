@@ -173,6 +173,11 @@ public class Topic implements Comparable<Topic>
         groups.add(group);
         touch();
         
+        // 发送通知以更新UI
+        MessageBus messageBus = project.getMessageBus();
+        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+        publisher.groupAdded(this, group);
+        
         return group;
     }
     
@@ -188,12 +193,10 @@ public class Topic implements Comparable<Topic>
         groups.remove(group);
         touch();
         
-        // 发送通知以更新UI - 对每个移动的line发送通知
+        // 发送通知以更新UI
         MessageBus messageBus = project.getMessageBus();
         TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
-        for (TopicLine line : movedLines) {
-            publisher.lineAdded(this, line);
-        }
+        publisher.groupRemoved(this, group);
     }
     
     public TopicGroup findGroupByName(String name) {

@@ -7,9 +7,11 @@ import com.intellij.notification.NotificationType;
 import com.intellij.notification.Notifications;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.BatchFixDialog;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.FixPreviewData;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix.LineFixResult;
@@ -29,7 +31,11 @@ public class FixTopicRemarkAction extends CommonAnAction {
     private final Function<Void, Topic> topicFetcher;
     
     public FixTopicRemarkAction(Project project, Function<Void, Topic> topicFetcher) {
-        super("Sync Topic Position", "Sync all TopicLine positions in Topic to Bookmarks", AllIcons.Actions.Refresh);
+        super(
+            CodeReadingNoteBundle.message("action.fix.topic"),
+            CodeReadingNoteBundle.message("action.fix.topic.description"),
+            AllIcons.Actions.Refresh
+        );
         this.project = project;
         this.topicFetcher = topicFetcher;
     }
@@ -50,12 +56,16 @@ public class FixTopicRemarkAction extends CommonAnAction {
         FixPreviewData previewData = collectFixInfo(topic);
         
         if (previewData.isEmpty()) {
-            showNotification("No Items to Fix", "No TopicLine in this Topic", NotificationType.INFORMATION);
+            showNotification(
+                CodeReadingNoteBundle.message("message.fix.no.items"),
+                CodeReadingNoteBundle.message("message.fix.no.topicline.topic"),
+                NotificationType.INFORMATION
+            );
             return;
         }
         
         // Show preview dialog
-        String title = String.format("Fix Topic: \"%s\"", topic.name());
+        String title = CodeReadingNoteBundle.message("message.fix.title.topic", topic.name());
         BatchFixDialog dialog = new BatchFixDialog(
                 project, 
                 new FixPreviewData(previewData.getResults(), topic, title)
@@ -88,7 +98,7 @@ public class FixTopicRemarkAction extends CommonAnAction {
             results.add(new LineFixResult(topicLine, bookmarkLine));
         }
         
-        String title = String.format("Fix Topic: \"%s\"", topic.name());
+        String title = CodeReadingNoteBundle.message("message.fix.title.topic", topic.name());
         return new FixPreviewData(results, topic, title);
     }
     
@@ -117,7 +127,13 @@ public class FixTopicRemarkAction extends CommonAnAction {
         
         for (LineFixResult result : toFix) {
             if (result.getBookmarkLine() != null) {
-                result.getTopicLine().modifyLine(result.getBookmarkLine());
+                TopicLine topicLine = result.getTopicLine();
+                // 移除旧的 remark
+                EditorUtils.removeLineCodeRemark(project, topicLine);
+                // 更新行号
+                topicLine.modifyLine(result.getBookmarkLine());
+                // 添加新的 remark
+                EditorUtils.addLineCodeRemark(project, topicLine);
                 successCount++;
             } else {
                 failCount++;
@@ -125,12 +141,16 @@ public class FixTopicRemarkAction extends CommonAnAction {
         }
         
         // Show result notification
-        String message = String.format("✅ Successfully fixed %d item(s)", successCount);
+        String message = CodeReadingNoteBundle.message("message.fix.success.items", successCount);
         if (failCount > 0) {
-            message += String.format(", ❌ Failed %d item(s)", failCount);
+            message += ", " + CodeReadingNoteBundle.message("message.fix.failed", failCount);
         }
         
-        showNotification("Topic Position Fixed", message, NotificationType.INFORMATION);
+        showNotification(
+            CodeReadingNoteBundle.message("message.fix.result.topic"),
+            message,
+            NotificationType.INFORMATION
+        );
     }
     
     /**

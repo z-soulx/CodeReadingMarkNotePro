@@ -3,6 +3,7 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.util.NlsContexts;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfig;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings;
 import org.jetbrains.annotations.Nullable;
@@ -21,7 +22,7 @@ public class SyncConfigurable implements Configurable {
     @Override
     @NlsContexts.ConfigurableName
     public String getDisplayName() {
-        return "Code Reading Note Sync";
+        return CodeReadingNoteBundle.message("settings.sync.display.name");
     }
     
     @Override

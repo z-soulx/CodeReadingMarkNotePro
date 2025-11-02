@@ -7,4 +7,9 @@ public interface TopicNotifier
 
     void lineRemoved(Topic topic, TopicLine topicLine);
     void lineAdded(Topic topic, TopicLine topicLine);
+    
+    // Group-related events
+    default void groupAdded(Topic topic, TopicGroup group) {}
+    default void groupRemoved(Topic topic, TopicGroup group) {}
+    default void groupRenamed(Topic topic, TopicGroup group) {}
 }

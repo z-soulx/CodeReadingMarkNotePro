@@ -1,5 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
@@ -73,11 +74,11 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
         switch (nodeType) {
             case TOPIC:
                 Topic topic = (Topic) getUserObject();
-                return topic.name() + " (" + topic.getTotalLineCount() + " lines)";
+                return topic.name() + " (" + CodeReadingNoteBundle.message("renderer.lines.count", topic.getTotalLineCount()) + ")";
                 
             case GROUP:
                 TopicGroup group = (TopicGroup) getUserObject();
-                return group.name() + " (" + group.getLineCount() + " lines)";
+                return group.name() + " (" + CodeReadingNoteBundle.message("renderer.lines.count", group.getLineCount()) + ")";
                 
             case TOPIC_LINE:
                 TopicLine line = (TopicLine) getUserObject();
@@ -102,7 +103,7 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
                 }
                        
             case UNGROUPED_LINES_FOLDER:
-                return "Ungrouped Lines";
+                return CodeReadingNoteBundle.message("tree.ungrouped.lines");
                 
             default:
                 return getUserObject().toString();

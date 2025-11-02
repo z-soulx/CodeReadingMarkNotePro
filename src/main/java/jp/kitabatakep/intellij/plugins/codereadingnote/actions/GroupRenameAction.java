@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,7 +18,11 @@ public class GroupRenameAction extends AnAction {
     private Supplier<TopicGroup> groupSupplier;
     
     public GroupRenameAction(Supplier<TopicGroup> groupSupplier) {
-        super("Rename Group", "Rename the selected group", null);
+        super(
+            CodeReadingNoteBundle.message("action.rename.group"),
+            CodeReadingNoteBundle.message("action.rename.group.description"),
+            null
+        );
         this.groupSupplier = groupSupplier;
     }
     
@@ -32,8 +37,8 @@ public class GroupRenameAction extends AnAction {
         String currentName = group.name();
         String newName = Messages.showInputDialog(
             project,
-            "Enter new group name:",
-            "Rename Group",
+            CodeReadingNoteBundle.message("dialog.rename.group.message"),
+            CodeReadingNoteBundle.message("dialog.rename.group.title"),
             Messages.getQuestionIcon(),
             currentName,
             null
@@ -44,8 +49,8 @@ public class GroupRenameAction extends AnAction {
             if (group.getParentTopic().findGroupByName(newName.trim()) != null) {
                 Messages.showErrorDialog(
                     project,
-                    "A group with this name already exists in this topic.",
-                    "Duplicate Name"
+                    CodeReadingNoteBundle.message("message.group.duplicate.name.in.topic"),
+                    CodeReadingNoteBundle.message("message.duplicate.name.title")
                 );
                 return;
             }

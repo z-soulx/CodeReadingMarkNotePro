@@ -34,7 +34,11 @@ import java.util.Date;
 public class ExportAction extends CommonAnAction
 {
     public ExportAction() {
-        super("Export", "Export", AllIcons.ToolbarDecorator.Export);
+        super(
+            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.export"),
+            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.export.description"),
+            AllIcons.ToolbarDecorator.Export
+        );
     }
 
     @Override
@@ -47,7 +51,11 @@ public class ExportAction extends CommonAnAction
     {
         Project project = e.getProject();
         CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
-        FileSaverDescriptor fsd = new FileSaverDescriptor("Save", "Please choose where to save", "xml");
+        FileSaverDescriptor fsd = new FileSaverDescriptor(
+            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.export.save.title"),
+            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.export.save.message"),
+            "xml"
+        );
 
         VirtualFile baseDir;
         if (!service.lastExportDir().equals("")) {
@@ -78,7 +86,11 @@ public class ExportAction extends CommonAnAction
             fileOutputStream = new FileOutputStream(file);
         } catch (FileNotFoundException ex) {
             ex.printStackTrace();
-            Messages.showErrorDialog(project, "Fail to save. Please try again.", AppConstants.appName + "Save");
+            Messages.showErrorDialog(
+                project,
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.export.failed"),
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.export.failed.title", AppConstants.appName)
+            );
             return;
         }
 
@@ -90,7 +102,11 @@ public class ExportAction extends CommonAnAction
 //            xmlOutput.output(new Document(state), fileOutputStream);
         } catch (IOException ex) {
             ex.printStackTrace();
-            Messages.showErrorDialog(project, "Fail to save. Please try again.", AppConstants.appName + "Save");
+            Messages.showErrorDialog(
+                project,
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.export.failed"),
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.export.failed.title", AppConstants.appName)
+            );
             return;
         }
     }

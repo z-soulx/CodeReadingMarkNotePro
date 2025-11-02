@@ -195,13 +195,17 @@ public class TopicTreePanel extends JPanel {
                 TopicTreeNode topicNode = new TopicTreeNode(topic, TopicTreeNode.NodeType.TOPIC);
                 rootNode.add(topicNode);
                 
-                // Add groups if topic has any
-                if (!topic.getGroups().isEmpty()) {
+                // Check if topic has groups or ungrouped lines in group mode
+                boolean hasGroupsOrUngrouped = !topic.getGroups().isEmpty() || 
+                    (!topic.getUngroupedLines().isEmpty() && topic.getGroups() != null);
+                
+                if (hasGroupsOrUngrouped) {
+                    // Group mode: show all groups (even empty) and ungrouped folder
                     for (TopicGroup group : topic.getGroups()) {
                         TopicTreeNode groupNode = new TopicTreeNode(group, TopicTreeNode.NodeType.GROUP);
                         topicNode.add(groupNode);
                         
-                        // Add lines in group
+                        // Add lines in group (even if empty, show the group)
                         for (TopicLine line : group.getLines()) {
                             TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
                             groupNode.add(lineNode);
@@ -240,13 +244,17 @@ public class TopicTreePanel extends JPanel {
                 // Remove and re-add children
                 topicNode.removeAllChildren();
                 
-                // Add groups if topic has any
-                if (!topic.getGroups().isEmpty()) {
+                // Check if topic has groups or ungrouped lines in group mode
+                boolean hasGroupsOrUngrouped = !topic.getGroups().isEmpty() || 
+                    (!topic.getUngroupedLines().isEmpty() && topic.getGroups() != null);
+                
+                if (hasGroupsOrUngrouped) {
+                    // Group mode: show all groups (even empty) and ungrouped folder
                     for (TopicGroup group : topic.getGroups()) {
                         TopicTreeNode groupNode = new TopicTreeNode(group, TopicTreeNode.NodeType.GROUP);
                         topicNode.add(groupNode);
                         
-                        // Add lines in group
+                        // Add lines in group (even if empty, show the group)
                         for (TopicLine line : group.getLines()) {
                             TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
                             groupNode.add(lineNode);

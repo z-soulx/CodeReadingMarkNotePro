@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,7 +18,11 @@ public class GroupRemoveAction extends AnAction {
     private Supplier<TopicGroup> groupSupplier;
     
     public GroupRemoveAction(Supplier<TopicGroup> groupSupplier) {
-        super("Remove Group", "Remove the selected group (lines will be moved to ungrouped)", null);
+        super(
+            CodeReadingNoteBundle.message("action.remove.group"),
+            CodeReadingNoteBundle.message("action.remove.group.description"),
+            null
+        );
         this.groupSupplier = groupSupplier;
     }
     

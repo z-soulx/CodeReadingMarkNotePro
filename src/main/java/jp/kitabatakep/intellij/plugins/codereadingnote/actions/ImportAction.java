@@ -31,7 +31,11 @@ import java.io.IOException;
 public class ImportAction extends CommonAnAction
 {
     public ImportAction() {
-        super("Import", "Import", AllIcons.ToolbarDecorator.Import);
+        super(
+            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.import"),
+            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.import.description"),
+            AllIcons.ToolbarDecorator.Import
+        );
     }
 
     @Override
@@ -77,9 +81,17 @@ public class ImportAction extends CommonAnAction
             document = domBuilder.build(document1);
 //             document = builder.build(new File(files[0].getPath()));
         } catch (ParserConfigurationException | SAXException ex) {
-            Messages.showErrorDialog(project, "Fail to load action caused by illegal format file content.", AppConstants.appName + "Load");
+            Messages.showErrorDialog(
+                project,
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.import.failed.format"),
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.import.failed.title", AppConstants.appName)
+            );
         } catch (IOException ex) {
-            Messages.showErrorDialog(project, "Fail to load action. Please try again.", AppConstants.appName + "Load");
+            Messages.showErrorDialog(
+                project,
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.import.failed"),
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.import.failed.title", AppConstants.appName)
+            );
             return;
         }
 
@@ -95,8 +107,8 @@ public class ImportAction extends CommonAnAction
         } catch (TopicListImporter.FormatException e2) {
             Messages.showErrorDialog(
                 project,
-                "Fail to load action caused by illegal format file content.",
-                AppConstants.appName + "Load"
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.import.failed.format"),
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.import.failed.title", AppConstants.appName)
             );
         }
 

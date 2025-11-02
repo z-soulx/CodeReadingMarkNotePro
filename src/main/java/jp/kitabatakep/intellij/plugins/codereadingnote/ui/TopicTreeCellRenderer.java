@@ -3,6 +3,7 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 import com.intellij.icons.AllIcons;
 import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -54,7 +55,7 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
         
         // Add timestamp and line count
         String info = " (" + DATE_FORMAT.format(topic.updatedAt()) + 
-                     ", " + topic.getTotalLineCount() + " lines)";
+                     ", " + CodeReadingNoteBundle.message("renderer.lines.count", topic.getTotalLineCount()) + ")";
         append(info, SimpleTextAttributes.GRAY_ATTRIBUTES);
     }
     
@@ -68,7 +69,7 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
         append(group.name(), SimpleTextAttributes.REGULAR_ATTRIBUTES);
         
         // Add line count
-        String info = " (" + group.getLineCount() + " lines)";
+        String info = " (" + CodeReadingNoteBundle.message("renderer.lines.count", group.getLineCount()) + ")";
         append(info, SimpleTextAttributes.GRAY_ATTRIBUTES);
         
         // Add note if present
@@ -104,14 +105,14 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
         
         // Show warning for invalid files
         if (!topicLine.isValid()) {
-            append(" (file not found)", SimpleTextAttributes.ERROR_ATTRIBUTES);
+            append(" " + CodeReadingNoteBundle.message("tree.file.not.found"), SimpleTextAttributes.ERROR_ATTRIBUTES);
         }
     }
     
     private void renderUngroupedFolderNode(TopicTreeNode node, boolean selected) {
         setIcon(AllIcons.Nodes.Folder);
         
-        append("Ungrouped Lines", SimpleTextAttributes.GRAY_ATTRIBUTES);
+        append(CodeReadingNoteBundle.message("tree.ungrouped.lines"), SimpleTextAttributes.GRAY_ATTRIBUTES);
         
         // Add count
         int childCount = node.getChildCount();

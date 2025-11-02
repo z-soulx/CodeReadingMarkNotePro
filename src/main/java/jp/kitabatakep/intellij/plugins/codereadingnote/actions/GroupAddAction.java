@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import org.jetbrains.annotations.NotNull;
@@ -18,7 +19,11 @@ public class GroupAddAction extends AnAction {
     private Supplier<Topic> topicSupplier;
     
     public GroupAddAction(Supplier<Topic> topicSupplier) {
-        super("Add Group", "Add a new group to organize topic lines", null);
+        super(
+            CodeReadingNoteBundle.message("action.add.group"),
+            CodeReadingNoteBundle.message("action.add.group.description"),
+            null
+        );
         this.topicSupplier = topicSupplier;
     }
     
@@ -33,8 +38,8 @@ public class GroupAddAction extends AnAction {
         // Ask for group name
         String groupName = Messages.showInputDialog(
             project,
-            "Enter group name:",
-            "Add Group",
+            CodeReadingNoteBundle.message("dialog.add.group.message"),
+            CodeReadingNoteBundle.message("dialog.add.group.title"),
             Messages.getQuestionIcon(),
             "",
             null
@@ -45,8 +50,8 @@ public class GroupAddAction extends AnAction {
             if (topic.findGroupByName(groupName.trim()) != null) {
                 Messages.showErrorDialog(
                     project,
-                    "A group with this name already exists.",
-                    "Duplicate Name"
+                    CodeReadingNoteBundle.message("message.group.duplicate.name"),
+                    CodeReadingNoteBundle.message("message.duplicate.name.title")
                 );
                 return;
             }

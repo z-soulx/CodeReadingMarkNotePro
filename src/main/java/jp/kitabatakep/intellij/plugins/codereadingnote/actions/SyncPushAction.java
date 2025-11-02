@@ -7,6 +7,7 @@ import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfig;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncService;
@@ -19,7 +20,11 @@ import org.jetbrains.annotations.NotNull;
 public class SyncPushAction extends CommonAnAction {
     
     public SyncPushAction() {
-        super("Push to Remote", "Push notes to remote repository", AllIcons.Actions.Upload);
+        super(
+            CodeReadingNoteBundle.message("action.sync.push"),
+            CodeReadingNoteBundle.message("action.sync.push.description"),
+            AllIcons.Actions.Upload
+        );
     }
     
     @Override
@@ -34,8 +39,8 @@ public class SyncPushAction extends CommonAnAction {
         
         if (!config.isEnabled()) {
             Messages.showWarningDialog(project, 
-                "Sync is not enabled. Please configure it in Settings first.", 
-                "Sync Not Enabled");
+                CodeReadingNoteBundle.message("message.sync.not.enabled"), 
+                CodeReadingNoteBundle.message("message.sync.not.enabled.title"));
             return;
         }
         
@@ -43,19 +48,19 @@ public class SyncPushAction extends CommonAnAction {
         String validationError = config.validate();
         if (validationError != null) {
             Messages.showErrorDialog(project, 
-                "Sync configuration incomplete: " + validationError, 
-                "Configuration Error");
+                CodeReadingNoteBundle.message("message.sync.config.error", validationError), 
+                CodeReadingNoteBundle.message("message.sync.config.error.title"));
             return;
         }
         
         // 在后台执行同步
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "Pushing Notes", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, CodeReadingNoteBundle.message("progress.pushing"), true) {
             private SyncResult result;
             
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
                 indicator.setIndeterminate(true);
-                indicator.setText("Pushing to remote...");
+                indicator.setText(CodeReadingNoteBundle.message("progress.pushing.text"));
                 
                 SyncService syncService = SyncService.getInstance(project);
                 result = syncService.push(config);
@@ -66,19 +71,19 @@ public class SyncPushAction extends CommonAnAction {
                 if (result.isSuccess()) {
                     Messages.showInfoMessage(project, 
                         result.getUserMessage(), 
-                        "Push Successful");
+                        CodeReadingNoteBundle.message("message.push.successful.title"));
                 } else {
                     Messages.showErrorDialog(project, 
                         result.getUserMessage(), 
-                        "Push Failed");
+                        CodeReadingNoteBundle.message("message.push.failed.title"));
                 }
             }
             
             @Override
             public void onThrowable(@NotNull Throwable error) {
                 Messages.showErrorDialog(project, 
-                    "Error occurred during push: " + error.getMessage(), 
-                    "Push Failed");
+                    CodeReadingNoteBundle.message("message.push.error", error.getMessage()), 
+                    CodeReadingNoteBundle.message("message.push.failed.title"));
             }
         });
     }

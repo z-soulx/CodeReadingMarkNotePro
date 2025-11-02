@@ -37,6 +37,13 @@ public class TopicGroup implements Comparable<TopicGroup> {
     public void setName(String name) {
         this.name = name;
         touch();
+        
+        // 发送通知以更新UI
+        if (project != null && parentTopic != null) {
+            MessageBus messageBus = project.getMessageBus();
+            TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+            publisher.groupRenamed(parentTopic, this);
+        }
     }
 
     public String note() {

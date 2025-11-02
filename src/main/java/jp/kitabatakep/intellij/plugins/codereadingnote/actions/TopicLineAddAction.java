@@ -54,7 +54,7 @@ public class TopicLineAddAction extends CommonAnAction {
                                     CommonDataKeys.VIRTUAL_FILE.getData(dataContext) != null));
         }
 
-        event.getPresentation().setText("Add to Topic");
+        event.getPresentation().setText(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.add.to.topic"));
     }
 
     /**
@@ -84,7 +84,7 @@ public class TopicLineAddAction extends CommonAnAction {
 
         PopupChooserBuilder<Topic> builder = new PopupChooserBuilder<Topic>(new JList<>(topics.toArray(new Topic[0])));
         builder
-                .setTitle("Select Topic With Note")
+                .setTitle(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.select.topic.with.note"))
                 .setRenderer(new MyCellRenderer<Topic>())
                 .setResizable(true)
                 .setItemChosenCallback((topic) -> {
@@ -97,7 +97,7 @@ public class TopicLineAddAction extends CommonAnAction {
 
 
         noteInputField.setOneLineMode(false);
-        noteInputField.setPlaceholder("[Optional] note input area");
+        noteInputField.setPlaceholder(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.note.input.placeholder"));
         noteInputField.setPreferredSize(
                 new JBDimension(
                         240,
@@ -141,7 +141,7 @@ public class TopicLineAddAction extends CommonAnAction {
 
         // 创建一个 JPanel 用于包装弹出菜单
         JPanel popupPanel = new JPanel(new BorderLayout());  // 使用 BorderLayout 布局
-        JLabel titleLabel = new JLabel("Select Topic With Note");
+        JLabel titleLabel = new JLabel(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.select.topic.with.note"));
         titleLabel.setFont(new Font("Arial", Font.BOLD, 14));  // 设置标题的字体
         titleLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));  // 设置边距
         popupPanel.add(titleLabel, BorderLayout.NORTH);
@@ -155,7 +155,7 @@ public class TopicLineAddAction extends CommonAnAction {
         MyEditorTextField noteInputField = new MyEditorTextField(project, FileTypeManager.getInstance().getStdFileType("Markdown"));
         noteInputField.setOneLineMode(false);
         noteInputField.setPreferredSize(new Dimension(240, 50));
-        noteInputField.setPlaceholder("[Optional] note input area");
+        noteInputField.setPlaceholder(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.note.input.placeholder"));
 
         // 将输入框添加到右侧（East）
         popupPanel.add(noteInputField, BorderLayout.EAST);
@@ -244,7 +244,7 @@ public class TopicLineAddAction extends CommonAnAction {
         }
 
         // Create the JDialog with enhanced layout for group selection
-        JDialog dialog = new JDialog((Frame) null, "Add to Topic (with Group)", true);
+        JDialog dialog = new JDialog((Frame) null, jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.add.to.topic.title"), true);
         dialog.setLayout(new BorderLayout());
 
         // Create main panel with three columns: Topic, Group, Note
@@ -252,7 +252,7 @@ public class TopicLineAddAction extends CommonAnAction {
         
         // Left panel: Topic selection
         JPanel topicPanel = new JPanel(new BorderLayout());
-        topicPanel.setBorder(BorderFactory.createTitledBorder("Select Topic"));
+        topicPanel.setBorder(BorderFactory.createTitledBorder(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.select.topic")));
         
         JBList<Topic> topicJList = new JBList<>(topics.toArray(new Topic[0]));
         topicJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -263,7 +263,7 @@ public class TopicLineAddAction extends CommonAnAction {
         
         // Middle panel: Group selection
         JPanel groupPanel = new JPanel(new BorderLayout());
-        groupPanel.setBorder(BorderFactory.createTitledBorder("Select Group (Optional)"));
+        groupPanel.setBorder(BorderFactory.createTitledBorder(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.select.group")));
         
         DefaultListModel<Object> groupListModel = new DefaultListModel<>();
         JBList<Object> groupJList = new JBList<>(groupListModel);
@@ -275,18 +275,18 @@ public class TopicLineAddAction extends CommonAnAction {
         
         // Right panel: Note input
         JPanel notePanel = new JPanel(new BorderLayout());
-        notePanel.setBorder(BorderFactory.createTitledBorder("Note (Optional)"));
+        notePanel.setBorder(BorderFactory.createTitledBorder(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.note.optional")));
         
         MyEditorTextField noteInputField = new MyEditorTextField(project, FileTypeManager.getInstance().getStdFileType("Markdown"));
         noteInputField.setOneLineMode(false);
-        noteInputField.setPlaceholder("[Optional] note input area");
+        noteInputField.setPlaceholder(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.note.input.placeholder"));
         noteInputField.setPreferredSize(new JBDimension(250, 200));
         notePanel.add(noteInputField, BorderLayout.CENTER);
         
         // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton addButton = new JButton("Add to Topic");
-        JButton cancelButton = new JButton("Cancel");
+        JButton addButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.add.to.topic"));
+        JButton cancelButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.cancel"));
         buttonPanel.add(addButton);
         buttonPanel.add(cancelButton);
         
@@ -327,7 +327,8 @@ public class TopicLineAddAction extends CommonAnAction {
                         if (groupOption.startsWith("+")) {
                             // Create new group
                             String newGroupName = JOptionPane.showInputDialog(dialog, 
-                                "Enter new group name:", "Create New Group", 
+                                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.new.group.message"), 
+                                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.new.group.title"), 
                                 JOptionPane.QUESTION_MESSAGE);
                             if (newGroupName != null && !newGroupName.trim().isEmpty()) {
                                 selectedTopic.addLineToGroup(newLine, newGroupName.trim());
@@ -353,8 +354,9 @@ public class TopicLineAddAction extends CommonAnAction {
                 // 记录异常但不中断用户操作
                 Logger.getInstance(TopicLineAddAction.class).warn("Error adding topic line", ex);
                 JOptionPane.showMessageDialog(dialog, 
-                    "Error adding topic line: " + ex.getMessage(), 
-                    "Error", JOptionPane.ERROR_MESSAGE);
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.error.adding.topic.line", ex.getMessage()), 
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.error.title"), 
+                    JOptionPane.ERROR_MESSAGE);
             }
         });
         
@@ -379,7 +381,7 @@ public class TopicLineAddAction extends CommonAnAction {
         
         if (topic != null) {
             // Add "No Group" option
-            groupListModel.addElement("No Group (Direct to Topic)");
+            groupListModel.addElement(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.no.group"));
             
             // Add existing groups
             for (TopicGroup group : topic.getGroups()) {
@@ -387,7 +389,7 @@ public class TopicLineAddAction extends CommonAnAction {
             }
             
             // Add "Create New Group" option
-            groupListModel.addElement("+ Create New Group");
+            groupListModel.addElement(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.create.new.group"));
         }
     }
     
@@ -399,12 +401,12 @@ public class TopicLineAddAction extends CommonAnAction {
             
             if (value instanceof TopicGroup) {
                 TopicGroup group = (TopicGroup) value;
-                setText(group.name() + " (" + group.getLineCount() + " lines)");
+                setText(group.name() + " (" + jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("renderer.lines.count", group.getLineCount()) + ")");
                 setIcon(AllIcons.Nodes.Folder);
             } else if (value instanceof String) {
                 String text = (String) value;
                 setText(text);
-                if (text.startsWith("+")) {
+                if (text.startsWith("+") || text.contains(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("panel.create.new.group").substring(2))) {
                     setIcon(AllIcons.General.Add);
                 } else {
                     setIcon(AllIcons.Actions.Unselectall);

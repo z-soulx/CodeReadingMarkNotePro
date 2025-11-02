@@ -7,6 +7,9 @@ import com.intellij.ui.components.JBPasswordField;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
+import jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings;
+import jp.kitabatakep.intellij.plugins.codereadingnote.settings.PluginLanguage;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfig;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncProviderType;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.github.GitHubSyncConfig;
@@ -21,6 +24,10 @@ import java.awt.*;
 public class SyncSettingsPanel {
     
     private final JPanel mainPanel;
+    
+    // 语言设置
+    private final ComboBox<PluginLanguage> languageComboBox;
+    private final JBLabel languageRestartNote;
     
     // 通用配置
     private final JBCheckBox enabledCheckBox;
@@ -37,9 +44,27 @@ public class SyncSettingsPanel {
     private final CardLayout providerConfigLayout;
     
     public SyncSettingsPanel() {
-        // 初始化组件
-        enabledCheckBox = new JBCheckBox("Enable Sync");
-        autoSyncCheckBox = new JBCheckBox("Auto Sync (automatically push on save)");
+        // 初始化语言选择组件
+        languageComboBox = new ComboBox<>(new DefaultComboBoxModel<>(PluginLanguage.values()));
+        languageComboBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, 
+                                                         int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof PluginLanguage) {
+                    setText(((PluginLanguage) value).getDisplayName());
+                }
+                return this;
+            }
+        });
+        
+        languageRestartNote = new JBLabel(CodeReadingNoteBundle.message("settings.language.restart.note"));
+        languageRestartNote.setForeground(com.intellij.ui.JBColor.GRAY);
+        languageRestartNote.setFont(languageRestartNote.getFont().deriveFont(languageRestartNote.getFont().getSize() - 1.0f));
+        
+        // 初始化同步配置组件
+        enabledCheckBox = new JBCheckBox(CodeReadingNoteBundle.message("settings.sync.enable"));
+        autoSyncCheckBox = new JBCheckBox(CodeReadingNoteBundle.message("settings.sync.auto"));
         
         providerTypeComboBox = new ComboBox<>(new DefaultComboBoxModel<>(SyncProviderType.values()));
         providerTypeComboBox.setRenderer(new DefaultListCellRenderer() {
@@ -56,10 +81,10 @@ public class SyncSettingsPanel {
         
         // GitHub配置字段
         repositoryField = new JBTextField();
-        repositoryField.getEmptyText().setText("e.g., username/repo-name");
+        repositoryField.getEmptyText().setText(CodeReadingNoteBundle.message("settings.github.repository.placeholder"));
         
         tokenField = new JBPasswordField();
-        tokenField.getEmptyText().setText("GitHub Personal Access Token");
+        tokenField.getEmptyText().setText(CodeReadingNoteBundle.message("settings.github.token.placeholder"));
         
         branchField = new JBTextField();
         branchField.setText("main");
@@ -88,17 +113,30 @@ public class SyncSettingsPanel {
         enabledCheckBox.addActionListener(e -> updateEnabledState());
         
         // 构建主面板
-        mainPanel = FormBuilder.createFormBuilder()
+        FormBuilder formBuilder = FormBuilder.createFormBuilder();
+        
+        // 语言设置部分
+        formBuilder
+            .addLabeledComponent(new JBLabel(CodeReadingNoteBundle.message("settings.language.label")), languageComboBox, 1, false)
+            .addTooltip(CodeReadingNoteBundle.message("settings.language.tooltip"))
+            .addComponent(languageRestartNote, 1)
+            .addVerticalGap(15)
+            .addSeparator();
+        
+        // 同步设置部分
+        formBuilder
+            .addVerticalGap(10)
             .addComponent(enabledCheckBox, 1)
             .addVerticalGap(10)
-            .addLabeledComponent(new JBLabel("Sync Provider:"), providerTypeComboBox, 1, false)
+            .addLabeledComponent(new JBLabel(CodeReadingNoteBundle.message("settings.sync.provider")), providerTypeComboBox, 1, false)
             .addComponent(autoSyncCheckBox, 1)
             .addVerticalGap(10)
             .addSeparator()
-            .addLabeledComponent(new JBLabel(""), new JBLabel("Sync Configuration"), 1, false)
+            .addLabeledComponent(new JBLabel(""), new JBLabel(CodeReadingNoteBundle.message("settings.sync.configuration")), 1, false)
             .addComponent(providerConfigPanel, 1)
-            .addComponentFillVertically(new JPanel(), 0)
-            .getPanel();
+            .addComponentFillVertically(new JPanel(), 0);
+        
+        mainPanel = formBuilder.getPanel();
         
         mainPanel.setBorder(JBUI.Borders.empty(10));
         
@@ -112,14 +150,14 @@ public class SyncSettingsPanel {
     @NotNull
     private JPanel createGitHubConfigPanel() {
         JPanel panel = FormBuilder.createFormBuilder()
-            .addLabeledComponent(new JBLabel("Repository:"), repositoryField, 1, false)
-            .addTooltip("Format: owner/repo, e.g., username/code-notes")
-            .addLabeledComponent(new JBLabel("Access Token:"), tokenField, 1, false)
-            .addTooltip("Personal Access Token with Contents: Read and write permission")
-            .addLabeledComponent(new JBLabel("Branch:"), branchField, 1, false)
-            .addTooltip("Branch name for storing notes")
-            .addLabeledComponent(new JBLabel("Base Path:"), basePathField, 1, false)
-            .addTooltip("Storage path in repository")
+            .addLabeledComponent(new JBLabel(CodeReadingNoteBundle.message("settings.github.repository")), repositoryField, 1, false)
+            .addTooltip(CodeReadingNoteBundle.message("settings.github.repository.tooltip"))
+            .addLabeledComponent(new JBLabel(CodeReadingNoteBundle.message("settings.github.token")), tokenField, 1, false)
+            .addTooltip(CodeReadingNoteBundle.message("settings.github.token.tooltip"))
+            .addLabeledComponent(new JBLabel(CodeReadingNoteBundle.message("settings.github.branch")), branchField, 1, false)
+            .addTooltip(CodeReadingNoteBundle.message("settings.github.branch.tooltip"))
+            .addLabeledComponent(new JBLabel(CodeReadingNoteBundle.message("settings.github.basepath")), basePathField, 1, false)
+            .addTooltip(CodeReadingNoteBundle.message("settings.github.basepath.tooltip"))
             .getPanel();
         
         panel.setBorder(JBUI.Borders.emptyLeft(20));
@@ -151,6 +189,10 @@ public class SyncSettingsPanel {
      * 从配置加载到UI
      */
     public void loadFrom(@NotNull SyncConfig config) {
+        // 加载语言设置
+        languageComboBox.setSelectedItem(LanguageSettings.getInstance().getSelectedLanguage());
+        
+        // 加载同步配置
         enabledCheckBox.setSelected(config.isEnabled());
         autoSyncCheckBox.setSelected(config.isAutoSync());
         providerTypeComboBox.setSelectedItem(config.getProviderType());
@@ -170,6 +212,13 @@ public class SyncSettingsPanel {
      * 从UI保存到配置
      */
     public void saveTo(@NotNull SyncConfig config) {
+        // 保存语言设置
+        PluginLanguage selectedLanguage = (PluginLanguage) languageComboBox.getSelectedItem();
+        if (selectedLanguage != null) {
+            LanguageSettings.getInstance().setSelectedLanguage(selectedLanguage);
+        }
+        
+        // 保存同步配置
         config.setEnabled(enabledCheckBox.isSelected());
         config.setAutoSync(autoSyncCheckBox.isSelected());
         
@@ -191,6 +240,11 @@ public class SyncSettingsPanel {
      * 检查是否已修改
      */
     public boolean isModified(@NotNull SyncConfig config) {
+        // 检查语言设置是否修改
+        PluginLanguage selectedLanguage = (PluginLanguage) languageComboBox.getSelectedItem();
+        if (selectedLanguage != LanguageSettings.getInstance().getSelectedLanguage()) return true;
+        
+        // 检查同步配置是否修改
         if (enabledCheckBox.isSelected() != config.isEnabled()) return true;
         if (autoSyncCheckBox.isSelected() != config.isAutoSync()) return true;
         

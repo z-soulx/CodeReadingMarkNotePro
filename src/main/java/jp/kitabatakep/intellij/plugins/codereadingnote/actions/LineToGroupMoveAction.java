@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
@@ -19,7 +20,11 @@ public class LineToGroupMoveAction extends AnAction {
     private Supplier<TopicLine> topicLineSupplier;
     
     public LineToGroupMoveAction(Supplier<TopicLine> topicLineSupplier) {
-        super("Move to Group", "Move this line to a group", null);
+        super(
+            CodeReadingNoteBundle.message("action.move.to.group"),
+            CodeReadingNoteBundle.message("action.move.to.group.description"),
+            null
+        );
         this.topicLineSupplier = topicLineSupplier;
     }
     
@@ -37,16 +42,16 @@ public class LineToGroupMoveAction extends AnAction {
         if (topic.getGroups().isEmpty()) {
             int result = Messages.showYesNoDialog(
                 project,
-                "This topic has no groups yet. Create a group first?",
-                "Create Group",
+                CodeReadingNoteBundle.message("dialog.move.to.group.no.groups"),
+                CodeReadingNoteBundle.message("dialog.move.to.group.create.title"),
                 Messages.getQuestionIcon()
             );
             
             if (result == Messages.YES) {
                 String groupName = Messages.showInputDialog(
                     project,
-                    "Enter group name:",
-                    "Create Group",
+                    CodeReadingNoteBundle.message("dialog.move.to.group.create.message"),
+                    CodeReadingNoteBundle.message("dialog.move.to.group.create.title"),
                     Messages.getQuestionIcon(),
                     "Default Group",
                     null
@@ -65,8 +70,8 @@ public class LineToGroupMoveAction extends AnAction {
         if (topic.getGroups().isEmpty()) {
             Messages.showInfoMessage(
                 project,
-                "No groups available. Please create a group first.",
-                "No Groups"
+                CodeReadingNoteBundle.message("dialog.move.to.group.no.groups.available"),
+                CodeReadingNoteBundle.message("dialog.move.to.group.no.groups.title")
             );
             return;
         }
@@ -77,8 +82,8 @@ public class LineToGroupMoveAction extends AnAction {
                 .toArray(String[]::new);
         
         String selectedGroupName = Messages.showEditableChooseDialog(
-            "Select target group:",
-            "Move to Group",
+            CodeReadingNoteBundle.message("dialog.move.to.group.message"),
+            CodeReadingNoteBundle.message("dialog.move.to.group.title"),
             Messages.getQuestionIcon(),
             groupNames,
             groupNames[0],

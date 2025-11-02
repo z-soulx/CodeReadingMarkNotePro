@@ -10,7 +10,7 @@ plugins {
 }
 
 group 'jp.kitabatakep'
-version '3.5.0'  // 插件版本号 - 发布新版本时更新此行
+version '3.6.0'  // 插件版本号 - 发布新版本时更新此行
 
 sourceCompatibility = 17
 targetCompatibility = 17
@@ -43,6 +43,12 @@ intellij {
 }
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+}
+
+// 处理资源文件编码 - 确保 properties 文件使用 UTF-8
+tasks.withType(ProcessResources) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    filteringCharset = 'UTF-8'
 }
 
 //runIde {

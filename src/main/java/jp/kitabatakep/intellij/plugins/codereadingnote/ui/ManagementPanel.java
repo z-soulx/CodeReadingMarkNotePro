@@ -159,8 +159,8 @@ public class ManagementPanel extends JPanel
         
         // 创建选项卡面板
         JBTabbedPane tabbedPane = new JBTabbedPane();
-        tabbedPane.addTab("Tree View", splitPane);
-        tabbedPane.addTab("Search", searchPanel);
+        tabbedPane.addTab(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("tree.view.tab"), splitPane);
+        tabbedPane.addTab(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("search.tab"), searchPanel);
 
         add(actionToolBar(), BorderLayout.PAGE_START);
         add(tabbedPane, BorderLayout.CENTER);
@@ -206,6 +206,24 @@ public class ManagementPanel extends JPanel
                 topicTreePanel.refreshTopic(topic);
                 updateSearchData(); // 更新搜索数据
             }
+            
+            @Override
+            public void groupAdded(Topic topic, TopicGroup group) {
+                topicTreePanel.refreshTopic(topic);
+                updateSearchData(); // 更新搜索数据
+            }
+            
+            @Override
+            public void groupRemoved(Topic topic, TopicGroup group) {
+                topicTreePanel.refreshTopic(topic);
+                updateSearchData(); // 更新搜索数据
+            }
+            
+            @Override
+            public void groupRenamed(Topic topic, TopicGroup group) {
+                topicTreePanel.refreshTopic(topic);
+                updateSearchData(); // 更新搜索数据
+            }
         });
     }
 
@@ -216,12 +234,13 @@ public class ManagementPanel extends JPanel
         actions.add(new TopicRenameAction((v) -> getSelectedTopic()));
         actions.add(new TopicRemoveAction(project, (v) -> getSelectedTopic()));
         
-        // Group-related actions
+        // Group-related actions - 使用下拉菜单整合分组操作
         actions.addSeparator();
-        actions.add(new GroupAddAction(() -> getSelectedTopic()));
-        actions.add(new GroupRenameAction(() -> getSelectedGroup()));
-        actions.add(new GroupRemoveAction(() -> getSelectedGroup()));
-        actions.add(new LineToGroupMoveAction(() -> getSelectedTopicLine()));
+        actions.add(new GroupActionsMenu(
+            () -> getSelectedTopic(),
+            () -> getSelectedGroup(),
+            () -> getSelectedTopicLine()
+        ));
         
         // Tree operations - 树操作
         actions.addSeparator();

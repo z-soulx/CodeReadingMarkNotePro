@@ -3,6 +3,7 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.actions;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.TopicTreePanel;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,7 +19,11 @@ public class CollapseAllAction extends CommonAnAction {
     private final Supplier<TopicTreePanel> topicTreePanelSupplier;
 
     public CollapseAllAction(Supplier<TopicTreePanel> topicTreePanelSupplier) {
-        super("Toggle Collapse/Expand All", "Toggle between collapse all and expand all for topics, groups, and ungrouped folders", AllIcons.Actions.Collapseall);
+        super(
+            CodeReadingNoteBundle.message("action.toggle.collapse"),
+            CodeReadingNoteBundle.message("action.toggle.collapse.description"),
+            AllIcons.Actions.Collapseall
+        );
         this.topicTreePanelSupplier = topicTreePanelSupplier;
     }
 
@@ -54,12 +59,12 @@ public class CollapseAllAction extends CommonAnAction {
         
         // 动态更新按钮文本和图标，根据当前状态显示下一步操作
         if (enabled && treePanel.areAllNodesCollapsed()) {
-            e.getPresentation().setText("Expand All");
-            e.getPresentation().setDescription("Expand all topics, groups, and ungrouped folders");
+            e.getPresentation().setText(CodeReadingNoteBundle.message("action.expand.all"));
+            e.getPresentation().setDescription(CodeReadingNoteBundle.message("action.expand.all.description"));
             e.getPresentation().setIcon(AllIcons.Actions.Expandall);
         } else {
-            e.getPresentation().setText("Collapse All");
-            e.getPresentation().setDescription("Collapse all topics, groups, and ungrouped folders");
+            e.getPresentation().setText(CodeReadingNoteBundle.message("action.collapse.all"));
+            e.getPresentation().setDescription(CodeReadingNoteBundle.message("action.collapse.all.description"));
             e.getPresentation().setIcon(AllIcons.Actions.Collapseall);
         }
     }
