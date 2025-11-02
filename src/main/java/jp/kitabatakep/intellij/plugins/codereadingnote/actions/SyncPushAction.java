@@ -1,5 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.actions;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
@@ -18,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 public class SyncPushAction extends CommonAnAction {
     
     public SyncPushAction() {
-        super("Push to Remote", "Push notes to remote repository", null);
+        super("Push to Remote", "Push notes to remote repository", AllIcons.Actions.Upload);
     }
     
     @Override

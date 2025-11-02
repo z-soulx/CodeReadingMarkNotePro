@@ -1,5 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.actions;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
@@ -18,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 public class SyncPullAction extends CommonAnAction {
     
     public SyncPullAction() {
-        super("Pull from Remote", "Pull notes from remote repository", null);
+        super("Pull from Remote", "Pull notes from remote repository", AllIcons.Actions.Download);
     }
     
     @Override

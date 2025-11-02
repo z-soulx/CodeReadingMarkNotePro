@@ -178,7 +178,8 @@ public class Topic implements Comparable<Topic>
     
     public void removeGroup(TopicGroup group) {
         // 将分组中的所有TopicLine移动到ungroupedLines
-        for (TopicLine line : group.getLines()) {
+        ArrayList<TopicLine> movedLines = new ArrayList<>(group.getLines());
+        for (TopicLine line : movedLines) {
             line.setGroup(null);
             ungroupedLines.add(line);
             lines.add(line); // 保持废弃字段同步
@@ -186,6 +187,13 @@ public class Topic implements Comparable<Topic>
         
         groups.remove(group);
         touch();
+        
+        // 发送通知以更新UI - 对每个移动的line发送通知
+        MessageBus messageBus = project.getMessageBus();
+        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+        for (TopicLine line : movedLines) {
+            publisher.lineAdded(this, line);
+        }
     }
     
     public TopicGroup findGroupByName(String name) {
