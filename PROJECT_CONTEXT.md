@@ -8,7 +8,7 @@
 - **插件名称**: Code Reading mark Note pro
 - **插件ID**: `soulx.CodeReadingMarkNotePro`
 - **发布地址**: https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro/edit
-- **当前版本**: 2024.3.0
+- **当前版本**: 3.5.0
 - **支持平台**: IntelliJ IDEA 2024.3+
 - **开发语言**: Java 17+
 - **构建工具**: Gradle + IntelliJ Plugin
@@ -30,6 +30,12 @@
 - 支持codeRemark代码备注展示
 - 支持和原生bookmarks联动
 - 提供实验性功能联动bookmarks修复位置错位
+- **支持第三方同步功能** (v3.5.0新增)
+  - GitHub同步 (已实现)
+  - 支持Push/Pull操作，合并或覆盖模式
+  - 基于项目名称的标识，跨设备一致
+  - 自动同步选项（保存时推送）
+  - 可扩展架构支持未来添加更多同步方式（Gitee、WebDAV、本地文件等）
 
 ## 架构设计
 
@@ -75,6 +81,14 @@
 - **CodeRemark**: 代码备注实体
 - **CodeRemarkEditorManagerListener**: 编辑器事件监听
 - **EditorUtils**: 编辑器操作工具
+
+#### 6. 同步系统 (v3.4.0新增)
+- **SyncService**: 同步服务核心
+- **SyncProvider**: 同步提供者接口
+- **SyncProviderFactory**: 提供者工厂
+- **GitHubSyncProvider**: GitHub同步实现
+- **SyncSettings**: 配置持久化
+- **SyncConfigurable**: 设置界面
 
 ### 数据流设计
 

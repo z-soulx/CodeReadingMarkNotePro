@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.3.1</version>
+    <version>3.5.0</version>
     <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
     <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -16,6 +16,11 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
+        <!-- SyncService uses @Service annotation, no need to register here -->
+        <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings" />
+        <projectConfigurable parentId="tools" instance="jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncConfigurable"
+                             id="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfigurable"
+                             displayName="Code Reading Note Sync"/>
         <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
         <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
     </extensions>

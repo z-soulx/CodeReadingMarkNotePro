@@ -233,6 +233,11 @@ public class ManagementPanel extends JPanel
         actions.addSeparator();
         actions.add(new ExportAction());
         actions.add(new ImportAction());
+        
+        // Sync actions
+        actions.addSeparator();
+        actions.add(new SyncPushAction());
+        actions.add(new SyncPullAction());
 
         ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar(AppConstants.appName, actions, true);
         
