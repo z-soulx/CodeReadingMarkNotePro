@@ -10,6 +10,7 @@ import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.util.messages.MessageBus;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.sync.AutoSyncScheduler;
 import org.jetbrains.annotations.NotNull;
 
 import org.jdom.Element;
@@ -57,6 +58,8 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             @Override
             public void lineRemoved(Topic _topic, TopicLine _topicLine) {
                     EditorUtils.removeLineCodeRemark(project,_topicLine);
+                    // 触发自动同步
+                    scheduleAutoSync();
             }
 
             @Override
@@ -67,8 +70,60 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
                         _topicLine.setBookmarkUid(uid);
                     }
                     EditorUtils.addLineCodeRemark(project, _topicLine);
+                    // 触发自动同步
+                    scheduleAutoSync();
+            }
+            
+            @Override
+            public void groupAdded(Topic topic, TopicGroup group) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void groupRemoved(Topic topic, TopicGroup group) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void groupRenamed(Topic topic, TopicGroup group) {
+                // 触发自动同步
+                scheduleAutoSync();
             }
         });
+        
+        // 订阅TopicList级别的通知
+        messageBus.connect().subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier() {
+            @Override
+            public void topicAdded(Topic topic) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void topicRemoved(Topic topic) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void topicsLoaded() {
+                // 数据加载不触发自动同步
+            }
+        });
+    }
+    
+    /**
+     * 调度自动同步
+     */
+    private void scheduleAutoSync() {
+        try {
+            AutoSyncScheduler scheduler = AutoSyncScheduler.getInstance(project);
+            scheduler.scheduleAutoSync();
+        } catch (Exception e) {
+            // 忽略错误，避免影响主要功能
+        }
     }
 
     public static CodeReadingNoteService getInstance(@NotNull Project project)

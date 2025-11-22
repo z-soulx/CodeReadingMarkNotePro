@@ -69,9 +69,15 @@ public class SyncPushAction extends CommonAnAction {
             @Override
             public void onSuccess() {
                 if (result.isSuccess()) {
+                    // 检查是否是跳过推送的情况（通过比较消息内容）
+                    String noChangesMsg = CodeReadingNoteBundle.message("message.push.no.changes");
+                    String title = result.getUserMessage().equals(noChangesMsg) ?
+                        CodeReadingNoteBundle.message("message.push.no.changes.title") :
+                        CodeReadingNoteBundle.message("message.push.successful.title");
+                    
                     Messages.showInfoMessage(project, 
                         result.getUserMessage(), 
-                        CodeReadingNoteBundle.message("message.push.successful.title"));
+                        title);
                 } else {
                     Messages.showErrorDialog(project, 
                         result.getUserMessage(), 

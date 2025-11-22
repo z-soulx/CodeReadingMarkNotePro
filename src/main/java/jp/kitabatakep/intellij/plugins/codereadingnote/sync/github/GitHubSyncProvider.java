@@ -1,6 +1,7 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.sync.github;
 
 import com.intellij.openapi.project.Project;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.AbstractSyncProvider;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfig;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncProviderType;
@@ -12,6 +13,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -75,12 +78,35 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         
         try {
             String filePath = buildFilePath(ghConfig, projectIdentifier);
+            String md5FilePath = filePath + ".md5";
+            
+            // 计算本地数据的MD5
+            String localMd5 = calculateMD5(data);
+            
+            // 获取远端MD5
+            String remoteMd5 = getRemoteMD5(ghConfig, md5FilePath);
+            
+            // 比较MD5，如果一致则跳过推送
+            if (localMd5.equals(remoteMd5)) {
+                LOG.info("MD5 check: No changes detected, skipping push");
+                return SyncResult.success(CodeReadingNoteBundle.message("message.push.no.changes"));
+            }
+            
+            LOG.info("MD5 check: Changes detected, pushing to remote");
             
             // 先尝试获取文件SHA（如果文件存在）
             String sha = getFileSha(ghConfig, filePath);
+            String md5Sha = getFileSha(ghConfig, md5FilePath);
             
             // 创建或更新文件
-            return pushFile(ghConfig, filePath, data, sha);
+            SyncResult result = pushFile(ghConfig, filePath, data, sha);
+            
+            // 如果推送成功，同时推送MD5文件
+            if (result.isSuccess()) {
+                pushMD5File(ghConfig, md5FilePath, localMd5, md5Sha);
+            }
+            
+            return result;
             
         } catch (Exception e) {
             LOG.error("Push to GitHub failed", e);
@@ -379,6 +405,87 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         } catch (Exception e) {
             LOG.debug("Failed to parse date: " + dateStr, e);
             return 0;
+        }
+    }
+    
+    /**
+     * 计算字符串的MD5哈希值
+     */
+    @NotNull
+    private String calculateMD5(@NotNull String data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] hashBytes = md.digest(data.getBytes(StandardCharsets.UTF_8));
+            
+            // 转换为16进制字符串
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            LOG.error("MD5 algorithm not available", e);
+            return "";
+        }
+    }
+    
+    /**
+     * 获取远端MD5文件内容
+     */
+    private String getRemoteMD5(@NotNull GitHubSyncConfig config, @NotNull String md5FilePath) {
+        try {
+            String content = getFileContent(config, md5FilePath);
+            if (content != null) {
+                // MD5文件内容就是MD5哈希值，去除可能的空白字符
+                return content.trim();
+            }
+        } catch (Exception e) {
+            LOG.debug("Failed to get remote MD5", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 推送MD5文件到GitHub
+     */
+    private void pushMD5File(@NotNull GitHubSyncConfig config, @NotNull String md5FilePath, 
+                            @NotNull String md5Value, String sha) {
+        try {
+            String apiUrl = buildApiUrl(config, md5FilePath);
+            HttpURLConnection conn = createConnection(apiUrl, "PUT", config.getToken());
+            
+            // 构建请求体
+            String base64Content = Base64.getEncoder().encodeToString(md5Value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder json = new StringBuilder();
+            json.append("{");
+            json.append("\"message\":\"Update MD5 checksum\",");
+            json.append("\"content\":\"").append(base64Content).append("\",");
+            json.append("\"branch\":\"").append(escapeJson(config.getBranch())).append("\"");
+            if (sha != null) {
+                json.append(",\"sha\":\"").append(escapeJson(sha)).append("\"");
+            }
+            json.append("}");
+            
+            // 发送请求
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            
+            int responseCode = conn.getResponseCode();
+            conn.disconnect();
+            
+            if (responseCode == 200 || responseCode == 201) {
+                LOG.info("MD5 file pushed successfully");
+            } else {
+                LOG.warn("Failed to push MD5 file: HTTP " + responseCode);
+            }
+            
+        } catch (Exception e) {
+            LOG.warn("Failed to push MD5 file", e);
         }
     }
 }

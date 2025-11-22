@@ -340,16 +340,96 @@ public class CodeReadingNoteBundle {
 
 但目前不需要这个优化。
 
+## 📝 国际化字符串维护
+
+### 资源文件位置
+
+- **英文资源**: `src/main/resources/messages/CodeReadingNoteBundle.properties`
+- **中文资源**: `src/main/resources/messages/CodeReadingNoteBundle_zh.properties`
+
+### 新增字符串清单（v3.5.0+）
+
+#### MD5 校验相关
+| Key | English | 简体中文 | 用途 |
+|-----|---------|----------|------|
+| `message.push.no.changes` | No changes detected, skipping push | 未检测到变化，跳过推送 | 推送时 MD5 相同的提示 |
+| `message.push.no.changes.title` | Push Skipped | 推送已跳过 | 跳过推送对话框标题 |
+
+#### 使用示例
+
+```java
+// 在 GitHubSyncProvider.java 中
+if (localMD5.equals(remoteMD5)) {
+    return SyncResult.success(
+        CodeReadingNoteBundle.message("message.push.no.changes")
+    );
+}
+
+// 在 SyncPushAction.java 中
+String title = result.getUserMessage().contains(noChangesMsg) 
+    ? CodeReadingNoteBundle.message("message.push.no.changes.title")
+    : CodeReadingNoteBundle.message("message.push.success.title");
+```
+
+### 添加新字符串的步骤
+
+1. **在 `.properties` 文件中添加键值对**
+   ```properties
+   # CodeReadingNoteBundle.properties (英文)
+   message.new.feature=New feature message
+   
+   # CodeReadingNoteBundle_zh.properties (中文)
+   message.new.feature=新功能消息
+   ```
+
+2. **在代码中使用 CodeReadingNoteBundle**
+   ```java
+   String message = CodeReadingNoteBundle.message("message.new.feature");
+   ```
+
+3. **测试语言切换**
+   - 在设置中切换到英文，验证显示英文消息
+   - 在设置中切换到中文，验证显示中文消息
+
+### 命名规范
+
+**推荐的 key 命名格式**:
+- `message.{功能}.{描述}` - 用户消息
+- `action.{功能}.{动作}` - 操作名称
+- `settings.{功能}.{选项}` - 设置选项
+- `dialog.{功能}.{元素}` - 对话框元素
+
+**示例**:
+```properties
+# 消息
+message.sync.success=Sync successful
+message.sync.failed=Sync failed
+
+# 操作
+action.sync.push=Push to Remote
+action.sync.pull=Pull from Remote
+
+# 设置
+settings.sync.enable=Enable Sync
+settings.sync.auto=Auto Sync on Save
+
+# 对话框
+dialog.pull.mode.message=Choose pull mode
+dialog.pull.mode.merge=Merge
+```
+
 ## 🎉 完成状态
 
 ✅ **已完成**:
 1. PluginLanguage 枚举（2个语言选项）
 2. LanguageSettings 配置类（智能默认 + 持久化）
-3. CodeReadingNoteBundle 资源加载（禁用缓存）
+3. CodeReadingNoteBundle 资源加载（禁用缓存 + UTF-8 支持）
 4. SyncSettingsPanel UI（语言选择下拉框）
 5. plugin.xml 注册（applicationService）
 6. 资源文件更新（tooltip 说明）
 7. 文档完善（使用指南 + 测试说明）
+8. MD5 校验功能国际化（v3.5.0+）
+9. 自动同步功能国际化（v3.5.0+）
 
 ✅ **测试建议**:
 1. 构建插件 JAR
