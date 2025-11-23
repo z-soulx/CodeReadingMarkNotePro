@@ -1,313 +1,186 @@
-# Fix Actions 功能测试指南
+# 快速测试指南
 
-## 🚀 快速测试步骤
+## 测试 1: Edit Line Number - 旧 Bookmark 删除
 
-### 前提准备
+### 准备
+1. 在项目中打开一个文件
+2. 选择第 53 行代码
+3. 右键 → "Add to Topic"
+4. 选择一个 Topic，输入 note: "测试行号修改"
+5. 添加成功后，第 53 行应该有：
+   - IDE 原生 bookmark（左侧装订线有标记）
+   - CodeRemark 注释（行尾显示 "测试行号修改"）
 
-1. 编译并运行插件
-2. 创建至少 1 个 Topic，包含 2-3 个 TopicLine
+### 执行
+1. 在 Code Reading Note 工具窗口中找到这个 TopicLine
+2. 右键 → "Edit Line Number"
+3. 将行号从 53 改为 55
+4. 点击 OK
 
----
+### 验证
+✅ **立即观察**（无需关闭文件）：
+- [ ] 第 53 行的 bookmark 标记消失
+- [ ] 第 53 行的 CodeRemark 注释消失
+- [ ] 第 55 行出现 bookmark 标记
+- [ ] 第 55 行出现 CodeRemark 注释 "测试行号修改"
 
-## ✅ 测试清单
-
-### 测试 1：单行修复功能
-
-**目标：** 测试 FixLineRemarkAction 的预览对话框
-
-**步骤：**
-1. 打开 Code Reading Note 工具窗口
-2. 选择一个 Topic，展开 TopicLine 列表
-3. 右键点击任意一个 TopicLine
-4. 选择 **"同步 Bookmark 位置"** 菜单项
-
-**预期结果：**
-- ✅ 弹出对话框标题为 "修复 TopicLine 位置"
-- ✅ 显示文件名、路径、Topic、笔记
-- ✅ 显示状态（已同步 / 需要修复 / Bookmark丢失 / 文件不存在）
-- ✅ 如果需要修复，显示 "当前行号 → Bookmark位置" 和偏移量
-- ✅ 按钮文本为 "修复到第 X 行" 或 "关闭"
-
-**触发修复状态的方法：**
-- 手动编辑 TopicLine 对应的文件
-- 在文件开头添加/删除几行代码
-- 这样 Bookmark 会自动移位，但 TopicLine 的行号不变
+✅ **持久化验证**：
+- [ ] 关闭 IDE
+- [ ] 重新打开项目
+- [ ] 第 55 行仍有 bookmark 和 remark
+- [ ] 第 53 行干净（无 bookmark 和 remark）
 
 ---
 
-### 测试 2：Topic 批量修复功能
+## 测试 2: TreeView 拖拽 - Ungrouped → Group
 
-**目标：** 测试 FixTopicRemarkAction 的批量预览
+### 准备
+1. 创建一个新 Topic，名为 "拖拽测试"
+2. 右键 Topic → "Add Group"，创建 Group "目标组"
+3. 添加一个 TopicLine（会默认在 Ungrouped Lines）
 
-**步骤：**
-1. 选择包含多个 TopicLine 的 Topic
-2. 右键点击 Topic
-3. 选择 **"同步 Topic 位置"** 菜单项
+### 执行
+1. 切换到 TreeView 标签（左侧树形视图）
+2. 展开 "拖拽测试" Topic
+3. 展开 "Ungrouped Lines" 文件夹，看到刚添加的 TopicLine
+4. **拖拽** TopicLine 到 "目标组"
 
-**预期结果：**
-- ✅ 弹出对话框标题为 "修复 Topic: \"XXX\""
-- ✅ 显示统计信息面板：
-  - 总共 X 个 TopicLine
-  - 需要修复 X 个
-  - 已同步 X 个
-  - Bookmark 丢失 X 个（如果有）
-- ✅ 显示详细列表，每项带图标和状态
-- ✅ 提供两个修复按钮：
-  - "仅修复错位的 (X 个)"
-  - "全部重新同步 (X 个)"
+### 验证
+✅ **立即观察**：
+- [ ] TopicLine 从 "Ungrouped Lines" 消失
+- [ ] TopicLine 出现在 "目标组" 下
+- [ ] "Ungrouped Lines" 旁边的计数减 1
+- [ ] "目标组" 旁边的计数加 1
 
-**测试修复功能：**
-1. 点击 "仅修复错位的"
-2. 确认弹出通知显示修复数量
-3. 再次打开对话框，验证已修复项变为 "已同步"
+✅ **切换标签验证**：
+- [ ] 切换到右侧详细面板
+- [ ] 选择 "目标组"
+- [ ] TopicLine 在列表中显示
 
----
-
-### 测试 3：全局修复功能
-
-**目标：** 测试 FixRemarkAction 的全局预览
-
-**步骤：**
-1. 确保有多个 Topic 和多个 TopicLine
-2. 点击工具栏或菜单中的 **"同步所有位置"** 按钮
-
-**预期结果：**
-- ✅ 弹出对话框标题为 "修复所有 TopicLine 位置"
-- ✅ 显示全局统计信息（所有 Topic 的汇总）
-- ✅ 列表显示所有 TopicLine（来自不同 Topic）
-- ✅ 不同状态的 TopicLine 有不同的图标和颜色
-- ✅ 修复后显示全局统计通知
+✅ **持久化验证**：
+- [ ] 关闭 IDE
+- [ ] 重新打开项目
+- [ ] TopicLine 仍在 "目标组" 下
 
 ---
 
-### 测试 4：边界情况
+## 测试 3: TreeView 拖拽 - Group → Group
 
-#### 4.1 已同步状态
+### 准备
+1. 在 "拖拽测试" Topic 下创建两个 Groups:
+   - "组A"
+   - "组B"
+2. 在 "组A" 下添加一个 TopicLine
 
-**步骤：**
-1. 创建新的 TopicLine（刚创建的应该是同步的）
-2. 立即点击 "同步 Bookmark 位置"
+### 执行
+1. 在 TreeView 中，**拖拽** TopicLine 从 "组A" 到 "组B"
 
-**预期结果：**
-- ✅ 对话框显示 "✅ 此 TopicLine 已经与 Bookmark 同步，无需修复"
-- ✅ 只有 "关闭" 按钮
-
-#### 4.2 Bookmark 丢失
-
-**步骤：**
-1. 打开 IntelliJ 的 Bookmarks 面板
-2. 手动删除某个 TopicLine 对应的 Bookmark
-3. 对该 TopicLine 执行 "同步 Bookmark 位置"
-
-**预期结果：**
-- ✅ 对话框显示 "❌ 找不到对应的 Bookmark，可能已被删除"
-- ✅ 只有 "关闭" 按钮
-
-#### 4.3 文件不存在（跨分支场景）
-
-**步骤：**
-1. 在分支 A 创建 TopicLine
-2. 切换到分支 B（该文件在分支 B 不存在）
-3. 执行 "同步所有位置"
-
-**预期结果：**
-- ✅ 列表中该 TopicLine 显示 "🚫 文件不存在"
-- ✅ 文字和图标为灰色
-- ✅ 不会尝试修复该项
-
-#### 4.4 空 Topic
-
-**步骤：**
-1. 创建一个空的 Topic（没有 TopicLine）
-2. 对该 Topic 执行 "同步 Topic 位置"
-
-**预期结果：**
-- ✅ 显示通知 "无可修复项：此 Topic 中没有 TopicLine"
-- ✅ 不弹出对话框
+### 验证
+✅ **立即观察**：
+- [ ] TopicLine 从 "组A" 消失
+- [ ] TopicLine 出现在 "组B" 下
+- [ ] "组A" 计数减 1
+- [ ] "组B" 计数加 1
 
 ---
 
-## 🎨 UI 元素验证
+## 测试 4: TreeView 拖拽 - Group → Ungrouped
 
-### 图标检查
+### 准备
+1. "组A" 下有一个 TopicLine
 
-| Action | 图标 | 菜单文本 |
-|--------|------|----------|
-| Fix Line | 🔄 Diff | "同步 Bookmark 位置" |
-| Fix Topic | 🔃 Refresh | "同步 Topic 位置" |
-| Fix All | 🔄🔄 ForceRefresh | "同步所有位置" |
+### 执行
+1. **拖拽** TopicLine 从 "组A" 到 "Ungrouped Lines" 文件夹
 
-### 状态图标检查
-
-在列表中验证：
-- ✅ 已同步 → 绿色对勾图标
-- ⚠️ 需要修复 → 黄色警告图标
-- ❌ Bookmark丢失 → 红色错误图标
-- 🚫 文件不存在 → 灰色图标
-
-### 颜色验证
-
-- **需要修复的行号：**
-  - 旧行号：橙色加粗
-  - 箭头：橙色
-  - 新行号：绿色加粗
-  
-- **状态文本：**
-  - 已同步：灰色
-  - 需要修复：正常黑色
-  - Bookmark丢失：红色斜体
-  - 文件不存在：灰色斜体
+### 验证
+✅ **立即观察**：
+- [ ] TopicLine 从 "组A" 消失
+- [ ] TopicLine 出现在 "Ungrouped Lines" 下
+- [ ] 计数正确更新
 
 ---
 
-## 🔍 功能验证
+## 测试 5: TreeView 拖拽 - 批量拖拽
 
-### 预览对话框必须包含的信息
+### 准备
+1. 在 "Ungrouped Lines" 下有至少 3 个 TopicLines
 
-**单行修复对话框：**
-- [ ] 文件名（加粗）
-- [ ] 文件路径（灰色）
-- [ ] Topic 名称
-- [ ] 笔记内容（如果有）
-- [ ] 当前行号
-- [ ] Bookmark 位置
-- [ ] 偏移量
-- [ ] 警告提示文本
+### 执行
+1. 按住 **Ctrl** 键
+2. 点击选择多个 TopicLine（应该都被高亮）
+3. 拖拽选中的 TopicLines 到 "目标组"
 
-**批量修复对话框：**
-- [ ] 对话框标题（包含 Topic 名称或"所有"）
-- [ ] 统计信息面板（边框标题"统计信息"）
-- [ ] 每项统计（图标 + 标签 + 数值）
-- [ ] 详细列表（边框标题"详细列表"）
-- [ ] 列表项（图标 + 文件名 + 行号）
-- [ ] 提示文本（底部灰色）
+### 验证
+✅ **立即观察**：
+- [ ] 所有选中的 TopicLines 都从 "Ungrouped Lines" 消失
+- [ ] 所有选中的 TopicLines 都出现在 "目标组" 下
+- [ ] 计数正确更新
 
-### 修复逻辑验证
+---
 
-**仅修复错位的：**
-1. 只修复 `NEEDS_FIX` 状态的 TopicLine
-2. 跳过已同步、Bookmark丢失、文件不存在的项
-3. 通知显示正确的修复数量
+## 测试 6: 负面测试 - 不能拖拽到非法目标
 
-**全部重新同步：**
-1. 修复所有有效的 TopicLine（包括已同步的）
-2. 跳过 Bookmark丢失和文件不存在的项
-3. 通知显示完整统计
+### 执行
+1. 尝试拖拽 TopicLine 到 Topic 节点（不是 Group）
 
-### 通知验证
+### 验证
+✅ **预期行为**：
+- [ ] 拖拽光标显示"禁止"图标（🚫）
+- [ ] 无法放置
 
-**成功修复通知格式：**
+---
+
+## 启用调试日志（如果测试失败）
+
+如果任何测试失败，请启用日志：
+
+1. **Help** → **Diagnostic Tools** → **Debug Log Settings**
+2. 添加以下内容：
+   ```
+   #jp.kitabatakep.intellij.plugins.codereadingnote.ui.dnd.TopicTreeTransferHandler
+   #jp.kitabatakep.intellij.plugins.codereadingnote.operations.TopicLineOperationService
+   #jp.kitabatakep.intellij.plugins.codereadingnote.operations.LineNumberUpdateService
+   ```
+3. 点击 **OK**
+4. 重现失败的测试
+5. **Help** → **Show Log in Explorer**
+6. 打开 `idea.log`，搜索相关类名
+7. 截图日志并提供
+
+---
+
+## 预期日志示例
+
+### Edit Line Number 成功日志
 ```
-标题: 位置修复成功 / Topic 位置修复完成 / 全局位置修复完成
-内容: ✅ 成功修复 X 个 [TopicLine]
-     [❌ 失败 X 个]
-     [✓ X 个已同步（无需修复）]
+LineNumberUpdateService: Updating line number from 53 to 55
+LineNumberUpdateService: Removed old bookmark at line 53: true
+LineNumberUpdateService: Created new bookmark at line: 55
+```
+
+### 拖拽成功日志
+```
+TopicTreeTransferHandler: Creating transferable for 1 TopicLine(s)
+TopicTreeTransferHandler: Dropping 1 line(s) onto 目标组
+TopicLineOperationService: Moving 1 lines to group '目标组'
+TopicLineOperationService: Removed line from ungrouped
+TopicLineOperationService: Added line to target group: 目标组
+TopicTreeTransferHandler: Tree model reloaded
 ```
 
 ---
 
-## 🐛 已知问题检查
+## 所有测试通过 ✅
 
-确保以下问题已修复：
+如果所有测试都通过，说明修复成功！
 
-- [ ] 跨分支场景不抛出 NPE
-- [ ] Bookmark 丢失时不崩溃
-- [ ] 文件不存在时优雅降级
-- [ ] 空 Topic 不弹出空对话框
-- [ ] 修复后 UI 立即更新
+## 如果有测试失败 ❌
 
----
-
-## 📊 性能测试（可选）
-
-### 大量数据测试
-
-1. 创建 10 个 Topic
-2. 每个 Topic 包含 20 个 TopicLine
-3. 执行 "同步所有位置"
-
-**预期：**
-- ✅ 对话框在 1 秒内打开
-- ✅ 列表滚动流畅
-- ✅ 修复操作在 3 秒内完成
-- ✅ 没有 UI 卡顿
+请提供：
+1. 失败的测试编号
+2. 实际行为（截图）
+3. 日志文件（按上述步骤启用并提取）
 
 ---
 
-## ✅ 最终确认清单
-
-### 代码质量
-- [x] 无 linter 错误
-- [x] 无编译警告
-- [ ] 通过测试（等待编译环境修复）
-
-### 功能完整性
-- [x] 三个 Action 都能正常工作
-- [x] 预览对话框正确显示
-- [x] 统计信息准确
-- [x] 修复逻辑正确
-- [x] 通知系统工作
-
-### UI/UX
-- [x] 图标更新为合适的类型
-- [x] 文本清晰易懂（中文）
-- [x] 颜色和图标一致
-- [x] 对话框布局合理
-- [x] 响应式设计良好
-
-### 边界情况
-- [x] 处理已同步状态
-- [x] 处理 Bookmark 丢失
-- [x] 处理文件不存在
-- [x] 处理空 Topic
-- [x] 处理空列表
-
----
-
-## 📝 测试报告模板
-
-```markdown
-## Fix Actions 测试报告
-
-**测试日期：** YYYY-MM-DD  
-**测试人：** XXX  
-**插件版本：** v3.4.0  
-
-### 测试结果
-
-| 测试项 | 状态 | 备注 |
-|-------|------|------|
-| 单行修复对话框 | ✅ / ❌ | |
-| Topic 批量修复 | ✅ / ❌ | |
-| 全局修复 | ✅ / ❌ | |
-| 已同步状态 | ✅ / ❌ | |
-| Bookmark 丢失 | ✅ / ❌ | |
-| 文件不存在 | ✅ / ❌ | |
-| 图标和文本 | ✅ / ❌ | |
-| 通知系统 | ✅ / ❌ | |
-
-### 发现的问题
-
-1. 问题描述
-2. 重现步骤
-3. 预期行为
-4. 实际行为
-
-### 改进建议
-
-1. ...
-2. ...
-```
-
----
-
-## 🎉 测试完成
-
-如果所有测试都通过，恭喜！这个功能已经可以发布了。
-
-**下一步：**
-1. 更新 changeNotes.html
-2. 增加版本号
-3. 构建插件
-4. 发布到 JetBrains Marketplace
-
+**Happy Testing! 🎉**

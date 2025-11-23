@@ -1,7 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.ide.DataManager;
-import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
@@ -16,7 +15,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiUtilCore;
 import com.intellij.ui.JBSplitter;
-import com.intellij.ui.RowsDnDSupport;
 import com.intellij.ui.SimpleColoredComponent;
 import com.intellij.ui.SimpleTextAttributes;
 import com.intellij.ui.awt.RelativePoint;
@@ -31,7 +29,6 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.actions.ShowBookmarkUidAc
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -40,7 +37,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Iterator;
-import java.util.UUID;
 
 class TopicDetailPanel extends JPanel {
 
@@ -76,7 +72,13 @@ class TopicDetailPanel extends JPanel {
 		JBSplitter topicLinePane = new JBSplitter(0.2f);
 		topicLinePane.setSplitterProportionKey(
 				AppConstants.appName + "TopicDetailPanelTopicLinePane.splitter");
-		topicLinePane.setFirstComponent(new JBScrollPane(topicLineList));
+		
+		// Create panel with toolbar for topicLineList
+		JPanel leftPanel = new JPanel(new BorderLayout());
+		leftPanel.add(createTopicLineToolbar(), BorderLayout.NORTH);
+		leftPanel.add(new JBScrollPane(topicLineList), BorderLayout.CENTER);
+		
+		topicLinePane.setFirstComponent(leftPanel);
 		topicLinePane.setSecondComponent(topicLineDetailPanel);
 		topicLinePane.setHonorComponentsMinimumSize(false);
 
@@ -99,20 +101,26 @@ class TopicDetailPanel extends JPanel {
 		@Override
 		public void lineAdded(Topic _topic, TopicLine _topicLine) {
 			if (_topic == topic) {
-				// 只有当文件存在时才添加书签
-				if (_topicLine.file() != null) {
-					String uid = UUID.randomUUID().toString();
-					Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
-					if (bookmark != null) {
-						_topicLine.setBookmarkUid(uid);
-					}
-				}
+				// Bookmark creation is now handled by CodeReadingNoteService.lineAdded()
+				// Don't create duplicate bookmarks here!
+				// Just update the UI
 				topicLineListModel.addElement(_topicLine);
 					// Mobile monitoring that does not rely on Panel
 					//移动不依赖Panel的监听
 //					EditorUtils.addLineCodeRemark(project, _topicLine);
 				}
 			}
+			
+		@Override
+		public void lineUpdated(Topic _topic, TopicLine _topicLine, int oldLineNum, int newLineNum) {
+			if (_topic == topic) {
+				// Refresh list to show updated line number
+				int index = topicLineListModel.indexOf(_topicLine);
+				if (index >= 0) {
+					topicLineListModel.set(index, _topicLine);
+				}
+			}
+		}
 		});
 	}
 
@@ -144,7 +152,7 @@ class TopicDetailPanel extends JPanel {
 
 	private void initTopicLineList() {
 		topicLineList = new JBList<>();
-		topicLineList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		topicLineList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION); // Changed to support multi-selection
 		topicLineList.setCellRenderer(new TopicLineListCellRenderer<>(project));
 		topicLineList.addListSelectionListener(e -> {
 			TopicLine topicLine = topicLineList.getSelectedValue();
@@ -167,11 +175,29 @@ class TopicDetailPanel extends JPanel {
 				}
 
 				if (SwingUtilities.isRightMouseButton(e)) {
+					// Get selected lines for batch operations
+					java.util.List<TopicLine> selectedLines = topicLineList.getSelectedValuesList();
+					boolean multipleSelected = selectedLines.size() > 1;
+					
 					DefaultActionGroup actions = new DefaultActionGroup();
 					actions.add(new TopicLineRemoveAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new ShowBookmarkUidAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new FixLineRemarkAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new TopicLineMoveToGroupAction(topicLine));
+					
+					// Add new actions for single line
+					if (!multipleSelected) {
+						actions.addSeparator();
+						actions.add(new jp.kitabatakep.intellij.plugins.codereadingnote.actions.EditLineNumberAction(topicLine));
+						actions.add(new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairSingleLineBookmarkAction(topicLine, topic));
+					}
+					
+					// Add batch operations for multiple selection
+					if (multipleSelected) {
+						actions.addSeparator();
+						actions.add(new jp.kitabatakep.intellij.plugins.codereadingnote.actions.BatchAdjustLineNumbersAction(selectedLines));
+					}
+					
 					JBPopupFactory.getInstance().createActionGroupPopup(
 							null,
 							actions,
@@ -198,9 +224,67 @@ class TopicDetailPanel extends JPanel {
 				}
 			}
 		});
+	}
 
-		topicLineList.setDragEnabled(true);
-		RowsDnDSupport.install(topicLineList, topicLineListModel);
+	private JComponent createTopicLineToolbar() {
+		JPanel toolbarPanel = new JPanel(new BorderLayout());
+		toolbarPanel.setPreferredSize(new Dimension(0, 30)); // 设置最小高度确保可见
+		
+		// Create action group for toolbar
+		DefaultActionGroup actionGroup = new DefaultActionGroup();
+		
+		// Add "Repair All Bookmarks" action (always enabled)
+		com.intellij.openapi.actionSystem.AnAction repairAllAction = new com.intellij.openapi.actionSystem.AnAction(
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.all"),
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
+				com.intellij.icons.AllIcons.Actions.ForceRefresh
+		) {
+			@Override
+			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				// Trigger repair for all topics
+				new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction()
+						.actionPerformed(e);
+			}
+			
+			@Override
+			public void update(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				e.getPresentation().setEnabled(e.getProject() != null);
+				e.getPresentation().setVisible(true); // 确保按钮始终可见
+			}
+		};
+		actionGroup.add(repairAllAction);
+		
+		// Add "Repair Bookmarks for This Topic" action (only enabled when topic is selected)
+		com.intellij.openapi.actionSystem.AnAction repairTopicAction = new com.intellij.openapi.actionSystem.AnAction(
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.topic"),
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
+				com.intellij.icons.AllIcons.Actions.Refresh
+		) {
+			@Override
+			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				// Trigger repair for current topic only
+				if (topic != null) {
+					new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairTopicBookmarksAction(topic)
+							.actionPerformed(e);
+				}
+			}
+			
+			@Override
+			public void update(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				e.getPresentation().setEnabled(topic != null);
+				e.getPresentation().setVisible(true); // 确保按钮始终可见
+			}
+		};
+		actionGroup.add(repairTopicAction);
+		
+		// Create toolbar
+		com.intellij.openapi.actionSystem.ActionToolbar toolbar = 
+				com.intellij.openapi.actionSystem.ActionManager.getInstance()
+						.createActionToolbar("CodeReadingNoteTopicLineToolbar", actionGroup, true);
+		toolbar.setTargetComponent(topicLineList);
+		
+		toolbarPanel.add(toolbar.getComponent(), BorderLayout.CENTER);
+		return toolbarPanel;
 	}
 
 	void clear() {

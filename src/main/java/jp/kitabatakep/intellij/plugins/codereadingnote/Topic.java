@@ -1,5 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote;
 
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.messages.MessageBus;
 import org.jetbrains.annotations.NotNull;
@@ -7,13 +8,19 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 
 public class Topic implements Comparable<Topic>
 {
+    private static final Logger LOG = Logger.getInstance(Topic.class);
+    
     private String name;
     private String note;
     private Date updatedAt;
     private Project project;
+    
+    // 用户定义的排序顺序（用于手动排序）
+    private int order = 0;
     
     // 分组管理
     private ArrayList<TopicGroup> groups = new ArrayList<>();
@@ -29,6 +36,14 @@ public class Topic implements Comparable<Topic>
         this.project = project;
         this.name = name;
         this.updatedAt = updatedAt;
+        this.order = 0; // 默认顺序
+    }
+    
+    public Topic(Project project, String name, Date updatedAt, int order) {
+        this.project = project;
+        this.name = name;
+        this.updatedAt = updatedAt;
+        this.order = order;
     }
 
     public String name()
@@ -53,10 +68,20 @@ public class Topic implements Comparable<Topic>
         updatedAt = new Date();
     }
 
+    public int getOrder() {
+        return order;
+    }
+    
+    public void setOrder(int order) {
+        this.order = order;
+    }
+    
     @Override
     public int compareTo(@NotNull Topic topic)
     {
-        return topic.updatedAt().compareTo(updatedAt);
+        // 只按用户定义的 order 进行排序，不按 updatedAt 排序
+        // 这样可以保持用户手动定义的顺序，不会因为使用而自动改变顺序
+        return Integer.compare(this.order, topic.order);
     }
 
     public void setLines(ArrayList<TopicLine> lines)
@@ -263,5 +288,81 @@ public class Topic implements Comparable<Topic>
      */
     public ArrayList<TopicLine> getAllLines() {
         return getLines();
+    }
+    
+    /**
+     * Insert multiple TopicLines at specified position
+     * Used for drag and drop and batch move operations
+     * 
+     * @param linesToInsert TopicLines to insert
+     * @param insertIndex Insert position (-1 for end)
+     */
+    public void insertLines(@NotNull List<TopicLine> linesToInsert, int insertIndex) {
+        if (linesToInsert.isEmpty()) {
+            return;
+        }
+        
+        // Determine actual insert position
+        int actualIndex = insertIndex;
+        if (actualIndex < 0 || actualIndex > lines.size()) {
+            actualIndex = lines.size();
+        }
+        
+        // Insert into lines list
+        for (int i = 0; i < linesToInsert.size(); i++) {
+            TopicLine line = linesToInsert.get(i);
+            // Note: TopicLine.setTopic() is package-private, set via topic field directly if needed
+            
+            // Insert at specified position
+            lines.add(actualIndex + i, line);
+            
+            // Add to appropriate list based on group
+            if (line.getGroup() == null) {
+                if (!ungroupedLines.contains(line)) {
+                    ungroupedLines.add(line);
+                }
+            } else {
+                // Ensure group belongs to current topic
+                TopicGroup group = line.getGroup();
+                if (!groups.contains(group)) {
+                    groups.add(group);
+                }
+                if (!group.getLines().contains(line)) {
+                    group.getLines().add(line);
+                }
+            }
+        }
+        
+        touch();
+    }
+    
+    /**
+     * Reorder a TopicLine within current Topic
+     * 
+     * @param line TopicLine to move
+     * @param newIndex New position
+     */
+    public void reorderLine(@NotNull TopicLine line, int newIndex) {
+        int oldIndex = lines.indexOf(line);
+        if (oldIndex == -1) {
+            LOG.warn("Line not found in topic: " + line.url());
+            return;
+        }
+        
+        if (oldIndex == newIndex) {
+            return; // No change needed
+        }
+        
+        // Remove from old position
+        lines.remove(oldIndex);
+        
+        // Insert at new position
+        int actualIndex = newIndex;
+        if (actualIndex > lines.size()) {
+            actualIndex = lines.size();
+        }
+        lines.add(actualIndex, line);
+        
+        touch();
     }
 }

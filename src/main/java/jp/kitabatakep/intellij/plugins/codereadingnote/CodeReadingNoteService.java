@@ -4,6 +4,7 @@ import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
@@ -21,8 +22,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemark;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
-import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
 
 @State(
     name = AppConstants.appName,
@@ -32,6 +31,8 @@ import org.jetbrains.annotations.NotNull;
 )
 public class CodeReadingNoteService implements PersistentStateComponent<Element>
 {
+    private static final Logger LOG = Logger.getInstance(CodeReadingNoteService.class);
+    
     Project project;
     TopicList topicList;
 
@@ -64,10 +65,28 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
 
             @Override
             public void lineAdded(Topic _topic, TopicLine _topicLine) {
-                    String uid = UUID.randomUUID().toString();
-                    Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
-                    if (bookmark != null) {
-                        _topicLine.setBookmarkUid(uid);
+                    // Check if TopicLine already has a UUID
+                    // This prevents re-generating UUID when line number is updated (which incorrectly triggers lineAdded event)
+                    String uid = _topicLine.getBookmarkUid();
+                    if (uid == null || uid.isEmpty()) {
+                        // Generate new UUID only if TopicLine doesn't have one (truly new line)
+                        uid = UUID.randomUUID().toString();
+                        Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
+                        if (bookmark != null) {
+                            _topicLine.setBookmarkUid(uid);
+                        }
+                    } else {
+                        // TopicLine already has UUID (e.g., after line number update)
+                        // Just ensure bookmark exists with the existing UUID
+                        Bookmark existingBookmark = BookmarkUtils.machBookmark(_topicLine, project);
+                        if (existingBookmark == null) {
+                            // Bookmark missing, recreate it with existing UUID
+                            Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
+                            if (bookmark == null) {
+                                LOG.warn("Failed to recreate bookmark for TopicLine: " + _topicLine.pathForDisplay() + ":" + _topicLine.line());
+                            }
+                        }
+                        // Don't overwrite UUID - it's already set correctly
                     }
                     EditorUtils.addLineCodeRemark(project, _topicLine);
                     // 触发自动同步

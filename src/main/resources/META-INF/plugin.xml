@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.6.0</version>
+    <version>3.6.2</version>
     <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
     <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -17,6 +17,8 @@
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
         <!-- SyncService uses @Service annotation, no need to register here -->
+        <!-- New operation services - all use @Service annotation -->
+        <!-- TopicLineOperationService, BookmarkRepairService, LineNumberUpdateService are auto-registered -->
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings" />
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings" />
         <projectConfigurable parentId="tools" instance="jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncConfigurable"
@@ -30,11 +32,22 @@
               class="jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemarkEditorManagerListener"/>
    </projectListeners>
     <actions>
+        <!-- Editor context menu action -->
         <action
                 icon="MyIcons.PLUGIN"
                 id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction"
                 class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction">
             <add-to-group group-id="EditorPopupMenu" />
+        </action>
+        
+        <!-- Bookmark repair action - available in Tools menu and toolbar -->
+        <action
+                id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction"
+                class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction"
+                text="Repair Code Reading Bookmarks"
+                description="Scan and repair missing bookmarks for Code Reading Note"
+                icon="AllIcons.Actions.ForceRefresh">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>
 </idea-plugin>

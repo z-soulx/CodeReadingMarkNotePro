@@ -208,6 +208,12 @@ public class ManagementPanel extends JPanel
             }
             
             @Override
+            public void lineUpdated(Topic topic, TopicLine line, int oldLineNum, int newLineNum) {
+                topicTreePanel.refreshTopic(topic);
+                updateSearchData(); // 更新搜索数据
+            }
+            
+            @Override
             public void groupAdded(Topic topic, TopicGroup group) {
                 topicTreePanel.refreshTopic(topic);
                 updateSearchData(); // 更新搜索数据

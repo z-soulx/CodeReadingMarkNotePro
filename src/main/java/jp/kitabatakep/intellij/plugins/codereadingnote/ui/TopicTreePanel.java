@@ -66,7 +66,7 @@ public class TopicTreePanel extends JPanel {
         topicTree.setRootVisible(false);
         topicTree.setShowsRootHandles(true);
         topicTree.setCellRenderer(new TopicTreeCellRenderer());
-        topicTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        topicTree.getSelectionModel().setSelectionMode(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION); // Support multi-selection
         
         // Enable speed search
         new TreeSpeedSearch(topicTree, treePath -> {
@@ -79,6 +79,50 @@ public class TopicTreePanel extends JPanel {
     }
     
     private void setupEventHandlers() {
+        // Setup MessageBus listener for topic/line changes - refresh tree on any change
+        com.intellij.util.messages.MessageBusConnection connection = 
+            project.getMessageBus().connect();
+        connection.subscribe(jp.kitabatakep.intellij.plugins.codereadingnote.TopicNotifier.TOPIC_NOTIFIER_TOPIC, 
+            new jp.kitabatakep.intellij.plugins.codereadingnote.TopicNotifier() {
+                @Override
+                public void lineAdded(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
+                                     jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine line) {
+                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
+                }
+                
+                @Override
+                public void lineRemoved(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
+                                       jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine line) {
+                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
+                }
+                
+                @Override
+                public void lineUpdated(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic,
+                                       jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine line,
+                                       int oldLineNum, int newLineNum) {
+                    // Refresh tree to show updated line number
+                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
+                }
+                
+                @Override
+                public void groupAdded(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
+                                      jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup group) {
+                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
+                }
+                
+                @Override
+                public void groupRemoved(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
+                                        jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup group) {
+                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
+                }
+                
+                @Override
+                public void groupRenamed(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
+                                        jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup group) {
+                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
+                }
+            });
+        
         // Selection listener
         topicTree.addTreeSelectionListener(e -> {
             TreePath selectedPath = topicTree.getSelectionPath();
@@ -191,7 +235,11 @@ public class TopicTreePanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
             rootNode.removeAllChildren();
             
-            for (Topic topic : service.getTopicList().getTopics()) {
+            // 按 order 排序 topics
+            java.util.List<Topic> sortedTopics = new java.util.ArrayList<>(service.getTopicList().getTopics());
+            sortedTopics.sort(Topic::compareTo);
+            
+            for (Topic topic : sortedTopics) {
                 TopicTreeNode topicNode = new TopicTreeNode(topic, TopicTreeNode.NodeType.TOPIC);
                 rootNode.add(topicNode);
                 

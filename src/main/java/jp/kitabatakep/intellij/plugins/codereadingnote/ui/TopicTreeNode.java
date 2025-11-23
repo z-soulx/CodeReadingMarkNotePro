@@ -53,6 +53,15 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
         if (nodeType == NodeType.TOPIC) {
             return (Topic) getUserObject();
         }
+        // For UNGROUPED_LINES_FOLDER, get topic from parent node
+        if (nodeType == NodeType.UNGROUPED_LINES_FOLDER) {
+            if (getParent() instanceof TopicTreeNode) {
+                TopicTreeNode parent = (TopicTreeNode) getParent();
+                if (parent.getNodeType() == NodeType.TOPIC) {
+                    return (Topic) parent.getUserObject();
+                }
+            }
+        }
         return null;
     }
     
