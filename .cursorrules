@@ -1,134 +1,34 @@
 # Code Reading Mark Note Pro - Cursor Rules
 
-## Project Overview
-This is an IntelliJ IDEA plugin called "Code Reading Mark Note Pro" that helps developers take notes while reading code. It's an enhanced version of the original CodeReadingNote plugin with additional pro features.
+## 🚀 快速开始
+**重要**: 请先阅读以下文档以了解项目规范：
+- `PROJECT_CONTEXT.md` - 项目概述和架构
+- `DEVELOPMENT_RULES.md` - 通用开发规则和规范
 
-**Plugin ID**: `soulx.CodeReadingMarkNotePro`  
-**Published**: https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro/edit  
-**Base Package**: `jp.kitabatakep.intellij.plugins.codereadingnote`
+## 🎯 核心要求
+- **国际化**: 所有用户界面文本必须支持中英文
+- **代码规范**: 禁止硬编码文本，使用 `CodeReadingNoteBundle.message()`
+- **文档管理**: 开发过程文档放在 `tmpmd/` 文件夹
+- **版本控制**: 遵循语义化版本和提交规范
 
-## Core Architecture
+## 🔧 IntelliJ Plugin 开发要点
+- **架构模式**: 基于 IntelliJ Platform SDK
+- **核心组件**: CodeReadingNoteService, Topic, TopicLine
+- **UI框架**: ToolWindow + JBList + JBSplitter
+- **状态持久化**: PersistentStateComponent + XML
 
-### Main Components
-1. **CodeReadingNoteService**: Central service managing topics and persistence
-2. **Topic**: Represents a reading topic/theme with metadata and lines
-3. **TopicLine**: Individual code line with file reference, line number, and notes
-4. **TopicList**: Container managing all topics with sorting and notifications
-5. **ManagementToolWindowFactory**: Creates the main UI tool window
-6. **ManagementPanel**: Main UI panel with topic list and detail views
+## 📝 开发工作流
+1. 新功能开发：创建 `tmpmd/feature_功能名.md`
+2. 问题修复：创建 `tmpmd/bugfix_问题描述.md`
+3. 验收完成：整理文档，检查是否更新 PROJECT_CONTEXT.md
+4. 清理文档：删除 tmpmd/ 中的临时文件
 
-### Key Features
-- **Topic Management**: Create, rename, remove topics for organizing code notes
-- **Line Annotation**: Add code lines to topics with optional notes
-- **Bookmark Integration**: Syncs with IntelliJ's native bookmark system
-- **Code Remarks**: Inline editor annotations showing notes
-- **Import/Export**: Save and load topic configurations
-- **Position Fixing**: Experimental feature to fix bookmark positions after branch switches
+## ⚠️ 重要提醒
+- 保持向后兼容性
+- 正确清理资源和监听器
+- 多语言功能必须完整覆盖
+- 遵循 DEVELOPMENT_RULES.md 中的所有规范
 
-### UI Components
-- **Tool Window**: Bottom-anchored panel showing topic management
-- **Context Menu**: Right-click "Add to Topic" action in editor
-- **Dialog Systems**: Topic creation, line addition with note input
-- **Splitter Layout**: Topic list on left, detail panel on right
-
-## Development Guidelines
-
-### Code Style & Patterns
-- Follow standard IntelliJ plugin development patterns
-- Use IntelliJ Platform SDK APIs consistently
-- Implement proper service lifecycle management
-- Use message bus for component communication
-- Maintain backward compatibility with original CodeReadingNote
-
-### Key APIs Used
-- `PersistentStateComponent` for data persistence
-- `ToolWindowFactory` for UI integration
-- `AnAction` for editor context menus
-- `FileEditorManagerListener` for editor events
-- `BookmarksManager` for bookmark integration
-- `MessageBus` for inter-component communication
-
-### File Structure
-```
-src/main/java/jp/kitabatakep/intellij/plugins/codereadingnote/
-├── actions/          # Action implementations (Add, Remove, Export, etc.)
-├── remark/           # Code remark and bookmark utilities
-├── ui/               # UI components and panels
-├── *.java           # Core domain models (Topic, TopicLine, etc.)
-└── resources/META-INF/
-    ├── plugin.xml    # Plugin configuration
-    ├── description.html
-    └── changeNotes.html
-```
-
-### Critical Classes to Understand
-
-#### CodeReadingNoteService
-- Main service implementing `PersistentStateComponent`
-- Manages TopicList and persistence
-- Handles bookmark integration and code remark management
-- Provides topic/line filtering and querying capabilities
-
-#### Topic & TopicLine
-- Core domain models representing reading notes
-- Topic: Container with name, note, timestamp, and lines
-- TopicLine: Individual code reference with file, line number, note
-- Both implement proper navigation and validation
-
-#### Bookmark Integration
-- Uses `BookmarkUtils` for native bookmark system integration
-- Creates bookmarks with UUID tracking for position fixing
-- Supports experimental position restoration after code changes
-
-### UI Development
-- Use IntelliJ Platform UI components (`JBList`, `JBSplitter`, etc.)
-- Implement proper cell renderers for custom list displays
-- Handle focus management carefully in popup dialogs
-- Support both mouse and keyboard interactions
-
-### Data Persistence
-- XML-based persistence through `PersistentStateComponent`
-- Proper import/export functionality with validation
-- Maintain compatibility with original plugin data format
-
-### Testing & Compatibility
-- Target IntelliJ Platform 2024.3+ (since-build="243")
-- Test with various IntelliJ-based IDEs
-- Ensure proper cleanup of resources and listeners
-
-## Common Development Tasks
-
-### Adding New Actions
-1. Extend `CommonAnAction` or `AnAction`
-2. Implement `update()` for action availability
-3. Register in `plugin.xml` actions section
-4. Add to appropriate action groups
-
-### UI Modifications
-- Main panel: `ManagementPanel.java`
-- Tool window factory: `ManagementToolWindowFactory.java`
-- Custom dialogs: Follow existing patterns in actions package
-
-### Extending Bookmark Features
-- Modify `BookmarkUtils.java` for bookmark operations
-- Update `CodeRemarkEditorManagerListener` for editor integration
-- Consider impact on position fixing experimental features
-
-### Persistence Changes
-- Update `TopicListExporter`/`TopicListImporter` for data format changes
-- Maintain backward compatibility
-- Test import/export thoroughly
-
-## Known Issues & Considerations
-- Chinese input issues in popup dialogs (noted in change notes)
-- Experimental bookmark position fixing may need refinement
-- Focus management challenges with `PopupChooserBuilder`
-- Static file path/line number linking may break with frequent code changes
-
-## Plugin Configuration
-- **Build**: Gradle with IntelliJ Plugin
-- **Java Version**: 17+
-- **Target Platform**: IntelliJ 2024.3+
-- **Dependencies**: Standard IntelliJ Platform APIs only
-
-When working on this project, always consider the user experience of code reading workflows and maintain the plugin's core mission of helping developers organize and annotate their code exploration process.
+---
+*规则详情请参考 DEVELOPMENT_RULES.md*
+*项目概览请参考 PROJECT_CONTEXT.md*
