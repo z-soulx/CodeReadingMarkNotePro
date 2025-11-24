@@ -1,16 +1,30 @@
 <idea-plugin>
     <id>soulx.CodeReadingMarkNotePro</id>
-    <name>Code Reading mark Note pro</name>
-    <vendor email="170918810@qq.com">soulx</vendor>
-    <version>2024.1</version>
-    <idea-version since-build="243" until-build="*.*"/>
+    <name>Code Reading Mark Note Pro</name>
+    <vendor email="170918810@qq.com" url="https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro">soulx</vendor>
+    
+    <!-- 插件描述和分类 -->
+    <category>Code tools</category>
+    <version>3.6.2</version>
+    <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
+    <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->
+    <!-- 插件依赖：明确声明所需的IntelliJ模块 -->
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
-        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading mark Note pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
+        <!-- SyncService uses @Service annotation, no need to register here -->
+        <!-- New operation services - all use @Service annotation -->
+        <!-- TopicLineOperationService, BookmarkRepairService, LineNumberUpdateService are auto-registered -->
+        <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings" />
+        <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings" />
+        <projectConfigurable parentId="tools" instance="jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncConfigurable"
+                             id="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfigurable"
+                             displayName="Code Reading Note Sync"/>
+        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
         <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
     </extensions>
     <projectListeners>
@@ -18,12 +32,22 @@
               class="jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemarkEditorManagerListener"/>
    </projectListeners>
     <actions>
+        <!-- Editor context menu action -->
         <action
                 icon="MyIcons.PLUGIN"
                 id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction"
-                class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction"
-                text="Add to Topic">
+                class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction">
             <add-to-group group-id="EditorPopupMenu" />
+        </action>
+        
+        <!-- Bookmark repair action - available in Tools menu and toolbar -->
+        <action
+                id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction"
+                class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction"
+                text="Repair Code Reading Bookmarks"
+                description="Scan and repair missing bookmarks for Code Reading Note"
+                icon="AllIcons.Actions.ForceRefresh">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>
 </idea-plugin>

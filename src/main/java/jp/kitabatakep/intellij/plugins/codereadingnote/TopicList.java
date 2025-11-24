@@ -20,7 +20,9 @@ public class TopicList
 
     public void addTopic(String name)
     {
-        Topic topic = new Topic(project, name, new Date());
+        // 设置 order 为当前 topics 数量，新 topic 会排在最后
+        int order = topics.size();
+        Topic topic = new Topic(project, name, new Date(), order);
         topics.add(topic);
 
         MessageBus messageBus = project.getMessageBus();
@@ -38,8 +40,36 @@ public class TopicList
 
     public Iterator<Topic> iterator()
     {
-        Collections.sort(topics);
+        // 不再自动排序，保持用户定义的顺序
+        // Collections.sort(topics);  // 已禁用自动排序
         return topics.iterator();
+    }
+    
+    /**
+     * 重新排序 topics 的 order 值，确保连续
+     */
+    public void reorderTopics() {
+        Collections.sort(topics);
+        for (int i = 0; i < topics.size(); i++) {
+            topics.get(i).setOrder(i);
+        }
+    }
+    
+    /**
+     * 移动 topic 到新位置
+     */
+    public void moveTopic(int fromIndex, int toIndex) {
+        if (fromIndex < 0 || fromIndex >= topics.size() || 
+            toIndex < 0 || toIndex >= topics.size() || 
+            fromIndex == toIndex) {
+            return;
+        }
+        
+        Topic topic = topics.remove(fromIndex);
+        topics.add(toIndex, topic);
+        
+        // 重新分配 order 值
+        reorderTopics();
     }
 
     public void setTopics(ArrayList<Topic> topics)

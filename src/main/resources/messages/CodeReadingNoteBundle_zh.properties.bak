@@ -1,0 +1,148 @@
+# Code Reading Mark Note Pro - \u4e2d\u6587\u6d88\u606f
+
+# Actions - \u64cd\u4f5c
+action.new.topic=\u65b0\u5efa\u4e3b\u9898
+action.new.topic.description=\u521b\u5efa\u4e00\u4e2a\u65b0\u4e3b\u9898
+action.rename.topic=\u91cd\u547d\u540d\u4e3b\u9898
+action.rename.topic.description=\u91cd\u547d\u540d\u9009\u4e2d\u7684\u4e3b\u9898
+action.remove.topic=\u5220\u9664\u4e3b\u9898
+action.remove.topic.description=\u5220\u9664\u9009\u4e2d\u7684\u4e3b\u9898
+action.add.to.topic=\u6dfb\u52a0\u5230\u4e3b\u9898
+action.add.to.topic.description=\u5c06\u4ee3\u7801\u884c\u6dfb\u52a0\u5230\u4e3b\u9898
+action.export=\u5bfc\u51fa
+action.export.description=\u5bfc\u51fa\u4e3b\u9898\u5230\u6587\u4ef6
+action.import=\u5bfc\u5165
+action.import.description=\u4ece\u6587\u4ef6\u5bfc\u5165\u4e3b\u9898
+action.add.group=\u6dfb\u52a0\u5206\u7ec4
+action.add.group.description=\u6dfb\u52a0\u65b0\u5206\u7ec4\u4ee5\u7ec4\u7ec7\u4e3b\u9898\u884c
+action.rename.group=\u91cd\u547d\u540d\u5206\u7ec4
+action.rename.group.description=\u91cd\u547d\u540d\u9009\u4e2d\u7684\u5206\u7ec4
+action.remove.group=\u5220\u9664\u5206\u7ec4
+action.remove.group.description=\u5220\u9664\u9009\u4e2d\u7684\u5206\u7ec4
+action.move.to.group=\u79fb\u52a8\u5230\u5206\u7ec4
+action.move.to.group.description=\u5c06\u6b64\u884c\u79fb\u52a8\u5230\u5206\u7ec4
+dialog.move.to.group.title=\u79fb\u52a8\u5230\u5206\u7ec4
+dialog.move.to.group.message=\u9009\u62e9\u76ee\u6807\u5206\u7ec4\uff1a
+dialog.move.to.group.no.groups=\u6b64\u4e3b\u9898\u8fd8\u6ca1\u6709\u5206\u7ec4\u3002\u5148\u521b\u5efa\u4e00\u4e2a\u5206\u7ec4\uff1f
+dialog.move.to.group.create.title=\u521b\u5efa\u5206\u7ec4
+dialog.move.to.group.create.message=\u8f93\u5165\u5206\u7ec4\u540d\u79f0\uff1a
+dialog.move.to.group.no.groups.available=\u6ca1\u6709\u53ef\u7528\u7684\u5206\u7ec4\u3002\u8bf7\u5148\u521b\u5efa\u4e00\u4e2a\u5206\u7ec4\u3002
+dialog.move.to.group.no.groups.title=\u65e0\u5206\u7ec4
+action.collapse.all=\u5168\u90e8\u6298\u53e0
+action.collapse.all.description=\u6298\u53e0\u6240\u6709\u4e3b\u9898\u3001\u5206\u7ec4\u548c\u672a\u5206\u7ec4\u6587\u4ef6\u5939
+action.expand.all=\u5168\u90e8\u5c55\u5f00
+action.expand.all.description=\u5c55\u5f00\u6240\u6709\u4e3b\u9898\u3001\u5206\u7ec4\u548c\u672a\u5206\u7ec4\u6587\u4ef6\u5939
+action.toggle.collapse=\u5207\u6362\u6298\u53e0/\u5c55\u5f00\u5168\u90e8
+action.toggle.collapse.description=\u5728\u6298\u53e0\u5168\u90e8\u548c\u5c55\u5f00\u5168\u90e8\u4e4b\u95f4\u5207\u6362
+action.fix.remark=\u4fee\u590d\u5907\u6ce8
+action.fix.remark.description=\u4fee\u590d\u5907\u6ce8\u4f4d\u7f6e
+action.fix.topic.remark=\u4fee\u590d\u4e3b\u9898\u5907\u6ce8
+action.fix.topic.remark.description=\u4fee\u590d\u9009\u4e2d\u4e3b\u9898\u7684\u5907\u6ce8\u4f4d\u7f6e
+action.sync.push=\u63a8\u9001\u5230\u8fdc\u7a0b
+action.sync.push.description=\u63a8\u9001\u7b14\u8bb0\u5230\u8fdc\u7a0b\u4ed3\u5e93
+action.sync.pull=\u4ece\u8fdc\u7a0b\u62c9\u53d6
+action.sync.pull.description=\u4ece\u8fdc\u7a0b\u4ed3\u5e93\u62c9\u53d6\u7b14\u8bb0
+
+# Dialogs - \u5bf9\u8bdd\u6846
+dialog.create.topic.title=\u521b\u5efa\u65b0\u4e3b\u9898
+dialog.create.topic.message=\u8f93\u5165\u4e3b\u9898\u540d\u79f0
+dialog.edit.topic.title=\u7f16\u8f91\u4e3b\u9898\u540d\u79f0
+dialog.edit.topic.message=\u8f93\u5165\u4e3b\u9898\u540d\u79f0
+dialog.add.group.title=\u6dfb\u52a0\u5206\u7ec4
+dialog.add.group.message=\u8f93\u5165\u5206\u7ec4\u540d\u79f0\uff1a
+dialog.rename.group.title=\u91cd\u547d\u540d\u5206\u7ec4
+dialog.rename.group.message=\u8f93\u5165\u65b0\u5206\u7ec4\u540d\u79f0\uff1a
+dialog.create.new.group.title=\u521b\u5efa\u65b0\u5206\u7ec4
+dialog.create.new.group.message=\u8f93\u5165\u65b0\u5206\u7ec4\u540d\u79f0\uff1a
+dialog.add.to.topic.title=\u6dfb\u52a0\u5230\u4e3b\u9898\uff08\u542b\u5206\u7ec4\uff09
+dialog.select.topic.with.note=\u9009\u62e9\u4e3b\u9898\u5e76\u6dfb\u52a0\u5907\u6ce8
+dialog.export.save.title=\u4fdd\u5b58
+dialog.export.save.message=\u8bf7\u9009\u62e9\u4fdd\u5b58\u4f4d\u7f6e
+dialog.confirm.remove.topic.title=\u786e\u8ba4\u5220\u9664\u4e3b\u9898
+dialog.confirm.remove.topic.message=\u786e\u5b9a\u8981\u5220\u9664\u6b64\u4e3b\u9898\u5417\uff1f
+
+# Panel Labels - \u9762\u677f\u6807\u7b7e
+panel.select.topic=\u9009\u62e9\u4e3b\u9898
+panel.select.group=\u9009\u62e9\u5206\u7ec4\uff08\u53ef\u9009\uff09
+panel.note.optional=\u5907\u6ce8\uff08\u53ef\u9009\uff09
+panel.no.group=\u65e0\u5206\u7ec4\uff08\u76f4\u63a5\u6dfb\u52a0\u5230\u4e3b\u9898\uff09
+panel.create.new.group=+ \u521b\u5efa\u65b0\u5206\u7ec4
+panel.note.input.placeholder=[\u53ef\u9009] \u5907\u6ce8\u8f93\u5165\u533a\u57df
+
+# Tree View - \u6811\u89c6\u56fe
+tree.view.tab=\u6811\u89c6\u56fe
+search.tab=\u641c\u7d22
+tree.ungrouped.lines=\u672a\u5206\u7ec4\u884c
+tree.file.not.found=\uff08\u6587\u4ef6\u672a\u627e\u5230\uff09
+
+# Messages - \u6d88\u606f
+message.group.duplicate.name=\u5df2\u5b58\u5728\u540c\u540d\u5206\u7ec4\u3002
+message.group.duplicate.name.in.topic=\u6b64\u4e3b\u9898\u4e2d\u5df2\u5b58\u5728\u540c\u540d\u5206\u7ec4\u3002
+message.duplicate.name.title=\u91cd\u590d\u540d\u79f0
+message.export.failed=\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002
+message.export.failed.title={0} \u4fdd\u5b58
+message.import.failed.format=\u52a0\u8f7d\u5931\u8d25\uff0c\u6587\u4ef6\u5185\u5bb9\u683c\u5f0f\u4e0d\u5408\u6cd5\u3002
+message.import.failed=\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002
+message.import.failed.title={0} \u52a0\u8f7d
+message.sync.not.enabled=\u540c\u6b65\u672a\u542f\u7528\u3002\u8bf7\u5148\u5728\u8bbe\u7f6e\u4e2d\u914d\u7f6e\u3002
+message.sync.not.enabled.title=\u540c\u6b65\u672a\u542f\u7528
+message.sync.config.error=\u540c\u6b65\u914d\u7f6e\u4e0d\u5b8c\u6574\uff1a{0}
+message.sync.config.error.title=\u914d\u7f6e\u9519\u8bef
+message.push.successful.title=\u63a8\u9001\u6210\u529f
+message.push.failed.title=\u63a8\u9001\u5931\u8d25
+message.pull.successful.title=\u62c9\u53d6\u6210\u529f
+message.pull.failed.title=\u62c9\u53d6\u5931\u8d25
+message.pull.mode.title=\u62c9\u53d6\u6a21\u5f0f
+message.pull.mode.message=\u9009\u62e9\u62c9\u53d6\u6a21\u5f0f\uff1a\n- \u662f\uff1a\u5408\u5e76\u8fdc\u7a0b\u6570\u636e\uff08\u4fdd\u7559\u672c\u5730\u6570\u636e\uff09\n- \u5426\uff1a\u8986\u76d6\u672c\u5730\u6570\u636e\uff08\u672c\u5730\u6570\u636e\u5c06\u4e22\u5931\uff09\n- \u53d6\u6d88\uff1a\u53d6\u6d88\u64cd\u4f5c
+message.pull.mode.merge=\u5408\u5e76
+message.pull.mode.overwrite=\u8986\u76d6
+message.pull.mode.cancel=\u53d6\u6d88
+message.push.error=\u63a8\u9001\u65f6\u53d1\u751f\u9519\u8bef\uff1a{0}
+message.pull.error=\u62c9\u53d6\u65f6\u53d1\u751f\u9519\u8bef\uff1a{0}
+message.error.adding.topic.line=\u6dfb\u52a0\u4e3b\u9898\u884c\u65f6\u53d1\u751f\u9519\u8bef\uff1a{0}
+message.error.title=\u9519\u8bef
+
+# Progress - \u8fdb\u5ea6
+progress.pushing=\u6b63\u5728\u63a8\u9001\u7b14\u8bb0
+progress.pushing.text=\u6b63\u5728\u63a8\u9001\u5230\u8fdc\u7a0b...
+progress.pulling=\u6b63\u5728\u62c9\u53d6\u7b14\u8bb0
+progress.pulling.text=\u6b63\u5728\u4ece\u8fdc\u7a0b\u62c9\u53d6...
+
+# Buttons - \u6309\u94ae
+button.add.to.topic=\u6dfb\u52a0\u5230\u4e3b\u9898
+button.cancel=\u53d6\u6d88
+
+# List Renderer - \u5217\u8868\u6e32\u67d3
+renderer.lines.count={0} \u884c
+renderer.date.format=yyyy/MM/dd HH:mm
+
+# Settings - \u8bbe\u7f6e
+settings.sync.display.name=\u4ee3\u7801\u9605\u8bfb\u7b14\u8bb0\u540c\u6b65
+settings.language.label=\u63d2\u4ef6\u8bed\u8a00\uff1a
+settings.language.tooltip=\u9009\u62e9\u6b64\u63d2\u4ef6\u7684\u663e\u793a\u8bed\u8a00\uff08\u9ed8\u8ba4\u6839\u636eIDE\u8bed\u8a00\u81ea\u52a8\u9009\u62e9\uff09
+settings.language.restart.note=\u6ce8\u610f\uff1a\u8bed\u8a00\u66f4\u6539\u5c06\u5728\u91cd\u542fIDE\u540e\u751f\u6548\u3002
+settings.sync.enable=\u542f\u7528\u540c\u6b65
+settings.sync.auto=\u81ea\u52a8\u540c\u6b65\uff08\u4fdd\u5b58\u65f6\u81ea\u52a8\u63a8\u9001\uff09
+settings.sync.provider=\u540c\u6b65\u63d0\u4f9b\u8005\uff1a
+settings.sync.configuration=\u540c\u6b65\u914d\u7f6e
+settings.github.repository=\u4ed3\u5e93\uff1a
+settings.github.repository.tooltip=\u683c\u5f0f\uff1a\u6240\u6709\u8005/\u4ed3\u5e93\uff0c\u4f8b\u5982\uff1a\u7528\u6237\u540d/\u4ee3\u7801\u7b14\u8bb0
+settings.github.repository.placeholder=\u4f8b\u5982\uff1ausername/repo-name
+settings.github.token=\u8bbf\u95ee\u4ee4\u724c\uff1a
+settings.github.token.tooltip=\u5177\u6709\u5185\u5bb9\u8bfb\u5199\u6743\u9650\u7684\u4e2a\u4eba\u8bbf\u95ee\u4ee4\u724c
+settings.github.token.placeholder=GitHub \u4e2a\u4eba\u8bbf\u95ee\u4ee4\u724c
+settings.github.branch=\u5206\u652f\uff1a
+settings.github.branch.tooltip=\u5b58\u50a8\u7b14\u8bb0\u7684\u5206\u652f\u540d\u79f0
+settings.github.basepath=\u57fa\u7840\u8def\u5f84\uff1a
+settings.github.basepath.tooltip=\u4ed3\u5e93\u4e2d\u7684\u5b58\u50a8\u8def\u5f84
+
+# Sync Provider Types - \u540c\u6b65\u63d0\u4f9b\u8005\u7c7b\u578b
+sync.provider.github=GitHub
+sync.provider.github.description=\u4f7f\u7528 GitHub \u4ed3\u5e93\u540c\u6b65\u7b14\u8bb0
+sync.provider.gitee=Gitee\uff08\u672a\u6765\u652f\u6301\uff09
+sync.provider.gitee.description=\u4f7f\u7528 Gitee \u4ed3\u5e93\u540c\u6b65\u7b14\u8bb0
+sync.provider.webdav=WebDAV\uff08\u672a\u6765\u652f\u6301\uff09
+sync.provider.webdav.description=\u4f7f\u7528 WebDAV \u534f\u8bae\u540c\u6b65\u7b14\u8bb0
+sync.provider.local=\u672c\u5730\u6587\u4ef6\uff08\u672a\u6765\u652f\u6301\uff09
+sync.provider.local.description=\u540c\u6b65\u5230\u672c\u5730\u6587\u4ef6\u7cfb\u7edf\u76ee\u5f55
+

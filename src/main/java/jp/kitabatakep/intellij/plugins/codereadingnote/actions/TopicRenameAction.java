@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.ui.InputValidator;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import org.jetbrains.annotations.NotNull;
 
@@ -15,7 +16,11 @@ public class TopicRenameAction extends CommonAnAction
     Function<Void, Topic> topicFetcher;
 
     public TopicRenameAction(Function<Void, Topic> topicFetcher) {
-        super("Rename Topic", "RenameTopic", AllIcons.Actions.Edit);
+        super(
+            CodeReadingNoteBundle.message("action.rename.topic"),
+            CodeReadingNoteBundle.message("action.rename.topic.description"),
+            AllIcons.Actions.Edit
+        );
         this.topicFetcher = topicFetcher;
     }
 
@@ -34,8 +39,8 @@ public class TopicRenameAction extends CommonAnAction
         if (topic == null) { return; }
 
         String newTopicName =  Messages.showInputDialog(
-            "Enter Topic name",
-            "Edit Topic Name",
+            CodeReadingNoteBundle.message("dialog.edit.topic.message"),
+            CodeReadingNoteBundle.message("dialog.edit.topic.title"),
             Messages.getQuestionIcon(),
             topic.name(),
             new InputValidator()

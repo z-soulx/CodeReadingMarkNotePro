@@ -1,5 +1,87 @@
 <html>
 <body>
+<h1>3.6.2</h1>
+<ul>
+    <li><b>Sync Optimization:</b> Prevent duplicate synchronization, only sync when data changes（<b>同步优化：</b>防止重复同步，仅在数据变化时同步）</li>
+    <li>FIX - automatic sync only triggers when actual data modifications occur（修复自动同步功能）</li>
+    <li>Reduced unnecessary network requests and improved sync performance（减少不必要的网络请求，提升同步性能）</li>
+    <li><b>Custom Line Number Editing:</b> Manually edit TopicLine line numbers with automatic bookmark update（<b>自定义行号编辑：</b>手动编辑 TopicLine 行号，自动更新书签）</li>
+    <li><b>Reverse Bookmark Association:</b> Scan and recreate bookmarks for TopicLines missing bookmarks（<b>反向书签关联：</b>扫描并为缺失书签的 TopicLine 重新创建书签）</li>
+</ul>
+<h1>3.6.0</h1>
+<ul>
+    <li><b>Multi-language Support:</b> Independent language switching for the plugin (English/Chinese)（<b>多语言支持：</b>插件独立语言切换（英文/中文））</li>
+    <li>Plugin language now independent of IDE language - switch freely in settings（插件语言独立于 IDE 语言 - 可在设置中自由切换）</li>
+    <li>Smart default: Auto-detects IDE language (Chinese IDE → Chinese plugin, otherwise English)（智能默认：自动检测 IDE 语言（中文 IDE → 中文插件，否则英文））</li>
+    <li>UTF-8 encoding support - Chinese text displays correctly without garbling（UTF-8 编码支持 - 中文文本正确显示，无乱码）</li>
+    <li><b>Enhanced Group Management:</b> Empty groups now display immediately after creation（<b>增强分组管理：</b>空分组创建后立即显示）</li>
+    <li>Fixed: Empty groups are now visible in TreeView without needing to add lines first（修复：空分组现在在 TreeView 中可见，无需先添加行）</li>
+    <li>Group events notification system - real-time UI updates on group add/remove/rename（分组事件通知系统 - 添加/删除/重命名分组时实时更新 UI）</li>
+    <li><b>Improved Remark Handling:</b> Code remarks automatically follow line number changes（<b>改进备注处理：</b>代码备注自动跟随行号变化）</li>
+    <li>Fixed: Remark annotations now update immediately when syncing bookmark positions（修复：同步书签位置时，备注标记立即更新）</li>
+    <li>No need to close and reopen files - remarks update in real-time（无需关闭重新打开文件 - 备注实时更新）</li>
+    <li><b>UI Optimization:</b> Consolidated group actions into a single dropdown menu（<b>UI 优化：</b>将分组操作整合到单个下拉菜单）</li>
+    <li>Reduced toolbar clutter: 4 group buttons → 1 dropdown menu（减少工具栏混乱：4 个分组按钮 → 1 个下拉菜单）</li>
+    <li>Changed group icon from folder to GroupBy icon to avoid confusion with file operations（更改分组图标从文件夹到分组图标，避免与文件操作混淆）</li>
+    <li>Complete internationalization: All UI text, dialogs, and messages support both languages（完全国际化：所有 UI 文本、对话框和消息支持双语）</li>
+</ul>
+<h1>3.5.0</h1>
+<ul>
+    <li><b>Third-Party Sync Feature:</b> Sync your code reading notes across devices using GitHub repositories（<b>第三方同步功能：</b>使用 GitHub 仓库在多设备间同步代码阅读笔记）</li>
+    <li>fix remove group（修复删除group）</li>
+    <li>GitHub sync support with personal access token authentication - supports both Classic and Fine-grained tokens（支持 GitHub 同步，使用个人访问令牌认证 - 同时支持经典令牌和细粒度令牌）</li>
+    <li>Push/Pull operations with merge or overwrite modes（推送/拉取操作，支持合并或覆盖模式）</li>
+    <li>Project-name based identification - consistent across devices and project locations（基于项目名称的标识 - 跨设备和项目位置保持一致）</li>
+    <li>Extensible architecture ready for future providers: Gitee, WebDAV, Local File（可扩展架构，为未来提供商做好准备：Gitee、WebDAV、本地文件）</li>
+    <li>Settings integration: Configure sync in Tools > Code Reading Note Sync（设置集成：在 Tools > Code Reading Note Sync 中配置同步）</li>
+    <li>Auto sync option for automatic push on save（自动同步选项，保存时自动推送）</li>
+    <li>Comprehensive error handling with user-friendly messages（全面的错误处理和友好的用户提示）</li>
+</ul>
+<h1>3.4.0</h1>
+<ul>
+    <li><b>Enhanced Fix Actions:</b> Completely redesigned position sync features with preview dialogs（<b>增强修复功能：</b>重新设计位置同步功能，添加预览对话框）</li>
+    <li>Added preview before fixing - shows line number changes (e.g., 38 → 42) with detailed statistics（修复前可预览差异 - 显示行号变化和详细统计）</li>
+    <li>Two fix modes: "Fix Only Out of Sync" (recommended) and "Resync All" (force sync)（两种修复模式："仅修复错位"（推荐）和"全部重新同步"）</li>
+    <li>Visual status indicators: ✅ Synced, ⚠️ Needs Fix, ❌ Bookmark Missing, 🚫 File Not Found（可视化状态标识：已同步、需要修复、Bookmark丢失、文件不存在）</li>
+    <li>Improved icons and action names: "Sync Bookmark Position", "Sync Topic Position", "Sync All Positions"（改进图标和操作名称：更直观易懂）</li>
+    <li>Smart statistics display showing fix counts, synced items, and error details（智能统计显示：修复数量、已同步项、错误详情）</li>
+    <li>User confirmation required before fixing - prevents accidental changes（需要用户确认后才执行修复 - 避免误操作）</li>
+    <li>Success/failure notifications with detailed results（修复完成后显示成功/失败通知和详细结果）</li>
+</ul>
+<h1>3.3.1</h1>
+<ul>
+    <li>Fix duplicate additions for the first time（修复首次添加重复）</li>
+</ul>
+<h1>3.3.0</h1>
+<ul>
+    <li>Added IDEA native Bookmark search support（新增 IDEA 原生 Bookmark 搜索支持）</li>
+    <li>Added search scope selector: Topics Only / Bookmarks Only / All（新增搜索范围选择：仅 Topics / 仅 Bookmarks / 全部）</li>
+    <li>Unified search experience for Topics and Bookmarks with same algorithms（Topics 和 Bookmarks 使用统一的搜索算法）</li>
+    <li>Enhanced search UI with scope dropdown and detailed result counts（增强搜索 UI，显示搜索范围下拉框和详细结果统计）</li>
+    <li>Smart context menu based on result type（根据结果类型显示智能右键菜单）</li>
+</ul>
+<h1>3.2.1</h1>
+<ul>
+    <li>Fixed NullPointerException when displaying files that no longer exist（修复显示已删除文件时的空指针异常）</li>
+    <li>Fixed NullPointerException in cross-branch scenarios where files don't exist（修复跨分支场景下文件不存在时的空指针异常）</li>
+</ul>
+<h1>3.2.0</h1>
+<ul>
+    <li>Added intelligent search feature with Pinyin and fuzzy matching（新增智能搜索功能，支持拼音和模糊匹配）</li>
+    <li>Search supports double-click to navigate to code and right-click context menu（搜索支持双击跳转代码和右键菜单）</li>
+    <li>Improved UI for search interface（改进UI）</li>
+    <li>Fixed plugin name display: "Code Reading Mark Note Pro"（修复插件名称显示）</li>
+
+</ul>
+<h1>3.1.0</h1>
+<ul>
+    <li>Optimize group to support one-click folding and shrinking（优化group支持一键折叠收缩）</li>
+</ul>
+<h1>3.0.0</h1>
+<ul>
+    <li>Added group layer for convenient management（新增group概念，三级层次）</li>
+    <li>Refactor version management（重构版本管理）</li>
+</ul>
 <h1>2024.2 and 2024.*</h1>
 <ul>
     <li>Fix known issues</li>

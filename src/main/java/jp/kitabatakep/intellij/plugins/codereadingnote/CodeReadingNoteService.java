@@ -4,12 +4,14 @@ import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.util.messages.MessageBus;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.sync.AutoSyncScheduler;
 import org.jetbrains.annotations.NotNull;
 
 import org.jdom.Element;
@@ -20,8 +22,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemark;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.StringUtils;
-import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
 
 @State(
     name = AppConstants.appName,
@@ -31,6 +31,8 @@ import org.jetbrains.annotations.NotNull;
 )
 public class CodeReadingNoteService implements PersistentStateComponent<Element>
 {
+    private static final Logger LOG = Logger.getInstance(CodeReadingNoteService.class);
+    
     Project project;
     TopicList topicList;
 
@@ -57,18 +59,90 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             @Override
             public void lineRemoved(Topic _topic, TopicLine _topicLine) {
                     EditorUtils.removeLineCodeRemark(project,_topicLine);
+                    // 触发自动同步
+                    scheduleAutoSync();
             }
 
             @Override
             public void lineAdded(Topic _topic, TopicLine _topicLine) {
-                    String uid = UUID.randomUUID().toString();
-                    Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
-                    if (bookmark != null) {
-                        _topicLine.setBookmarkUid(uid);
+                    // Check if TopicLine already has a UUID
+                    // This prevents re-generating UUID when line number is updated (which incorrectly triggers lineAdded event)
+                    String uid = _topicLine.getBookmarkUid();
+                    if (uid == null || uid.isEmpty()) {
+                        // Generate new UUID only if TopicLine doesn't have one (truly new line)
+                        uid = UUID.randomUUID().toString();
+                        Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
+                        if (bookmark != null) {
+                            _topicLine.setBookmarkUid(uid);
+                        }
+                    } else {
+                        // TopicLine already has UUID (e.g., after line number update)
+                        // Just ensure bookmark exists with the existing UUID
+                        Bookmark existingBookmark = BookmarkUtils.machBookmark(_topicLine, project);
+                        if (existingBookmark == null) {
+                            // Bookmark missing, recreate it with existing UUID
+                            Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
+                            if (bookmark == null) {
+                                LOG.warn("Failed to recreate bookmark for TopicLine: " + _topicLine.pathForDisplay() + ":" + _topicLine.line());
+                            }
+                        }
+                        // Don't overwrite UUID - it's already set correctly
                     }
                     EditorUtils.addLineCodeRemark(project, _topicLine);
+                    // 触发自动同步
+                    scheduleAutoSync();
+            }
+            
+            @Override
+            public void groupAdded(Topic topic, TopicGroup group) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void groupRemoved(Topic topic, TopicGroup group) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void groupRenamed(Topic topic, TopicGroup group) {
+                // 触发自动同步
+                scheduleAutoSync();
             }
         });
+        
+        // 订阅TopicList级别的通知
+        messageBus.connect().subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier() {
+            @Override
+            public void topicAdded(Topic topic) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void topicRemoved(Topic topic) {
+                // 触发自动同步
+                scheduleAutoSync();
+            }
+            
+            @Override
+            public void topicsLoaded() {
+                // 数据加载不触发自动同步
+            }
+        });
+    }
+    
+    /**
+     * 调度自动同步
+     */
+    private void scheduleAutoSync() {
+        try {
+            AutoSyncScheduler scheduler = AutoSyncScheduler.getInstance(project);
+            scheduler.scheduleAutoSync();
+        } catch (Exception e) {
+            // 忽略错误，避免影响主要功能
+        }
     }
 
     public static CodeReadingNoteService getInstance(@NotNull Project project)
@@ -113,26 +187,30 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     public String lastImportDir() { return lastImportDir != null ? lastImportDir : ""; }
     public void setLastImportDir(String lastImportDir) { this.lastImportDir = lastImportDir; }
     public List<CodeRemark> list(Project project, @NotNull VirtualFile file) {
-        Stream<CodeRemark> sorted = topicList.getTopics().stream().flatMap(topic -> topic.getLines().stream()).map(topicLine -> {
-            CodeRemark codeRemark = new CodeRemark();
-            codeRemark.setFileName(topicLine.file().getName());
-            codeRemark.setFileUrl(topicLine.file().getCanonicalPath());
-            codeRemark.setLineNumber(topicLine.line());
-            codeRemark.setProjectName(project.getName());
-            codeRemark.setContentHash(CodeRemark.createContentHash(project, topicLine.file()));
-            codeRemark.setText(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
-            codeRemark.setBookmarkHash(topicLine.bookmarkHash());
-            return  codeRemark;
-        }).sorted(stateComparator());
+        Stream<CodeRemark> sorted = topicList.getTopics().stream()
+            .flatMap(topic -> topic.getLines().stream())
+            .filter(topicLine -> topicLine.file() != null)  // 过滤掉file为null的TopicLine
+            .map(topicLine -> {
+                CodeRemark codeRemark = new CodeRemark();
+                codeRemark.setFileName(topicLine.file().getName());
+                codeRemark.setFileUrl(topicLine.file().getCanonicalPath());
+                codeRemark.setLineNumber(topicLine.line());
+                codeRemark.setProjectName(project.getName());
+                codeRemark.setContentHash(CodeRemark.createContentHash(project, topicLine.file()));
+                codeRemark.setText(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
+                codeRemark.setBookmarkHash(topicLine.bookmarkHash());
+                return  codeRemark;
+            }).sorted(stateComparator());
         final Predicate<CodeRemark> stateFilter = this.stateFilter(file.getName(), CodeRemark.createContentHash(project,file), null);
         return sorted.filter(stateFilter).sorted(this.stateComparator()).collect(Collectors.toList());
     }
 
     public List<TopicLine> listSource(Project project, @NotNull VirtualFile file) {
-        List<TopicLine> collect = topicList.getTopics().stream().
-            filter(topic -> topic.getLines().stream()
-                .anyMatch(topicLine -> topicLine.file().equals(file)))
+        List<TopicLine> collect = topicList.getTopics().stream()
+            .filter(topic -> topic.getLines().stream()
+                .anyMatch(topicLine -> topicLine.file() != null && topicLine.file().equals(file)))
             .flatMap(topic -> topic.getLines().stream())
+            .filter(topicLine -> topicLine.file() != null)  // 过滤掉file为null的TopicLine
             .collect(Collectors.toList());
         return collect;
 

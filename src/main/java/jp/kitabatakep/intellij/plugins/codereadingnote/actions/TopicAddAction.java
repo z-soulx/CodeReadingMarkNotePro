@@ -5,13 +5,18 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.ui.InputValidator;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import org.jetbrains.annotations.NotNull;
 
 public class TopicAddAction extends CommonAnAction
 {
     public TopicAddAction() {
-        super("New Topic", "NewTopic", AllIcons.General.Add);
+        super(
+            CodeReadingNoteBundle.message("action.new.topic"),
+            CodeReadingNoteBundle.message("action.new.topic.description"),
+            AllIcons.General.Add
+        );
     }
 
     @Override
@@ -23,8 +28,8 @@ public class TopicAddAction extends CommonAnAction
     public void actionPerformed(@NotNull AnActionEvent e)
     {
         String newTopicName =  Messages.showInputDialog(
-            "Enter Topic name",
-            "Create New Topic",
+            CodeReadingNoteBundle.message("dialog.create.topic.message"),
+            CodeReadingNoteBundle.message("dialog.create.topic.title"),
             Messages.getQuestionIcon(),
             "",
             new InputValidator()

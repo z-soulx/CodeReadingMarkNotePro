@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import org.jetbrains.annotations.NotNull;
@@ -18,7 +19,11 @@ public class TopicRemoveAction extends CommonAnAction
 
     public TopicRemoveAction(Project project, Function<Void, Topic> topicFetcher)
     {
-        super("Remove Topic", "RemoveTopic", AllIcons.General.Remove);
+        super(
+            CodeReadingNoteBundle.message("action.remove.topic"),
+            CodeReadingNoteBundle.message("action.remove.topic.description"),
+            AllIcons.General.Remove
+        );
         this.project = project;
         this.topicFetcher = topicFetcher;
     }
@@ -39,8 +44,8 @@ public class TopicRemoveAction extends CommonAnAction
         if (topic == null) { return; }
 
         int confirmationResult = Messages.showYesNoCancelDialog(
-            "Are you sure you want to remove `" + topic.name() + "`",
-            "TopicRemoveConfirmation",
+            CodeReadingNoteBundle.message("dialog.confirm.remove.topic.message"),
+            CodeReadingNoteBundle.message("dialog.confirm.remove.topic.title"),
             Messages.getQuestionIcon()
         );
 

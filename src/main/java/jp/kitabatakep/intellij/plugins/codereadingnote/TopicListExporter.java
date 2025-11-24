@@ -19,27 +19,76 @@ public class TopicListExporter
                 new Element("updatedAt").
                     addContent(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(topic.updatedAt()))
             );
+            
+            // Add group support flag
+            topicElement.addContent(new Element("hasGroups").addContent(String.valueOf(!topic.getGroups().isEmpty())));
 
             topicsElement.addContent(topicElement);
 
-            Element topicLinesElement = new Element("topicLines");
-            Iterator<TopicLine> linesIterator = topic.linesIterator();
-            while (linesIterator.hasNext()) {
-                TopicLine topicLine = linesIterator.next();
-                Element topicLineElement = new Element("topicLine");
-                topicLineElement.addContent(new Element("line").addContent(String.valueOf(topicLine.line())));
-                topicLineElement.addContent(new Element("inProject").addContent(String.valueOf(topicLine.inProject())));
-                topicLineElement.addContent(new Element("url").addContent(topicLine.url()));
-                topicLineElement.addContent(new Element("note").addContent(topicLine.note()));
-                topicLineElement.addContent(new Element("bookmarkUid").addContent(topicLine.getBookmarkUid()));
-                topicLineElement.addContent(
-                    new Element("relativePath").addContent(topicLine.inProject() ? topicLine.relativePath() : "")
-                );
-                topicLinesElement.addContent(topicLineElement);
+            if (!topic.getGroups().isEmpty()) {
+                // Export groups
+                Element groupsElement = new Element("groups");
+                for (TopicGroup group : topic.getGroups()) {
+                    Element groupElement = new Element("group");
+                    groupElement.addContent(new Element("name").addContent(group.name()));
+                    groupElement.addContent(new Element("note").addContent(group.note()));
+                    groupElement.addContent(new Element("expanded").addContent(String.valueOf(group.isExpanded())));
+                    groupElement.addContent(
+                        new Element("createdAt").
+                            addContent(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(group.createdAt()))
+                    );
+                    groupElement.addContent(
+                        new Element("updatedAt").
+                            addContent(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(group.updatedAt()))
+                    );
+                    
+                    // Export lines in group
+                    Element groupLinesElement = new Element("topicLines");
+                    Iterator<TopicLine> groupLinesIterator = group.linesIterator();
+                    while (groupLinesIterator.hasNext()) {
+                        TopicLine topicLine = groupLinesIterator.next();
+                        Element topicLineElement = createTopicLineElement(topicLine);
+                        groupLinesElement.addContent(topicLineElement);
+                    }
+                    groupElement.addContent(groupLinesElement);
+                    groupsElement.addContent(groupElement);
+                }
+                topicElement.addContent(groupsElement);
+                
+                // Export ungrouped lines
+                if (!topic.getUngroupedLines().isEmpty()) {
+                    Element ungroupedLinesElement = new Element("ungroupedLines");
+                    for (TopicLine topicLine : topic.getUngroupedLines()) {
+                        Element topicLineElement = createTopicLineElement(topicLine);
+                        ungroupedLinesElement.addContent(topicLineElement);
+                    }
+                    topicElement.addContent(ungroupedLinesElement);
+                }
+            } else {
+                // Legacy mode - export lines directly
+                Element topicLinesElement = new Element("topicLines");
+                Iterator<TopicLine> linesIterator = topic.linesIterator();
+                while (linesIterator.hasNext()) {
+                    TopicLine topicLine = linesIterator.next();
+                    Element topicLineElement = createTopicLineElement(topicLine);
+                    topicLinesElement.addContent(topicLineElement);
+                }
+                topicElement.addContent(topicLinesElement);
             }
-
-            topicElement.addContent(topicLinesElement);
         }
         return topicsElement;
+    }
+    
+    private static Element createTopicLineElement(TopicLine topicLine) {
+        Element topicLineElement = new Element("topicLine");
+        topicLineElement.addContent(new Element("line").addContent(String.valueOf(topicLine.line())));
+        topicLineElement.addContent(new Element("inProject").addContent(String.valueOf(topicLine.inProject())));
+        topicLineElement.addContent(new Element("url").addContent(topicLine.url()));
+        topicLineElement.addContent(new Element("note").addContent(topicLine.note()));
+        topicLineElement.addContent(new Element("bookmarkUid").addContent(topicLine.getBookmarkUid()));
+        topicLineElement.addContent(
+            new Element("relativePath").addContent(topicLine.inProject() ? topicLine.relativePath() : "")
+        );
+        return topicLineElement;
     }
 }

@@ -1,7 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.ide.DataManager;
-import com.intellij.ide.bookmark.Bookmark;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
@@ -16,7 +15,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiUtilCore;
 import com.intellij.ui.JBSplitter;
-import com.intellij.ui.RowsDnDSupport;
 import com.intellij.ui.SimpleColoredComponent;
 import com.intellij.ui.SimpleTextAttributes;
 import com.intellij.ui.awt.RelativePoint;
@@ -25,16 +23,12 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.ui.EditableModel;
 import com.intellij.util.ui.UIUtil;
-import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
-import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
-import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
-import jp.kitabatakep.intellij.plugins.codereadingnote.TopicNotifier;
+import jp.kitabatakep.intellij.plugins.codereadingnote.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.FixLineRemarkAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.ShowBookmarkUidAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
-import jp.kitabatakep.intellij.plugins.codereadingnote.remark.EditorUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -43,7 +37,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Iterator;
-import java.util.UUID;
 
 class TopicDetailPanel extends JPanel {
 
@@ -79,7 +72,13 @@ class TopicDetailPanel extends JPanel {
 		JBSplitter topicLinePane = new JBSplitter(0.2f);
 		topicLinePane.setSplitterProportionKey(
 				AppConstants.appName + "TopicDetailPanelTopicLinePane.splitter");
-		topicLinePane.setFirstComponent(new JBScrollPane(topicLineList));
+		
+		// Create panel with toolbar for topicLineList
+		JPanel leftPanel = new JPanel(new BorderLayout());
+		leftPanel.add(createTopicLineToolbar(), BorderLayout.NORTH);
+		leftPanel.add(new JBScrollPane(topicLineList), BorderLayout.CENTER);
+		
+		topicLinePane.setFirstComponent(leftPanel);
 		topicLinePane.setSecondComponent(topicLineDetailPanel);
 		topicLinePane.setHonorComponentsMinimumSize(false);
 
@@ -99,20 +98,29 @@ class TopicDetailPanel extends JPanel {
 				}
 			}
 
-			@Override
-			public void lineAdded(Topic _topic, TopicLine _topicLine) {
-				if (_topic == topic) {
-					String uid = UUID.randomUUID().toString();
-					Bookmark bookmark = BookmarkUtils.addBookmark(project, _topicLine.file(), _topicLine.line(), _topicLine.note(), uid);
-					if (bookmark != null) {
-						_topicLine.setBookmarkUid(uid);
-					}
-					topicLineListModel.addElement(_topicLine);
+		@Override
+		public void lineAdded(Topic _topic, TopicLine _topicLine) {
+			if (_topic == topic) {
+				// Bookmark creation is now handled by CodeReadingNoteService.lineAdded()
+				// Don't create duplicate bookmarks here!
+				// Just update the UI
+				topicLineListModel.addElement(_topicLine);
 					// Mobile monitoring that does not rely on Panel
 					//移动不依赖Panel的监听
 //					EditorUtils.addLineCodeRemark(project, _topicLine);
 				}
 			}
+			
+		@Override
+		public void lineUpdated(Topic _topic, TopicLine _topicLine, int oldLineNum, int newLineNum) {
+			if (_topic == topic) {
+				// Refresh list to show updated line number
+				int index = topicLineListModel.indexOf(_topicLine);
+				if (index >= 0) {
+					topicLineListModel.set(index, _topicLine);
+				}
+			}
+		}
 		});
 	}
 
@@ -144,7 +152,7 @@ class TopicDetailPanel extends JPanel {
 
 	private void initTopicLineList() {
 		topicLineList = new JBList<>();
-		topicLineList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		topicLineList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION); // Changed to support multi-selection
 		topicLineList.setCellRenderer(new TopicLineListCellRenderer<>(project));
 		topicLineList.addListSelectionListener(e -> {
 			TopicLine topicLine = topicLineList.getSelectedValue();
@@ -167,11 +175,29 @@ class TopicDetailPanel extends JPanel {
 				}
 
 				if (SwingUtilities.isRightMouseButton(e)) {
+					// Get selected lines for batch operations
+					java.util.List<TopicLine> selectedLines = topicLineList.getSelectedValuesList();
+					boolean multipleSelected = selectedLines.size() > 1;
+					
 					DefaultActionGroup actions = new DefaultActionGroup();
 					actions.add(new TopicLineRemoveAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new ShowBookmarkUidAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new FixLineRemarkAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new TopicLineMoveToGroupAction(topicLine));
+					
+					// Add new actions for single line
+					if (!multipleSelected) {
+						actions.addSeparator();
+						actions.add(new jp.kitabatakep.intellij.plugins.codereadingnote.actions.EditLineNumberAction(topicLine));
+						actions.add(new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairSingleLineBookmarkAction(topicLine, topic));
+					}
+					
+					// Add batch operations for multiple selection
+					if (multipleSelected) {
+						actions.addSeparator();
+						actions.add(new jp.kitabatakep.intellij.plugins.codereadingnote.actions.BatchAdjustLineNumbersAction(selectedLines));
+					}
+					
 					JBPopupFactory.getInstance().createActionGroupPopup(
 							null,
 							actions,
@@ -198,9 +224,67 @@ class TopicDetailPanel extends JPanel {
 				}
 			}
 		});
+	}
 
-		topicLineList.setDragEnabled(true);
-		RowsDnDSupport.install(topicLineList, topicLineListModel);
+	private JComponent createTopicLineToolbar() {
+		JPanel toolbarPanel = new JPanel(new BorderLayout());
+		toolbarPanel.setPreferredSize(new Dimension(0, 30)); // 设置最小高度确保可见
+		
+		// Create action group for toolbar
+		DefaultActionGroup actionGroup = new DefaultActionGroup();
+		
+		// Add "Repair All Bookmarks" action (always enabled)
+		com.intellij.openapi.actionSystem.AnAction repairAllAction = new com.intellij.openapi.actionSystem.AnAction(
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.all"),
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
+				com.intellij.icons.AllIcons.Actions.ForceRefresh
+		) {
+			@Override
+			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				// Trigger repair for all topics
+				new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction()
+						.actionPerformed(e);
+			}
+			
+			@Override
+			public void update(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				e.getPresentation().setEnabled(e.getProject() != null);
+				e.getPresentation().setVisible(true); // 确保按钮始终可见
+			}
+		};
+		actionGroup.add(repairAllAction);
+		
+		// Add "Repair Bookmarks for This Topic" action (only enabled when topic is selected)
+		com.intellij.openapi.actionSystem.AnAction repairTopicAction = new com.intellij.openapi.actionSystem.AnAction(
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.topic"),
+				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
+				com.intellij.icons.AllIcons.Actions.Refresh
+		) {
+			@Override
+			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				// Trigger repair for current topic only
+				if (topic != null) {
+					new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairTopicBookmarksAction(topic)
+							.actionPerformed(e);
+				}
+			}
+			
+			@Override
+			public void update(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
+				e.getPresentation().setEnabled(topic != null);
+				e.getPresentation().setVisible(true); // 确保按钮始终可见
+			}
+		};
+		actionGroup.add(repairTopicAction);
+		
+		// Create toolbar
+		com.intellij.openapi.actionSystem.ActionToolbar toolbar = 
+				com.intellij.openapi.actionSystem.ActionManager.getInstance()
+						.createActionToolbar("CodeReadingNoteTopicLineToolbar", actionGroup, true);
+		toolbar.setTargetComponent(topicLineList);
+		
+		toolbarPanel.add(toolbar.getComponent(), BorderLayout.CENTER);
+		return toolbarPanel;
 	}
 
 	void clear() {
@@ -261,23 +345,34 @@ class TopicDetailPanel extends JPanel {
 //					setIcon(fileOrDir.getIcon(0));
 //				}
 //			});
-			ApplicationManager.getApplication().runReadAction(() -> {
-				// 在read-action中执行读取PSI树的操作
-				PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+		ApplicationManager.getApplication().runReadAction(() -> {
+			// 在read-action中执行读取PSI树的操作
+			PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+			if (fileOrDir != null) {
 				Icon icon = fileOrDir.getIcon(0);
-				if (fileOrDir != null) {
-					// 确保 setIcon 操作在 EDT 上执行
-					SwingUtilities.invokeLater(() -> {
-						setIcon(icon);
-					});
-				}
-			});
+				// 确保 setIcon 操作在 EDT 上执行
+				SwingUtilities.invokeLater(() -> {
+					setIcon(icon);
+				});
+			}
+		});
 
 
 			if (topicLine.isValid()) {
-//                append(file.getName() + ":" + (topicLine.line()+1));
-				append(topicLine.note().substring(0, Math.min(topicLine.note().length(), 20)));
-				append(" (" + topicLine.pathForDisplay() + ")", SimpleTextAttributes.GRAY_ATTRIBUTES);
+				// 修改显示格式：主显示中文注释，附带类名和行号
+				// 原格式：类名 (中文注释)
+				// 新格式：中文注释 (类名:行号)
+				String note = topicLine.note();
+				String pathInfo = topicLine.pathForDisplay() + ":" + (topicLine.line() + 1);
+				
+				if (note != null && !note.trim().isEmpty()) {
+					// 有注释：显示注释作为主要内容，类名作为附加信息
+					append(note.substring(0, Math.min(note.length(), 50))); // 主显示：中文注释（限制长度）
+					append(" (" + pathInfo + ")", SimpleTextAttributes.GRAY_ATTRIBUTES); // 附带：类名和行号
+				} else {
+					// 无注释：直接显示类名和行号
+					append(pathInfo);
+				}
 			} else {
 				append(topicLine.pathForDisplay() + ":" + (topicLine.line() + 1),
 						SimpleTextAttributes.ERROR_ATTRIBUTES);
@@ -306,6 +401,111 @@ class TopicDetailPanel extends JPanel {
 			remove(oldIndex);
 			add(newIndex, (T) target);
 			topic.changeLineOrder(target, newIndex);
+		}
+	}
+	
+	// ========== New methods for subgroup support ==========
+	
+	/**
+	 * Set the detail panel to display a subgroup
+	 */
+    public void setGroup(TopicGroup group) {
+		this.topic = group.getParentTopic();
+		this.selectedTopicLine = null;
+		
+		// Update note area with group note
+		noteArea.setEnabled(true);
+		if (group.note().equals("")) {
+			noteArea.setPlaceholder(" Group note input area (Markdown)");
+		}
+		noteArea.setDocument(EditorFactory.getInstance().createDocument(group.note()));
+		noteArea.getDocument().addDocumentListener(new GroupNoteAreaListener(group));
+		
+		// Update topic line list with group lines
+		topicLineListModel.clear();
+		for (TopicLine line : group.getLines()) {
+			topicLineListModel.addElement(line);
+		}
+		
+		topicLineList.setModel(topicLineListModel);
+		topicLineDetailPanel.clear();
+	}
+	
+	/**
+	 * Set the detail panel to display ungrouped lines of a topic
+	 */
+	public void setUngroupedLines(Topic topic) {
+		this.topic = topic;
+		this.selectedTopicLine = null;
+		
+		// Update note area to show topic note (since ungrouped lines belong to topic)
+		noteArea.setEnabled(true);
+		if (topic.note().equals("")) {
+			noteArea.setPlaceholder(" Topic note input area (Markdown) - Ungrouped Lines View");
+		}
+		noteArea.setDocument(EditorFactory.getInstance().createDocument(topic.note()));
+		noteArea.getDocument().addDocumentListener(new NoteAreaListener(this));
+		
+		// Update topic line list with ONLY ungrouped lines
+		topicLineListModel.clear();
+		for (TopicLine line : topic.getUngroupedLines()) {
+			topicLineListModel.addElement(line);
+		}
+		
+		topicLineList.setModel(topicLineListModel);
+		topicLineDetailPanel.clear();
+	}
+	public void setTopicLine(TopicLine topicLine) {
+		this.topic = topicLine.topic();
+		this.selectedTopicLine = topicLine;
+		
+		// Update note area with topic line note
+		noteArea.setEnabled(true);
+		if (topicLine.note().equals("")) {
+			noteArea.setPlaceholder(" Topic line note input area (Markdown)");
+		}
+		noteArea.setDocument(EditorFactory.getInstance().createDocument(topicLine.note()));
+		noteArea.getDocument().addDocumentListener(new TopicLineNoteAreaListener(topicLine));
+		
+		// Show only this line in the list
+		topicLineListModel.clear();
+		topicLineListModel.addElement(topicLine);
+		topicLineList.setModel(topicLineListModel);
+		topicLineList.setSelectedIndex(0);
+		
+		// Show line details
+		topicLineDetailPanel.setTopicLine(topicLine);
+	}
+	
+	/**
+	 * Document listener for group notes
+	 */
+	private static class GroupNoteAreaListener implements DocumentListener {
+		private TopicGroup group;
+		
+		private GroupNoteAreaListener(TopicGroup group) {
+			this.group = group;
+		}
+		
+		public void documentChanged(com.intellij.openapi.editor.event.DocumentEvent e) {
+			Document doc = e.getDocument();
+			group.setNote(doc.getText());
+		}
+	}
+	
+	/**
+	 * Document listener for topic line notes
+	 */
+	private static class TopicLineNoteAreaListener implements DocumentListener {
+		private TopicLine topicLine;
+		
+		private TopicLineNoteAreaListener(TopicLine topicLine) {
+			this.topicLine = topicLine;
+		}
+		
+		public void documentChanged(com.intellij.openapi.editor.event.DocumentEvent e) {
+			Document doc = e.getDocument();
+			topicLine.setNote(doc.getText());
 		}
 	}
 }
