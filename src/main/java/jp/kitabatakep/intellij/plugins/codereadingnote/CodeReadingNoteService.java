@@ -7,9 +7,11 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.wm.ToolWindow;
-import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.openapi.vfs.VirtualFileManager;
+import com.intellij.openapi.vfs.newvfs.BulkFileListener;
+import com.intellij.openapi.vfs.newvfs.events.*;
 import com.intellij.util.messages.MessageBus;
+import com.intellij.util.messages.MessageBusConnection;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.AutoSyncScheduler;
 import org.jetbrains.annotations.NotNull;
@@ -46,11 +48,68 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
         starConfit(project);
 //        new MyBookmarkListener(project);
         addMyListener(project);
-
+        addVfsListener(project);
     }
 
     private void starConfit(Project project) {
 
+    }
+    
+    /**
+     * Add VFS listener to refresh TopicLines when files become available.
+     * This helps when switching branches or when files are created.
+     */
+    private void addVfsListener(Project project) {
+        MessageBusConnection connection = project.getMessageBus().connect();
+        connection.subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
+            @Override
+            public void after(@NotNull List<? extends VFileEvent> events) {
+                boolean needsRefresh = false;
+                
+                for (VFileEvent event : events) {
+                    // Check for file creation, copy, move, or property change (like VFS refresh)
+                    if (event instanceof VFileCreateEvent ||
+                        event instanceof VFileCopyEvent ||
+                        event instanceof VFileMoveEvent ||
+                        event instanceof VFilePropertyChangeEvent) {
+                        needsRefresh = true;
+                        break;
+                    }
+                }
+                
+                if (needsRefresh) {
+                    // Refresh all TopicLines and notify UI if any were refreshed
+                    int refreshed = topicList.refreshAllTopicLines();
+                    if (refreshed > 0) {
+                        LOG.info("Refreshed " + refreshed + " TopicLine file references after VFS change");
+                        // Notify UI to refresh
+                        notifyTopicsNeedRefresh();
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Notify UI that topics need to be refreshed (e.g., after file references are updated)
+     */
+    private void notifyTopicsNeedRefresh() {
+        MessageBus messageBus = project.getMessageBus();
+        TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
+        publisher.topicsLoaded(); // Reuse existing event to trigger UI refresh
+    }
+    
+    /**
+     * Manually refresh all TopicLine file references.
+     * Call this when you suspect files might have become available (e.g., after branch switch).
+     * @return the number of TopicLines that were refreshed
+     */
+    public int refreshAllTopicLineFiles() {
+        int refreshed = topicList.refreshAllTopicLines();
+        if (refreshed > 0) {
+            notifyTopicsNeedRefresh();
+        }
+        return refreshed;
     }
 
     private void addMyListener(Project project) {

@@ -318,32 +318,27 @@ class TopicDetailPanel extends JPanel {
 				boolean cellHasFocus) {
 			clear();
 			TopicLine topicLine = (TopicLine) value;
+			
+			// Check validity with auto-refresh for better UX after branch switching
+			boolean isValid = topicLine.isValidWithRefresh();
 			VirtualFile file = topicLine.file();
 
-//            PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-//            if (fileOrDir != null) {
-//                setIcon(fileOrDir.getIcon(0));
-//            }
-//			ApplicationManager.getApplication().runReadAction(() -> {
-//				PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-//				if (fileOrDir != null) {
-//					setIcon(fileOrDir.getIcon(0));
-//				}
-//			});
-		ApplicationManager.getApplication().runReadAction(() -> {
-			// 在read-action中执行读取PSI树的操作
-			PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-			if (fileOrDir != null) {
-				Icon icon = fileOrDir.getIcon(0);
-				// 确保 setIcon 操作在 EDT 上执行
-				SwingUtilities.invokeLater(() -> {
-					setIcon(icon);
+			// Set icon based on file type (only if file is valid)
+			if (isValid && file != null) {
+				ApplicationManager.getApplication().runReadAction(() -> {
+					// 在read-action中执行读取PSI树的操作
+					PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
+					if (fileOrDir != null) {
+						Icon icon = fileOrDir.getIcon(0);
+						// 确保 setIcon 操作在 EDT 上执行
+						SwingUtilities.invokeLater(() -> {
+							setIcon(icon);
+						});
+					}
 				});
 			}
-		});
 
-
-			if (topicLine.isValid()) {
+			if (isValid) {
 				// 修改显示格式：主显示中文注释，附带类名和行号
 				// 原格式：类名 (中文注释)
 				// 新格式：中文注释 (类名:行号)

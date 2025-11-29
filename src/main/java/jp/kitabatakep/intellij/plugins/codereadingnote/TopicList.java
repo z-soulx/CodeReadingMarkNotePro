@@ -80,4 +80,24 @@ public class TopicList
     public ArrayList<Topic> getTopics() {
         return topics;
     }
+    
+    /**
+     * Refresh all TopicLine file references.
+     * This is useful when switching branches or when files might have become available again.
+     * @return the number of TopicLines that were successfully refreshed (went from invalid to valid)
+     */
+    public int refreshAllTopicLines() {
+        int refreshedCount = 0;
+        for (Topic topic : topics) {
+            for (TopicLine line : topic.getLines()) {
+                // Only try to refresh if currently invalid
+                if (!line.isValid()) {
+                    if (line.refreshFile()) {
+                        refreshedCount++;
+                    }
+                }
+            }
+        }
+        return refreshedCount;
+    }
 }

@@ -1,7 +1,5 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote;
 
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
@@ -10,11 +8,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.pom.Navigatable;
 
-import javax.swing.*;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class TopicLine implements Navigatable
 {
@@ -141,8 +135,59 @@ public class TopicLine implements Navigatable
 
     public boolean inProject() { return inProject; }
 
+    /**
+     * Check if the file is valid.
+     * Note: This checks the current cached file reference. 
+     * Use refreshFile() first if you need to re-check after branch switch.
+     */
     public boolean isValid() {
         return file != null && file.isValid();
+    }
+    
+    /**
+     * Try to refresh the file reference by re-looking up from the stored path.
+     * This is useful when the file might have become available again (e.g., after switching branches).
+     * @return true if the file was successfully refreshed and is now valid
+     */
+    public boolean refreshFile() {
+        // If already valid, no need to refresh
+        if (file != null && file.isValid()) {
+            return true;
+        }
+        
+        // Try to re-lookup the file
+        VirtualFile newFile = null;
+        String projectBase = project.getBasePath();
+        
+        if (inProject && relativePath != null && projectBase != null) {
+            // For in-project files, use relative path
+            newFile = LocalFileSystem.getInstance().findFileByPath(projectBase + File.separator + relativePath);
+        }
+        
+        if (newFile == null && url != null) {
+            // Fallback to URL lookup
+            newFile = VirtualFileManager.getInstance().findFileByUrl(url);
+        }
+        
+        if (newFile != null && newFile.isValid()) {
+            this.file = newFile;
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check validity with auto-refresh attempt.
+     * This will try to refresh the file reference if it's currently invalid.
+     * @return true if file is valid (either already valid or successfully refreshed)
+     */
+    public boolean isValidWithRefresh() {
+        if (isValid()) {
+            return true;
+        }
+        // Try to refresh and check again
+        return refreshFile();
     }
 
     public OpenFileDescriptor openFileDescriptor()
@@ -152,17 +197,29 @@ public class TopicLine implements Navigatable
 
     @Override
     public boolean canNavigate() {
+        // Auto-refresh before checking navigation capability
+        if (!isValid()) {
+            refreshFile();
+        }
         return isValid() && openFileDescriptor().canNavigate();
     }
 
     @Override
     public boolean canNavigateToSource() {
-        return openFileDescriptor().canNavigateToSource();
+        // Auto-refresh before checking
+        if (!isValid()) {
+            refreshFile();
+        }
+        return isValid() && openFileDescriptor().canNavigateToSource();
     }
 
     @Override
     public void navigate(boolean requestFocus) {
-        if (canNavigate()) {
+        // Auto-refresh before navigation
+        if (!isValid()) {
+            refreshFile();
+        }
+        if (isValid() && openFileDescriptor().canNavigate()) {
             openFileDescriptor().navigate(requestFocus);
         }
     }
