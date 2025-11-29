@@ -189,6 +189,12 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             public void topicsLoaded() {
                 // 数据加载不触发自动同步
             }
+            
+            @Override
+            public void topicsReordered() {
+                // Topic 顺序改变后触发自动同步
+                scheduleAutoSync();
+            }
         });
     }
     

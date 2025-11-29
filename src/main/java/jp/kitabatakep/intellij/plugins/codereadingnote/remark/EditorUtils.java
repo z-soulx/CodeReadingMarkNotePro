@@ -49,7 +49,9 @@ public class EditorUtils {
     public static void addLineCodeRemark(Project project, TopicLine _topicLine) {
         FileEditorManager instance = FileEditorManager.getInstance(project);
         Editor editor = getEditor(instance, _topicLine.file());
-        EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), StringUtils.spNote(_topicLine.note()));
+        if (editor != null) {
+            EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), StringUtils.spNote(_topicLine.note()));
+        }
     }
 
     public static void removeLineCodeRemark(Project project, TopicLine _topicLine) {

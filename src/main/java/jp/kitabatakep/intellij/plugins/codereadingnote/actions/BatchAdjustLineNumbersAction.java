@@ -50,8 +50,7 @@ public class BatchAdjustLineNumbersAction extends CommonAnAction {
             LineNumberUpdateService.LineNumberAdjustment adjustment = dialog.getAdjustment();
             boolean updateBookmarks = dialog.shouldUpdateBookmarks();
             boolean validate = dialog.shouldValidate();
-            
-            LOG.info(String.format("Batch adjusting %d lines", topicLines.size()));
+
             
             LineNumberUpdateService service = LineNumberUpdateService.getInstance(project);
             LineNumberUpdateService.BatchLineNumberUpdateResult result = 
@@ -86,8 +85,6 @@ public class BatchAdjustLineNumbersAction extends CommonAnAction {
                     project
                 );
             }
-            
-            LOG.info(String.format("Batch update completed: %s", result.getSummary()));
         }
     }
     

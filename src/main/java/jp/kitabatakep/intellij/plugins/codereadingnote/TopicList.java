@@ -46,10 +46,11 @@ public class TopicList
     }
     
     /**
-     * 重新排序 topics 的 order 值，确保连续
+     * 重新分配 topics 的 order 值，按当前列表顺序
+     * 注意：不要在这里调用 sort，因为列表顺序已经是用户期望的顺序
      */
     public void reorderTopics() {
-        Collections.sort(topics);
+        // 直接按当前列表顺序分配 order 值，不要排序！
         for (int i = 0; i < topics.size(); i++) {
             topics.get(i).setOrder(i);
         }
@@ -70,6 +71,11 @@ public class TopicList
         
         // 重新分配 order 值
         reorderTopics();
+        
+        // 发送通知以触发持久化保存
+        MessageBus messageBus = project.getMessageBus();
+        TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
+        publisher.topicsReordered();
     }
 
     public void setTopics(ArrayList<Topic> topics)

@@ -224,6 +224,30 @@ public class Topic implements Comparable<Topic>
         publisher.groupRemoved(this, group);
     }
     
+    /**
+     * 移动分组到新位置
+     * @param fromIndex 原位置
+     * @param toIndex 目标位置
+     */
+    public void moveGroup(int fromIndex, int toIndex) {
+        if (fromIndex < 0 || fromIndex >= groups.size() || 
+            toIndex < 0 || toIndex >= groups.size() || 
+            fromIndex == toIndex) {
+            return;
+        }
+        
+        TopicGroup group = groups.remove(fromIndex);
+        groups.add(toIndex, group);
+        touch();
+    }
+    
+    /**
+     * 获取分组的索引
+     */
+    public int getGroupIndex(TopicGroup group) {
+        return groups.indexOf(group);
+    }
+    
     public TopicGroup findGroupByName(String name) {
         return groups.stream()
                 .filter(group -> group.name().equals(name))

@@ -8,4 +8,9 @@ public interface TopicListNotifier
      void topicAdded(Topic topic);
      void topicRemoved(Topic topic);
      void topicsLoaded();
+     
+     /**
+      * Called when topics are reordered (e.g., via drag and drop)
+      */
+     default void topicsReordered() {}
 }

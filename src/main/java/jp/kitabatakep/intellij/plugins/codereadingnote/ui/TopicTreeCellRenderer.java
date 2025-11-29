@@ -81,8 +81,9 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
         var topicLine = node.getTopicLine();
         if (topicLine == null) return;
         
-        // Check validity with auto-refresh attempt for better UX after branch switching
-        boolean isValid = topicLine.isValidWithRefresh();
+        // Use simple validity check to avoid SlowOperations on EDT
+        // Note: isValidWithRefresh() can trigger file index checks which are prohibited on EDT
+        boolean isValid = topicLine.isValid();
         
         // Use different icons based on file validity
         if (isValid) {

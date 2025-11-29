@@ -2,6 +2,7 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.actions;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.ActionGroup;
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
@@ -32,6 +33,11 @@ public class GroupActionsMenu extends ActionGroup {
         this.groupSupplier = groupSupplier;
         this.lineSupplier = lineSupplier;
         setPopup(true);
+    }
+    
+    @Override
+    public @NotNull ActionUpdateThread getActionUpdateThread() {
+        return ActionUpdateThread.BGT;
     }
     
     @Override

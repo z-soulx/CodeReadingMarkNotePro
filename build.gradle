@@ -10,7 +10,7 @@ plugins {
 }
 
 group 'jp.kitabatakep'
-version '3.6.3'  // 插件版本号 - 发布新版本时更新此行
+version '3.6.4'  // 插件版本号 - 发布新版本时更新此行
 
 sourceCompatibility = 17
 targetCompatibility = 17
