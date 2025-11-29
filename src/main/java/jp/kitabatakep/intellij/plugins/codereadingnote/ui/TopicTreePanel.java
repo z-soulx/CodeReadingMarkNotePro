@@ -3,8 +3,6 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.TreeSpeedSearch;
 import com.intellij.ui.components.JBScrollPane;
-import com.intellij.ui.tree.TreeVisitor;
-import com.intellij.util.messages.MessageBus;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
 
 import javax.swing.*;
@@ -68,14 +66,8 @@ public class TopicTreePanel extends JPanel {
         topicTree.setCellRenderer(new TopicTreeCellRenderer());
         topicTree.getSelectionModel().setSelectionMode(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION); // Support multi-selection
         
-        // Enable speed search
-        new TreeSpeedSearch(topicTree, treePath -> {
-            Object lastComponent = treePath.getLastPathComponent();
-            if (lastComponent instanceof TopicTreeNode) {
-                return ((TopicTreeNode) lastComponent).getDisplayName();
-            }
-            return lastComponent.toString();
-        });
+        // Enable speed search (uses TopicTreeNode.toString() which returns getDisplayName())
+        TreeSpeedSearch.installOn(topicTree);
     }
     
     private void setupEventHandlers() {

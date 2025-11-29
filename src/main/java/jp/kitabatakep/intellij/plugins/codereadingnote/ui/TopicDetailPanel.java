@@ -25,6 +25,7 @@ import com.intellij.util.ui.EditableModel;
 import com.intellij.util.ui.UIUtil;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.FixLineRemarkAction;
+import jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.ShowBookmarkUidAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
@@ -234,27 +235,10 @@ class TopicDetailPanel extends JPanel {
 		DefaultActionGroup actionGroup = new DefaultActionGroup();
 		
 		// Add "Repair All Bookmarks" action (always enabled)
-		com.intellij.openapi.actionSystem.AnAction repairAllAction = new com.intellij.openapi.actionSystem.AnAction(
-				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.all"),
-				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
-				com.intellij.icons.AllIcons.Actions.ForceRefresh
-		) {
-			@Override
-			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
-				// Trigger repair for all topics
-				new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction()
-						.actionPerformed(e);
-			}
-			
-			@Override
-			public void update(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
-				e.getPresentation().setEnabled(e.getProject() != null);
-				e.getPresentation().setVisible(true); // 确保按钮始终可见
-			}
-		};
-		actionGroup.add(repairAllAction);
+		actionGroup.add(new RepairBookmarksAction());
 		
 		// Add "Repair Bookmarks for This Topic" action (only enabled when topic is selected)
+		// Use a wrapper action that can dynamically create RepairTopicBookmarksAction based on current topic
 		com.intellij.openapi.actionSystem.AnAction repairTopicAction = new com.intellij.openapi.actionSystem.AnAction(
 				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.topic"),
 				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
@@ -264,8 +248,9 @@ class TopicDetailPanel extends JPanel {
 			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
 				// Trigger repair for current topic only
 				if (topic != null) {
-					new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairTopicBookmarksAction(topic)
-							.actionPerformed(e);
+					com.intellij.openapi.actionSystem.AnAction action = 
+							new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairTopicBookmarksAction(topic);
+					ActionUtil.performActionDumbAwareWithCallbacks(action, e);
 				}
 			}
 			

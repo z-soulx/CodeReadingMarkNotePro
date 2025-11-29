@@ -4,11 +4,8 @@ import com.intellij.openapi.components.Service;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
-import org.jdom.Document;
+import com.intellij.openapi.util.JDOMUtil;
 import org.jdom.Element;
-import org.jdom.input.SAXBuilder;
-import org.jdom.output.Format;
-import org.jdom.output.XMLOutputter;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.StringReader;
@@ -70,11 +67,7 @@ public final class SyncService {
             
             // 导出为XML
             Element topicsElement = TopicListExporter.export(topicList.getTopics().iterator());
-            Document document = new Document(topicsElement);
-            @SuppressWarnings("deprecation")
-            XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
-            @SuppressWarnings("deprecation")
-            String xmlData = xmlOutputter.outputString(document);
+            String xmlData = JDOMUtil.writeElement(topicsElement);
             
             if (xmlData == null || xmlData.isEmpty()) {
                 return SyncResult.failure("Failed to export data");
@@ -154,11 +147,7 @@ public final class SyncService {
             }
             
             // 解析XML数据
-            @SuppressWarnings("deprecation")
-            SAXBuilder saxBuilder = new SAXBuilder();
-            @SuppressWarnings("deprecation")
-            Document document = saxBuilder.build(new StringReader(xmlData));
-            Element topicsElement = document.getRootElement();
+            Element topicsElement = JDOMUtil.load(new StringReader(xmlData));
             
             ArrayList<Topic> remoteTopics = TopicListImporter.importElement(project, topicsElement);
             if (remoteTopics == null || remoteTopics.isEmpty()) {
