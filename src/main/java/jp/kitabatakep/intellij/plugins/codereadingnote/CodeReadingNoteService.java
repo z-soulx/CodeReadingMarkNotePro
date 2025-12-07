@@ -40,6 +40,83 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
 
     String lastExportDir = "";
     String lastImportDir = "";
+    
+    // Flag to prevent recursive auto-sync trigger during MD5 calculation
+    private final ThreadLocal<Boolean> isCalculatingState = ThreadLocal.withInitial(() -> false);
+    
+    /**
+     * 检查是否应该处理数据修改
+     * @return true 表示应该处理，false 表示不处理
+     */
+    private boolean shouldHandleDataModification() {
+        if (project.isDisposed()) {
+            return false;
+        }
+        
+        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfig config = 
+            jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings.getInstance().getSyncConfig();
+        
+        if (!config.isEnabled() || !config.isAutoSync()) {
+            return false;
+        }
+        
+        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService statusService = 
+            jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService.getInstance(project);
+        
+        // 只有不在同步中和冲突暂停状态时才处理
+        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatus currentStatus = statusService.getCurrentStatus();
+        if (currentStatus == jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatus.SYNCING 
+            || currentStatus == jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatus.CONFLICT_PAUSED) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 标记数据为脏状态（已修改但未持久化）
+     */
+    private void markDataAsDirty() {
+        // 1. 检查是否应该处理
+        if (!shouldHandleDataModification()) {
+            return;
+        }
+        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService statusService = 
+            jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService.getInstance(project);
+        statusService.markDirty();
+        LOG.debug("Data modified - marked as DIRTY (waiting for IDE to persist)");
+    }
+    
+    /**
+     * 直接触发自动同步调度
+     * （注释掉，先测试依赖文件持久化的效果）
+     */
+    private void triggerDirectAutoSync() {
+        //triggerAutoSyncOnStateSave
+        // scheduleAutoSync();
+        // LOG.debug("Data modified - scheduled auto-sync directly");
+    }
+    
+    /**
+     * 统一的数据修改触发处理
+     * 当数据发生任何修改时调用此方法
+     * 
+     * 职责：协调各个处理步骤
+     */
+    private void onDataModified() {
+        try {
+
+            
+            // 2. 标记为脏状态
+            markDataAsDirty();
+            
+            // 3. 触发自动同步（可选）
+            triggerDirectAutoSync();
+            
+        } catch (Exception e) {
+            LOG.debug("Failed to handle data modification", e);
+        }
+    }
 
     public CodeReadingNoteService(@NotNull Project project)
     {
@@ -118,12 +195,14 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             @Override
             public void lineRemoved(Topic _topic, TopicLine _topicLine) {
                     EditorUtils.removeLineCodeRemark(project,_topicLine);
-                    // 触发自动同步
-                    scheduleAutoSync();
+                    // 统一处理数据修改
+                    onDataModified();
             }
 
             @Override
             public void lineAdded(Topic _topic, TopicLine _topicLine) {
+                    // 统一处理数据修改
+                    onDataModified();
                     // Check if TopicLine already has a UUID
                     // This prevents re-generating UUID when line number is updated (which incorrectly triggers lineAdded event)
                     String uid = _topicLine.getBookmarkUid();
@@ -148,26 +227,43 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
                         // Don't overwrite UUID - it's already set correctly
                     }
                     EditorUtils.addLineCodeRemark(project, _topicLine);
-                    // 触发自动同步
-                    scheduleAutoSync();
+                    // Auto-sync is now triggered from getState(), not here
+            }
+            
+            @Override
+            public void lineUpdated(Topic topic, TopicLine topicLine, int oldLineNum, int newLineNum) {
+                // 统一处理数据修改
+                onDataModified();
             }
             
             @Override
             public void groupAdded(Topic topic, TopicGroup group) {
-                // 触发自动同步
-                scheduleAutoSync();
+                // 统一处理数据修改
+                onDataModified();
             }
             
             @Override
             public void groupRemoved(Topic topic, TopicGroup group) {
-                // 触发自动同步
-                scheduleAutoSync();
+                // 统一处理数据修改
+                onDataModified();
             }
             
             @Override
             public void groupRenamed(Topic topic, TopicGroup group) {
-                // 触发自动同步
-                scheduleAutoSync();
+                // 统一处理数据修改
+                onDataModified();
+            }
+            
+            @Override
+            public void linesReordered(Topic topic) {
+                // TopicLine 顺序变化
+                onDataModified();
+            }
+            
+            @Override
+            public void groupsReordered(Topic topic) {
+                // TopicGroup 顺序变化
+                onDataModified();
             }
         });
         
@@ -175,25 +271,31 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
         messageBus.connect().subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier() {
             @Override
             public void topicAdded(Topic topic) {
-                // 触发自动同步
-                scheduleAutoSync();
+                // 统一处理数据修改
+                onDataModified();
             }
             
             @Override
             public void topicRemoved(Topic topic) {
-                // 触发自动同步
-                scheduleAutoSync();
+                // 统一处理数据修改
+                onDataModified();
             }
             
             @Override
             public void topicsLoaded() {
-                // 数据加载不触发自动同步
+                // Data loading should not trigger auto-sync
+            }
+            
+            @Override
+            public void topicUpdated(Topic topic) {
+                // Topic 名称或备注修改
+                onDataModified();
             }
             
             @Override
             public void topicsReordered() {
-                // Topic 顺序改变后触发自动同步
-                scheduleAutoSync();
+                // Topic 顺序变化
+                onDataModified();
             }
         });
     }
@@ -224,7 +326,53 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
         state.setAttribute("lastExportDir", lastExportDir());
         state.setAttribute("lastImportDir", lastImportDir());
         container.addContent(state);
+
+        // Trigger auto-sync when state is saved (only if not paused and not calculating)
+        triggerAutoSyncOnStateSave();
+        
         return container;
+    }
+    
+    /**
+     * Get state without triggering auto-sync (for internal use like MD5 calculation)
+     */
+    @NotNull
+    public Element getStateWithoutTrigger() {
+        isCalculatingState.set(true);
+        try {
+            return getState();
+        } finally {
+            isCalculatingState.set(false);
+        }
+    }
+    
+    /**
+     * Trigger auto-sync when state is saved to disk
+     * This is called by IntelliJ Platform when data actually changes
+     */
+    private void triggerAutoSyncOnStateSave() {
+        try {
+            // Don't trigger if we're in the middle of calculating MD5
+            if (isCalculatingState.get()) {
+                LOG.debug("Skipping auto-sync trigger during state calculation");
+                return;
+            }
+            
+            // Check if auto-sync is paused (e.g., due to conflict)
+            jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService statusService = 
+                jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService.getInstance(project);
+            if (statusService.isAutoSyncPaused()) {
+                LOG.debug("Auto-sync is paused, skipping trigger from getState()");
+                return;
+            }
+            
+            LOG.debug("State persisted by IDE - transitioning from DIRTY to PENDING");
+            // Trigger auto-sync with debounce (will change status from DIRTY to PENDING)
+            scheduleAutoSync();
+        } catch (Exception e) {
+            // Don't let sync errors break state saving
+            LOG.debug("Failed to trigger auto-sync from getState()", e);
+        }
     }
 
     @Override
@@ -237,8 +385,14 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
         }
 
         Element stateElement = element.getChild("state");
-        lastExportDir = stateElement.getAttributeValue("lastExportDir");
-        lastImportDir = stateElement.getAttributeValue("lastImportDir");
+        if (stateElement != null) {
+            lastExportDir = stateElement.getAttributeValue("lastExportDir");
+            lastImportDir = stateElement.getAttributeValue("lastImportDir");
+        } else {
+            // Initialize with empty strings if state element doesn't exist
+            lastExportDir = "";
+            lastImportDir = "";
+        }
     }
 
     public TopicList getTopicList()

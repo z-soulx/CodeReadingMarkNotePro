@@ -10,6 +10,7 @@ import com.intellij.util.ui.JBUI;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.search.SearchService;
+import jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncStatusLabel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -276,7 +277,17 @@ public class ManagementPanel extends JPanel
         JComponent toolBar = actionToolbar.getComponent();
         toolBar.setBorder(JBUI.Borders.merge(toolBar.getBorder(), JBUI.Borders.emptyLeft(12), true));
         toolBar.setOpaque(false);
-        return toolBar;
+        
+        // Create panel with toolbar and sync status label
+        JPanel toolbarPanel = new JPanel(new BorderLayout());
+        toolbarPanel.setOpaque(false);
+        toolbarPanel.add(toolBar, BorderLayout.WEST);
+        
+        // Add sync status label on the right side
+        SyncStatusLabel syncStatusLabel = new SyncStatusLabel(project);
+        toolbarPanel.add(syncStatusLabel, BorderLayout.EAST);
+        
+        return toolbarPanel;
     }
     
     // Getter methods for actions

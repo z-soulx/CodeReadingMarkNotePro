@@ -53,6 +53,13 @@ public class TopicGroup implements Comparable<TopicGroup> {
     public void setNote(String note) {
         this.note = note;
         touch();
+        
+        // 发送通知以更新UI和触发同步
+        if (project != null && parentTopic != null) {
+            MessageBus messageBus = project.getMessageBus();
+            TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+            publisher.groupRenamed(parentTopic, this);  // 复用 groupRenamed 事件
+        }
     }
 
     public Date createdAt() {
@@ -133,6 +140,13 @@ public class TopicGroup implements Comparable<TopicGroup> {
         lines.remove(line);
         lines.add(index, line);
         touch();
+        
+        // 发送通知 - Group内TopicLine顺序变化
+        if (project != null && parentTopic != null) {
+            MessageBus messageBus = project.getMessageBus();
+            TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+            publisher.linesReordered(parentTopic);
+        }
     }
 
     public int getLineCount() {

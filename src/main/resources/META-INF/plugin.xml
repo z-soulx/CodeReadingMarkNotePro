@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.6.4</version>
+    <version>3.6.5</version>
     <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
     <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -26,6 +26,8 @@
                              displayName="Code Reading Note Sync"/>
         <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
         <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
+        <!-- Startup activity for sync conflict detection -->
+        <postStartupActivity implementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStartupActivity"/>
     </extensions>
     <projectListeners>
     <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"

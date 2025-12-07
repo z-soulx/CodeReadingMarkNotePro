@@ -61,8 +61,9 @@ public interface SyncProvider {
      * @param project 当前项目
      * @param config 同步配置
      * @param projectIdentifier 项目唯一标识符
-     * @return 时间戳（毫秒）
+     * @return 时间戳（毫秒），如果远程文件不存在返回0
      */
+    long getRemoteLastModifiedTime(@NotNull Project project, @NotNull SyncConfig config, @NotNull String projectIdentifier);
     long getRemoteTimestamp(@NotNull Project project, @NotNull SyncConfig config, @NotNull String projectIdentifier);
 }
 

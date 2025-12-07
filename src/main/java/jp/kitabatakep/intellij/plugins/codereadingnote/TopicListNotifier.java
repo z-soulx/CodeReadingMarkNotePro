@@ -10,6 +10,11 @@ public interface TopicListNotifier
      void topicsLoaded();
      
      /**
+      * Called when a topic is renamed or note is updated
+      */
+     default void topicUpdated(Topic topic) {}
+     
+     /**
       * Called when topics are reordered (e.g., via drag and drop)
       */
      default void topicsReordered() {}
