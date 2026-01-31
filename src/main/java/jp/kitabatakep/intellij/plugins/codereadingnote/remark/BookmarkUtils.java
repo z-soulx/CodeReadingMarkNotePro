@@ -133,7 +133,50 @@ public class BookmarkUtils {
     public static Map<String, Bookmark> getStringBookmarkMap(Project project) {
         List<Bookmark> allBookmark = BookmarkUtils.getAllBookmark(project);
         BookmarkGroup group = BookmarkUtils.getGroup(project);
-        return allBookmark.stream().collect(Collectors.toMap(r -> StringUtils.extractUUID(group.getDescription(r)), value -> value));
+        if (allBookmark == null || group == null) {
+            return java.util.Collections.emptyMap();
+        }
+        return allBookmark.stream()
+                .filter(b -> StringUtils.extractUUID(group.getDescription(b)) != null)
+                .collect(Collectors.toMap(
+                        r -> StringUtils.extractUUID(group.getDescription(r)),
+                        value -> value,
+                        (existing, replacement) -> existing  // 处理重复键：保留已存在的
+                ));
+    }
+    
+    /**
+     * Check if a bookmark already exists at the specified line in the file
+     * @return the existing bookmark's UUID if found, null otherwise
+     */
+    @Nullable
+    public static String findExistingBookmarkUuidAtLine(@NotNull Project project, @NotNull VirtualFile file, int line) {
+        BookmarkGroup group = getGroup(project);
+        if (group == null) {
+            return null;
+        }
+        
+        for (Bookmark bookmark : group.getBookmarks()) {
+            Object lineObj = bookmark.getAttributes().get("line");
+            Object fileObj = bookmark.getAttributes().get("file");
+            
+            if (lineObj != null && fileObj != null) {
+                try {
+                    int bookmarkLine = Integer.parseInt(lineObj.toString());
+                    String bookmarkFile = fileObj.toString();
+                    
+                    if (bookmarkLine == line && file.getPath().equals(bookmarkFile)) {
+                        String uuid = StringUtils.extractUUID(group.getDescription(bookmark));
+                        if (uuid != null) {
+                            return uuid;
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+        }
+        return null;
     }
     
     /**
