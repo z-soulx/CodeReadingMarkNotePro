@@ -1,6 +1,10 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.ide.DataManager;
+import org.jetbrains.annotations.NotNull;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
@@ -21,10 +25,13 @@ import com.intellij.ui.awt.RelativePoint;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.messages.MessageBus;
+import com.intellij.ui.RowsDnDSupport;
 import com.intellij.util.ui.EditableModel;
 import com.intellij.util.ui.UIUtil;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.FixLineRemarkAction;
+import jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.ShowBookmarkUidAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineMoveToGroupAction;
 import jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineRemoveAction;
@@ -48,6 +55,8 @@ class TopicDetailPanel extends JPanel {
 	private TopicLineListModel<TopicLine> topicLineListModel = new TopicLineListModel<>();
 
 	private Topic topic;
+	private TopicGroup currentGroup; // 当前显示的 Group（null 表示 Topic 或 Ungrouped 视图）
+	private boolean isUngroupedView = false; // 是否是 Ungrouped 视图
 	private TopicLine selectedTopicLine;
 
 	public TopicDetailPanel(Project project) {
@@ -154,6 +163,9 @@ class TopicDetailPanel extends JPanel {
 		topicLineList = new JBList<>();
 		topicLineList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION); // Changed to support multi-selection
 		topicLineList.setCellRenderer(new TopicLineListCellRenderer<>(project));
+		
+		// 启用拖拽排序
+		RowsDnDSupport.install(topicLineList, topicLineListModel);
 		topicLineList.addListSelectionListener(e -> {
 			TopicLine topicLine = topicLineList.getSelectedValue();
 			if (topicLine == null) {
@@ -180,10 +192,20 @@ class TopicDetailPanel extends JPanel {
 					boolean multipleSelected = selectedLines.size() > 1;
 					
 					DefaultActionGroup actions = new DefaultActionGroup();
-					actions.add(new TopicLineRemoveAction(project, (v) -> new Pair<>(topic, topicLine)));
+					
+					if (multipleSelected) {
+						// 批量操作
+						actions.add(new BatchRemoveAction(selectedLines));
+						actions.add(new TopicLineMoveToGroupAction(selectedLines));
+					} else {
+						// 单个操作
+						actions.add(new TopicLineRemoveAction(project, (v) -> new Pair<>(topic, topicLine)));
+						actions.add(new TopicLineMoveToGroupAction(topicLine));
+					}
+					
+					actions.addSeparator();
 					actions.add(new ShowBookmarkUidAction(project, (v) -> new Pair<>(topic, topicLine)));
 					actions.add(new FixLineRemarkAction(project, (v) -> new Pair<>(topic, topicLine)));
-					actions.add(new TopicLineMoveToGroupAction(topicLine));
 					
 					// Add new actions for single line
 					if (!multipleSelected) {
@@ -234,27 +256,10 @@ class TopicDetailPanel extends JPanel {
 		DefaultActionGroup actionGroup = new DefaultActionGroup();
 		
 		// Add "Repair All Bookmarks" action (always enabled)
-		com.intellij.openapi.actionSystem.AnAction repairAllAction = new com.intellij.openapi.actionSystem.AnAction(
-				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.all"),
-				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
-				com.intellij.icons.AllIcons.Actions.ForceRefresh
-		) {
-			@Override
-			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
-				// Trigger repair for all topics
-				new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairBookmarksAction()
-						.actionPerformed(e);
-			}
-			
-			@Override
-			public void update(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
-				e.getPresentation().setEnabled(e.getProject() != null);
-				e.getPresentation().setVisible(true); // 确保按钮始终可见
-			}
-		};
-		actionGroup.add(repairAllAction);
+		actionGroup.add(new RepairBookmarksAction());
 		
 		// Add "Repair Bookmarks for This Topic" action (only enabled when topic is selected)
+		// Use a wrapper action that can dynamically create RepairTopicBookmarksAction based on current topic
 		com.intellij.openapi.actionSystem.AnAction repairTopicAction = new com.intellij.openapi.actionSystem.AnAction(
 				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.topic"),
 				jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("action.repair.bookmarks.description"),
@@ -264,8 +269,9 @@ class TopicDetailPanel extends JPanel {
 			public void actionPerformed(@org.jetbrains.annotations.NotNull com.intellij.openapi.actionSystem.AnActionEvent e) {
 				// Trigger repair for current topic only
 				if (topic != null) {
-					new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairTopicBookmarksAction(topic)
-							.actionPerformed(e);
+					com.intellij.openapi.actionSystem.AnAction action = 
+							new jp.kitabatakep.intellij.plugins.codereadingnote.actions.RepairTopicBookmarksAction(topic);
+					ActionUtil.performActionDumbAwareWithCallbacks(action, e);
 				}
 			}
 			
@@ -297,6 +303,8 @@ class TopicDetailPanel extends JPanel {
 
 	void setTopic(Topic topic) {
 		this.topic = topic;
+		this.currentGroup = null; // Topic 视图，不属于任何 Group
+		this.isUngroupedView = false;
 		selectedTopicLine = null;
 
 		noteArea.setEnabled(true);
@@ -306,13 +314,25 @@ class TopicDetailPanel extends JPanel {
 		noteArea.setDocument(EditorFactory.getInstance().createDocument(topic.note()));
 		noteArea.getDocument().addDocumentListener(new NoteAreaListener(this));
 
+		// 按 Group 顺序显示 TopicLine：先按 Group 顺序，再按 Group 内部顺序
 		topicLineListModel.clear();
-		Iterator<TopicLine> iterator = topic.linesIterator();
-		while (iterator.hasNext()) {
-			topicLineListModel.addElement(iterator.next());
+		
+		// 1. 先添加各 Group 中的 TopicLine（按 Group 顺序）
+		for (TopicGroup group : topic.getGroups()) {
+			for (TopicLine line : group.getLines()) {
+				topicLineListModel.addElement(line);
+			}
+		}
+		
+		// 2. 最后添加 ungrouped 的 TopicLine
+		for (TopicLine line : topic.getUngroupedLines()) {
+			topicLineListModel.addElement(line);
 		}
 
 		topicLineList.setModel(topicLineListModel);
+		
+		// Topic 视图禁用拖拽排序（因为包含多个 Group 的混合数据）
+		topicLineListModel.setDragEnabled(false);
 	}
 
 	private static class TopicLineListCellRenderer<T> extends SimpleColoredComponent implements
@@ -333,32 +353,18 @@ class TopicDetailPanel extends JPanel {
 				boolean cellHasFocus) {
 			clear();
 			TopicLine topicLine = (TopicLine) value;
-			VirtualFile file = topicLine.file();
+			
+			// Use simple validity check to avoid SlowOperations on EDT
+			boolean isValid = topicLine.isValid();
 
-//            PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-//            if (fileOrDir != null) {
-//                setIcon(fileOrDir.getIcon(0));
-//            }
-//			ApplicationManager.getApplication().runReadAction(() -> {
-//				PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-//				if (fileOrDir != null) {
-//					setIcon(fileOrDir.getIcon(0));
-//				}
-//			});
-		ApplicationManager.getApplication().runReadAction(() -> {
-			// 在read-action中执行读取PSI树的操作
-			PsiElement fileOrDir = PsiUtilCore.findFileSystemItem(project, file);
-			if (fileOrDir != null) {
-				Icon icon = fileOrDir.getIcon(0);
-				// 确保 setIcon 操作在 EDT 上执行
-				SwingUtilities.invokeLater(() -> {
-					setIcon(icon);
-				});
+			// Use static icons to avoid SlowOperations from PSI/file index lookups
+			if (isValid) {
+				setIcon(com.intellij.icons.AllIcons.FileTypes.Text);
+			} else {
+				setIcon(com.intellij.icons.AllIcons.General.Warning);
 			}
-		});
 
-
-			if (topicLine.isValid()) {
+			if (isValid) {
 				// 修改显示格式：主显示中文注释，附带类名和行号
 				// 原格式：类名 (中文注释)
 				// 新格式：中文注释 (类名:行号)
@@ -385,22 +391,40 @@ class TopicDetailPanel extends JPanel {
 	}
 
 	private class TopicLineListModel<T> extends DefaultListModel<T> implements EditableModel {
+		
+		private boolean dragEnabled = true;
 
 		public void addRow() {
 		}
 
 		public void removeRow(int i) {
 		}
+		
+		public void setDragEnabled(boolean enabled) {
+			this.dragEnabled = enabled;
+		}
 
 		public boolean canExchangeRows(int oldIndex, int newIndex) {
-			return true;
+			return dragEnabled;
 		}
 
 		public void exchangeRows(int oldIndex, int newIndex) {
+			if (!dragEnabled) return;
+			
 			TopicLine target = (TopicLine) get(oldIndex);
 			remove(oldIndex);
 			add(newIndex, (T) target);
-			topic.changeLineOrder(target, newIndex);
+			
+			// 根据当前视图类型调用正确的排序方法
+			if (currentGroup != null) {
+				// Group 视图：在 Group 内排序
+				currentGroup.changeLineOrder(target, newIndex);
+			} else if (isUngroupedView && topic != null) {
+				// Ungrouped 视图：在 ungroupedLines 中排序
+				// Topic.changeLineOrder 会自动处理 ungrouped lines
+				topic.changeLineOrder(target, newIndex);
+			}
+			// Topic 视图不应该进入这里（dragEnabled = false）
 		}
 	}
 	
@@ -411,6 +435,8 @@ class TopicDetailPanel extends JPanel {
 	 */
     public void setGroup(TopicGroup group) {
 		this.topic = group.getParentTopic();
+		this.currentGroup = group; // 记录当前 Group
+		this.isUngroupedView = false;
 		this.selectedTopicLine = null;
 		
 		// Update note area with group note
@@ -429,6 +455,9 @@ class TopicDetailPanel extends JPanel {
 		
 		topicLineList.setModel(topicLineListModel);
 		topicLineDetailPanel.clear();
+		
+		// Group 视图启用拖拽排序
+		topicLineListModel.setDragEnabled(true);
 	}
 	
 	/**
@@ -436,6 +465,8 @@ class TopicDetailPanel extends JPanel {
 	 */
 	public void setUngroupedLines(Topic topic) {
 		this.topic = topic;
+		this.currentGroup = null; // Ungrouped 视图，标记为 null 表示未分组
+		this.isUngroupedView = true; // 标记为 Ungrouped 视图
 		this.selectedTopicLine = null;
 		
 		// Update note area to show topic note (since ungrouped lines belong to topic)
@@ -454,6 +485,9 @@ class TopicDetailPanel extends JPanel {
 		
 		topicLineList.setModel(topicLineListModel);
 		topicLineDetailPanel.clear();
+		
+		// Ungrouped 视图启用拖拽排序
+		topicLineListModel.setDragEnabled(true);
 	}
 	public void setTopicLine(TopicLine topicLine) {
 		this.topic = topicLine.topic();
@@ -506,6 +540,27 @@ class TopicDetailPanel extends JPanel {
 		public void documentChanged(com.intellij.openapi.editor.event.DocumentEvent e) {
 			Document doc = e.getDocument();
 			topicLine.setNote(doc.getText());
+		}
+	}
+	
+	/**
+	 * 批量删除 TopicLine 的 Action
+	 */
+	private static class BatchRemoveAction extends AnAction {
+		private final java.util.List<TopicLine> lines;
+		
+		public BatchRemoveAction(java.util.List<TopicLine> lines) {
+			super(CodeReadingNoteBundle.message("action.batch.remove", lines.size()), 
+				  CodeReadingNoteBundle.message("action.batch.remove.description"), 
+				  AllIcons.General.Remove);
+			this.lines = lines;
+		}
+		
+		@Override
+		public void actionPerformed(@NotNull AnActionEvent e) {
+			for (TopicLine line : lines) {
+				line.topic().removeLine(line);
+			}
 		}
 	}
 }

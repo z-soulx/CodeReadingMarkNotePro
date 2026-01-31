@@ -86,10 +86,20 @@ public class SyncPullAction extends CommonAnAction {
             @Override
             public void onSuccess() {
                 if (result.isSuccess()) {
+                    // Pull 成功后标记为已同步
+                    jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService statusService = 
+                        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService.getInstance(project);
+                    statusService.markSynced();
+                    
                     Messages.showInfoMessage(project, 
                         result.getUserMessage(), 
                         CodeReadingNoteBundle.message("message.pull.successful.title"));
                 } else {
+                    // Pull 失败，标记为错误
+                    jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService statusService = 
+                        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStatusService.getInstance(project);
+                    statusService.setError(result.getMessage());
+                    
                     Messages.showErrorDialog(project, 
                         result.getUserMessage(), 
                         CodeReadingNoteBundle.message("message.pull.failed.title"));

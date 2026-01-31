@@ -48,7 +48,12 @@ public final class AutoSyncScheduler {
         // 取消之前待执行的任务
         if (pendingSync != null && !pendingSync.isDone()) {
             pendingSync.cancel(false);
-            LOG.debug("Cancelled previous pending sync task");
+        }
+        
+        // 标记为待同步状态（PENDING）
+        SyncStatusService statusService = SyncStatusService.getInstance(project);
+        if (!statusService.isAutoSyncPaused()) {
+            statusService.markPending();
         }
         
         // 延迟3秒后执行同步
@@ -57,8 +62,6 @@ public final class AutoSyncScheduler {
                 executePush();
             });
         }, DEBOUNCE_DELAY_SECONDS, TimeUnit.SECONDS);
-        
-        LOG.debug("Scheduled auto-sync in " + DEBOUNCE_DELAY_SECONDS + " seconds");
     }
     
     /**
@@ -67,42 +70,65 @@ public final class AutoSyncScheduler {
      */
     private void executePush() {
         try {
+            // Check if auto-sync is paused (e.g., due to conflict)
+            SyncStatusService statusService = SyncStatusService.getInstance(project);
+            if (statusService.isAutoSyncPaused()) {
+                LOG.info("Auto-sync is paused due to conflict, skipping push");
+                return;
+            }
+            
             // 获取同步配置
             SyncConfig config = SyncSettings.getInstance().getSyncConfig();
             
             // 检查是否启用同步
             if (!config.isEnabled()) {
-                LOG.debug("Auto-sync skipped: Sync not enabled");
+                statusService.updateStatus(SyncStatus.DISABLED);
                 return;
             }
             
             // 检查是否启用自动同步
             if (!config.isAutoSync()) {
-                LOG.debug("Auto-sync skipped: Auto-sync not enabled");
                 return;
             }
             
             // 验证配置
             String validationError = config.validate();
             if (validationError != null) {
-                LOG.warn("Auto-sync skipped: Configuration invalid - " + validationError);
+                LOG.warn("Auto-sync skipped: Invalid configuration - " + validationError);
                 return;
             }
             
-            LOG.info("Executing auto-sync push...");
+            // Mark as syncing (同步进行中，此时不更新lastSyncTime)
+            statusService.markSyncing();
             
             // 执行推送
             SyncService syncService = SyncService.getInstance(project);
             SyncResult result = syncService.push(config);
             
             if (result.isSuccess()) {
-                LOG.info("Auto-sync push completed: " + result.getMessage());
+                // Push 成功后才更新状态和时间
+                
+                // 1. 更新同步时间（表示成功同步到远端的时间）
+                long syncTime = System.currentTimeMillis();
+                statusService.updateLastSyncTime(syncTime);
+                
+                // 2. 更新 MD5（表示当前已同步的数据状态）
+                String currentMd5 = syncService.calculateLocalDataMd5();
+                statusService.updateLastLocalDataMd5(currentMd5);
+                
+                // 3. 标记为已同步
+                statusService.markSynced();
+                
             } else {
+                // Push 失败，不更新时间和 MD5
                 LOG.warn("Auto-sync push failed: " + result.getMessage());
+                statusService.setError(result.getMessage());
             }
             
         } catch (Exception e) {
             LOG.error("Auto-sync push error", e);
+            SyncStatusService statusService = SyncStatusService.getInstance(project);
+            statusService.setError("Auto-sync error: " + e.getMessage());
         }
     }
     
@@ -114,7 +140,6 @@ public final class AutoSyncScheduler {
             pendingSync.cancel(false);
         }
         scheduler.shutdown();
-        LOG.debug("AutoSyncScheduler shutdown");
     }
 }
 

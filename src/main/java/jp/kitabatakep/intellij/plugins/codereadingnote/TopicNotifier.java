@@ -11,8 +11,12 @@ public interface TopicNotifier
     // Line update event (e.g., when line number is modified)
     default void lineUpdated(Topic topic, TopicLine topicLine, int oldLineNum, int newLineNum) {}
     
+    // Line reorder event (e.g., when TopicLine is moved within a Topic)
+    default void linesReordered(Topic topic) {}
+    
     // Group-related events
     default void groupAdded(Topic topic, TopicGroup group) {}
     default void groupRemoved(Topic topic, TopicGroup group) {}
-    default void groupRenamed(Topic topic, TopicGroup group) {}
+    default void groupRenamed(Topic topic, TopicGroup group) {}  // 包含 setName 和 setNote
+    default void groupsReordered(Topic topic) {}  // Group 顺序变化
 }

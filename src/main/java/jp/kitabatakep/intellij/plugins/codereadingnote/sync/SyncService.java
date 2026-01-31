@@ -4,14 +4,12 @@ import com.intellij.openapi.components.Service;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
-import org.jdom.Document;
+import com.intellij.openapi.util.JDOMUtil;
 import org.jdom.Element;
-import org.jdom.input.SAXBuilder;
-import org.jdom.output.Format;
-import org.jdom.output.XMLOutputter;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.StringReader;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 
 /**
@@ -24,16 +22,90 @@ public final class SyncService {
     
     private final Project project;
     private SyncStatus lastSyncStatus = SyncStatus.IDLE;
-    private long lastSyncTime = 0;
     private String lastSyncMessage = "";
+    // Note: lastSyncTime is now stored in CodeReadingNoteService
     
     public SyncService(@NotNull Project project) {
         this.project = project;
     }
     
+    /**
+     * Get effective local timestamp for conflict detection
+     * Uses lastSyncTime if available, otherwise uses the latest Topic updatedAt
+     */
+    public long getEffectiveLocalTimestamp() {
+        // Get lastSyncTime from SyncStatusService
+        SyncStatusService statusService = SyncStatusService.getInstance(project);
+        long storedSyncTime = statusService.getLastSyncTime();
+        
+        if (storedSyncTime > 0) {
+            return storedSyncTime;
+        }
+        
+        // Fallback: use the latest Topic updatedAt as local timestamp
+        CodeReadingNoteService noteService = CodeReadingNoteService.getInstance(project);
+        TopicList topicList = noteService.getTopicList();
+        
+        if (topicList == null || topicList.getTopics().isEmpty()) {
+            return 0;
+        }
+        
+        long latestTime = 0;
+        for (Topic topic : topicList.getTopics()) {
+            if (topic.updatedAt() != null) {
+                long topicTime = topic.updatedAt().getTime();
+                if (topicTime > latestTime) {
+                    latestTime = topicTime;
+                }
+            }
+        }
+        
+        return latestTime;
+    }
+    
     @NotNull
     public static SyncService getInstance(@NotNull Project project) {
         return project.getService(SyncService.class);
+    }
+    
+    /**
+     * Calculate MD5 hash of current local data
+     * Uses getStateWithoutTrigger() to avoid triggering auto-sync during calculation
+     */
+    @NotNull
+    public String calculateLocalDataMd5() {
+        try {
+            // Get current local data as XML (without triggering auto-sync)
+            CodeReadingNoteService noteService = CodeReadingNoteService.getInstance(project);
+            Element dataElement = noteService.getStateWithoutTrigger();
+            
+            if (dataElement == null) {
+                return "";
+            }
+            
+            // Convert to string
+            String xmlString = JDOMUtil.write(dataElement);
+            
+            // Calculate MD5
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(xmlString.getBytes("UTF-8"));
+            
+            // Convert to hex string
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : digest) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            
+            return hexString.toString();
+            
+        } catch (Exception e) {
+            LOG.error("Failed to calculate MD5", e);
+            return "";
+        }
     }
     
     /**
@@ -46,6 +118,7 @@ public final class SyncService {
         }
         
         try {
+            // 标记为同步中（此时不更新 lastSyncTime）
             lastSyncStatus = SyncStatus.SYNCING;
             
             // 获取同步提供者
@@ -70,11 +143,7 @@ public final class SyncService {
             
             // 导出为XML
             Element topicsElement = TopicListExporter.export(topicList.getTopics().iterator());
-            Document document = new Document(topicsElement);
-            @SuppressWarnings("deprecation")
-            XMLOutputter xmlOutputter = new XMLOutputter(Format.getPrettyFormat());
-            @SuppressWarnings("deprecation")
-            String xmlData = xmlOutputter.outputString(document);
+            String xmlData = JDOMUtil.writeElement(topicsElement);
             
             if (xmlData == null || xmlData.isEmpty()) {
                 return SyncResult.failure("Failed to export data");
@@ -83,14 +152,27 @@ public final class SyncService {
             // 生成项目标识符
             String projectIdentifier = generateProjectIdentifier(project);
             
-            // 执行推送
+            // 执行推送到远端
             SyncResult result = provider.push(project, config, xmlData, projectIdentifier);
             
             if (result.isSuccess()) {
-                lastSyncTime = System.currentTimeMillis();
+                // ✅ Push 成功后才更新状态和时间
+                SyncStatusService statusService = SyncStatusService.getInstance(project);
+                
+                // 1. 更新同步时间（表示成功推送到远端的时间）
+                long syncTime = System.currentTimeMillis();
+                statusService.updateLastSyncTime(syncTime);
+                
+                // 2. 更新 MD5（表示当前已同步的数据状态）
+                String currentMd5 = calculateLocalDataMd5();
+                statusService.updateLastLocalDataMd5(currentMd5);
+                
+                // 3. 更新内部状态
                 lastSyncStatus = SyncStatus.SUCCESS;
                 lastSyncMessage = "Pushed successfully";
             } else {
+                // ❌ Push 失败，不更新时间和 MD5
+                LOG.warn("Push failed: " + result.getMessage());
                 lastSyncStatus = SyncStatus.FAILED;
                 lastSyncMessage = result.getMessage();
             }
@@ -154,11 +236,7 @@ public final class SyncService {
             }
             
             // 解析XML数据
-            @SuppressWarnings("deprecation")
-            SAXBuilder saxBuilder = new SAXBuilder();
-            @SuppressWarnings("deprecation")
-            Document document = saxBuilder.build(new StringReader(xmlData));
-            Element topicsElement = document.getRootElement();
+            Element topicsElement = JDOMUtil.load(new StringReader(xmlData));
             
             ArrayList<Topic> remoteTopics = TopicListImporter.importElement(project, topicsElement);
             if (remoteTopics == null || remoteTopics.isEmpty()) {
@@ -181,7 +259,18 @@ public final class SyncService {
                 project.getMessageBus().syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC).topicsLoaded();
             }
             
-            lastSyncTime = System.currentTimeMillis();
+            // ✅ Pull 成功后才更新状态和时间
+            SyncStatusService statusService = SyncStatusService.getInstance(project);
+            
+            // 1. 更新同步时间（表示成功从远端拉取的时间）
+            long syncTime = System.currentTimeMillis();
+            statusService.updateLastSyncTime(syncTime);
+            
+            // 2. 更新 MD5（表示当前已同步的数据状态）
+            String currentMd5 = calculateLocalDataMd5();
+            statusService.updateLastLocalDataMd5(currentMd5);
+            
+            // 3. 更新内部状态
             lastSyncStatus = SyncStatus.SUCCESS;
             lastSyncMessage = merge ? "Pulled and merged successfully" : "Pulled successfully";
             
@@ -210,7 +299,8 @@ public final class SyncService {
             }
             
             String projectIdentifier = generateProjectIdentifier(project);
-            return provider.hasRemoteUpdate(project, config, projectIdentifier, lastSyncTime);
+            long localLastSyncTime = getLastSyncTime();
+            return provider.hasRemoteUpdate(project, config, projectIdentifier, localLastSyncTime);
         } catch (Exception e) {
             LOG.warn("Failed to check remote update", e);
             return false;
@@ -274,7 +364,6 @@ public final class SyncService {
             identifier = "unnamed-project";
         }
         
-        LOG.info("Generated project identifier: " + identifier + " for project: " + projectName);
         return identifier;
     }
     
@@ -285,8 +374,12 @@ public final class SyncService {
         return lastSyncStatus;
     }
     
+    /**
+     * Get last sync time (from SyncStatusService)
+     */
     public long getLastSyncTime() {
-        return lastSyncTime;
+        SyncStatusService statusService = SyncStatusService.getInstance(project);
+        return statusService.getLastSyncTime();
     }
     
     @NotNull

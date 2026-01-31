@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -314,10 +315,9 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
      * 创建HTTP连接
      */
     @NotNull
-    @SuppressWarnings("deprecation")
     private HttpURLConnection createConnection(@NotNull String urlStr, @NotNull String method, 
                                                @NotNull String token) throws IOException {
-        URL url = new URL(urlStr);
+        URL url = URI.create(urlStr).toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod(method);
         conn.setConnectTimeout(TIMEOUT);

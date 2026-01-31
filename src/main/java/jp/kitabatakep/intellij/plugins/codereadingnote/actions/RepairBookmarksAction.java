@@ -74,8 +74,8 @@ public class RepairBookmarksAction extends CommonAnAction {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     Messages.showErrorDialog(
                         project,
-                        "Failed to repair bookmarks: " + error.getMessage(),
-                        "Repair Failed"
+                        CodeReadingNoteBundle.message("message.repair.failed") + ": " + error.getMessage(),
+                        CodeReadingNoteBundle.message("message.repair.failed.title")
                     );
                 });
             }

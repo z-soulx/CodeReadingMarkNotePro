@@ -50,7 +50,15 @@ public class Topic implements Comparable<Topic>
     {
         return name;
     }
-    public void setName(String name) { this.name = name; }
+    public void setName(String name) {
+        this.name = name;
+        touch();
+        
+        // 发送通知
+        MessageBus messageBus = project.getMessageBus();
+        TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
+        publisher.topicUpdated(this);
+    }
 
     public String note() {
         return note != null ? note : "";
@@ -59,6 +67,12 @@ public class Topic implements Comparable<Topic>
     public void setNote(String note)
     {
         this.note = note;
+        touch();
+        
+        // 发送通知
+        MessageBus messageBus = project.getMessageBus();
+        TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
+        publisher.topicUpdated(this);
     }
 
     public Date updatedAt() { return updatedAt; }
@@ -151,6 +165,7 @@ public class Topic implements Comparable<Topic>
         if (line.hasGroup()) {
             // 如果有分组，在分组内调整顺序
             line.getGroup().changeLineOrder(line, index);
+            // 注意：事件已在 TopicGroup.changeLineOrder() 中发送
         } else {
             // 在ungroupedLines中调整顺序
             ungroupedLines.remove(line);
@@ -159,6 +174,13 @@ public class Topic implements Comparable<Topic>
             // 保持废弃字段同步
             lines.remove(line);
             lines.add(index, line);
+            
+            touch();
+            
+            // 发送通知 - ungrouped lines 顺序变化
+            MessageBus messageBus = project.getMessageBus();
+            TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+            publisher.linesReordered(this);
         }
     }
 
@@ -224,6 +246,30 @@ public class Topic implements Comparable<Topic>
         publisher.groupRemoved(this, group);
     }
     
+    /**
+     * 移动分组到新位置
+     * @param fromIndex 原位置
+     * @param toIndex 目标位置
+     */
+    public void moveGroup(int fromIndex, int toIndex) {
+        if (fromIndex < 0 || fromIndex >= groups.size() || 
+            toIndex < 0 || toIndex >= groups.size() || 
+            fromIndex == toIndex) {
+            return;
+        }
+        
+        TopicGroup group = groups.remove(fromIndex);
+        groups.add(toIndex, group);
+        touch();
+    }
+    
+    /**
+     * 获取分组的索引
+     */
+    public int getGroupIndex(TopicGroup group) {
+        return groups.indexOf(group);
+    }
+    
     public TopicGroup findGroupByName(String name) {
         return groups.stream()
                 .filter(group -> group.name().equals(name))
@@ -243,10 +289,10 @@ public class Topic implements Comparable<Topic>
         targetGroup.addLine(line);
         touch();
 
-        // 发送通知（由 Topic 层统一管理）
+        // 发送通知 - TopicLine移动到Group（本质上是数据修改）
         MessageBus messageBus = project.getMessageBus();
         TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
-        publisher.lineAdded(this, line);
+        publisher.linesReordered(this);  // 使用 linesReordered 表示结构变化
     }
     
     public void moveLineToUngrouped(TopicLine line) {
@@ -262,6 +308,11 @@ public class Topic implements Comparable<Topic>
             line.setGroup(null);
         }
         touch();
+        
+        // 发送通知 - TopicLine移动到ungrouped
+        MessageBus messageBus = project.getMessageBus();
+        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+        publisher.linesReordered(this);  // 使用 linesReordered 表示结构变化
     }
     
     public void addLineToGroup(TopicLine line, String groupName) {
@@ -364,5 +415,10 @@ public class Topic implements Comparable<Topic>
         lines.add(actualIndex, line);
         
         touch();
+        
+        // Publish reorder event
+        MessageBus messageBus = project.getMessageBus();
+        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+        publisher.linesReordered(this);
     }
 }

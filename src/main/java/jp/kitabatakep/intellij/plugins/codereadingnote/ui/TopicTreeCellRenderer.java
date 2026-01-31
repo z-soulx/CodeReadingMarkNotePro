@@ -7,7 +7,6 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
-import javax.swing.tree.DefaultMutableTreeNode;
 import java.text.SimpleDateFormat;
 
 /**
@@ -82,8 +81,12 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
         var topicLine = node.getTopicLine();
         if (topicLine == null) return;
         
+        // Use simple validity check to avoid SlowOperations on EDT
+        // Note: isValidWithRefresh() can trigger file index checks which are prohibited on EDT
+        boolean isValid = topicLine.isValid();
+        
         // Use different icons based on file validity
-        if (topicLine.isValid()) {
+        if (isValid) {
             setIcon(AllIcons.FileTypes.Text);
         } else {
             setIcon(AllIcons.General.Warning);
@@ -104,7 +107,7 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
         }
         
         // Show warning for invalid files
-        if (!topicLine.isValid()) {
+        if (!isValid) {
             append(" " + CodeReadingNoteBundle.message("tree.file.not.found"), SimpleTextAttributes.ERROR_ATTRIBUTES);
         }
     }

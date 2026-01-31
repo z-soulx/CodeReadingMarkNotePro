@@ -46,6 +46,17 @@ public abstract class AbstractSyncProvider implements SyncProvider {
         }
     }
     
+    @Override
+    public long getRemoteLastModifiedTime(@NotNull Project project, @NotNull SyncConfig config, 
+                                          @NotNull String projectIdentifier) {
+        try {
+            return getRemoteTimestamp(project, config, projectIdentifier);
+        } catch (Exception e) {
+            LOG.warn("Failed to get remote last modified time", e);
+            return 0;
+        }
+    }
+    
     /**
      * 生成错误消息的辅助方法
      */
