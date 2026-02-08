@@ -157,7 +157,11 @@ public class LineFixResult {
                 break;
             case BOOKMARK_MISSING:
                 html.append("<b>Status:</b> <font color='red'>✗ Bookmark Missing</font><br>");
-                html.append("<b>Line:</b> ").append(getOldLine());
+                html.append("<b>Line:</b> ").append(getOldLine()).append("<br>");
+                html.append("<br><font color='gray'><i>Possible causes:</i></font><br>");
+                html.append("<font color='gray'>• Bookmark manually deleted</font><br>");
+                html.append("<font color='gray'>• Another bookmark on same line (only 1 allowed)</font><br>");
+                html.append("<font color='gray'>• Lost during branch switch</font>");
                 break;
             case FILE_NOT_FOUND:
                 html.append("<b>Status:</b> <font color='red'>✗ File Not Found</font><br>");

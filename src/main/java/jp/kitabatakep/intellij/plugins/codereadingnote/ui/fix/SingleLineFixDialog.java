@@ -224,16 +224,55 @@ public class SingleLineFixDialog extends DialogWrapper {
      * Create bookmark missing panel
      */
     private JPanel createBookmarkMissingPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createTitledBorder("Status"));
         
-        JBLabel label = new JBLabel("❌ Cannot find the corresponding Bookmark, it may have been deleted");
-        label.setIcon(result.getIcon());
-        label.setHorizontalAlignment(SwingConstants.CENTER);
-        label.setForeground(Color.RED);
-        label.setBorder(JBUI.Borders.empty(20));
+        // Main error message
+        JBLabel errorLabel = new JBLabel("❌ Cannot find the corresponding Bookmark");
+        errorLabel.setIcon(result.getIcon());
+        errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        errorLabel.setForeground(Color.RED);
+        errorLabel.setBorder(JBUI.Borders.empty(10));
+        panel.add(errorLabel, BorderLayout.NORTH);
         
-        panel.add(label, BorderLayout.CENTER);
+        // Explanation panel
+        JPanel explanationPanel = new JPanel();
+        explanationPanel.setLayout(new BoxLayout(explanationPanel, BoxLayout.Y_AXIS));
+        explanationPanel.setBorder(JBUI.Borders.empty(10));
+        
+        JBLabel causeTitle = new JBLabel("Possible causes:");
+        causeTitle.setFont(causeTitle.getFont().deriveFont(Font.BOLD));
+        causeTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        explanationPanel.add(causeTitle);
+        explanationPanel.add(Box.createVerticalStrut(5));
+        
+        String[] causes = {
+            "1. The bookmark was manually deleted",
+            "2. Another bookmark was added on the same line (IntelliJ only supports one bookmark per line)",
+            "3. The bookmark was lost during branch switching or code merging"
+        };
+        
+        for (String cause : causes) {
+            JBLabel causeLabel = new JBLabel(cause);
+            causeLabel.setForeground(Color.GRAY);
+            causeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            explanationPanel.add(causeLabel);
+            explanationPanel.add(Box.createVerticalStrut(3));
+        }
+        
+        explanationPanel.add(Box.createVerticalStrut(10));
+        
+        JBLabel tipTitle = new JBLabel("💡 Tip:");
+        tipTitle.setFont(tipTitle.getFont().deriveFont(Font.BOLD));
+        tipTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        explanationPanel.add(tipTitle);
+        
+        JBLabel tipLabel = new JBLabel("Use \"Repair Bookmarks\" action to recreate missing bookmarks");
+        tipLabel.setForeground(new Color(0, 100, 180));
+        tipLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        explanationPanel.add(tipLabel);
+        
+        panel.add(explanationPanel, BorderLayout.CENTER);
         
         return panel;
     }

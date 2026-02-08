@@ -27,6 +27,7 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicList;
+import jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkUtils;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.MyEditorTextField;
 import org.jetbrains.annotations.NotNull;
 
@@ -314,6 +315,20 @@ public class TopicLineAddAction extends CommonAnAction {
             try {
                 Topic selectedTopic = topicJList.getSelectedValue();
                 if (selectedTopic != null) {
+                    // Check if a bookmark already exists at this line
+                    String existingUuid = BookmarkUtils.findExistingBookmarkUuidAtLine(project, file, line);
+                    if (existingUuid != null) {
+                        // Show warning dialog
+                        int result = JOptionPane.showConfirmDialog(dialog,
+                            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.bookmark.exists.at.line"),
+                            jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.warning.title"),
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.WARNING_MESSAGE);
+                        if (result != JOptionPane.YES_OPTION) {
+                            return; // User cancelled
+                        }
+                    }
+                    
                     Object selectedGroup = groupJList.getSelectedValue();
                     String noteText = noteInputField.getText();
                     
