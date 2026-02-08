@@ -315,9 +315,11 @@ public class TopicLineAddAction extends CommonAnAction {
             try {
                 Topic selectedTopic = topicJList.getSelectedValue();
                 if (selectedTopic != null) {
-                    // Check if a bookmark already exists at this line
+                    // Check if a bookmark or TopicLine already exists at this line
+                    // Two-level check: native bookmark + TopicLine data
                     String existingUuid = BookmarkUtils.findExistingBookmarkUuidAtLine(project, file, line);
-                    if (existingUuid != null) {
+                    boolean hasDuplicateTopicLine = BookmarkUtils.hasTopicLineAtSameFileLine(project, file, line);
+                    if (existingUuid != null || hasDuplicateTopicLine) {
                         // Show warning dialog
                         int result = JOptionPane.showConfirmDialog(dialog,
                             jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.bookmark.exists.at.line"),

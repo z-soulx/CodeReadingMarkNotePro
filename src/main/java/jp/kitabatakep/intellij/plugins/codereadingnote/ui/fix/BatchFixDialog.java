@@ -6,24 +6,32 @@ import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Batch fix preview dialog (for Topic and Fix All)
  */
 public class BatchFixDialog extends DialogWrapper {
     
+    private final Project project;
     private final FixPreviewData previewData;
     private final boolean showOnlyNeedsFix;
     
     private JBList<LineFixResult> resultList;
     
+    // Results selected for clean up (populated when user chooses CLEAN_UP mode)
+    private List<LineFixResult> cleanUpSelection = new ArrayList<>();
+    
     public enum FixMode {
         FIX_ONLY_NEEDS,    // Fix only needs fix
-        FIX_ALL            // Resync all
+        FIX_ALL,           // Resync all
+        CLEAN_UP           // Clean up error entries
     }
     
     private FixMode selectedMode = FixMode.FIX_ONLY_NEEDS;
@@ -34,6 +42,7 @@ public class BatchFixDialog extends DialogWrapper {
     
     public BatchFixDialog(Project project, FixPreviewData previewData, boolean showOnlyNeedsFix) {
         super(project);
+        this.project = project;
         this.previewData = previewData;
         this.showOnlyNeedsFix = showOnlyNeedsFix;
         
@@ -46,7 +55,7 @@ public class BatchFixDialog extends DialogWrapper {
     protected JComponent createCenterPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(JBUI.Borders.empty(10));
-        panel.setPreferredSize(new Dimension(600, 400));
+        panel.setPreferredSize(new Dimension(750, 420));
         
         // Statistics panel
         JPanel statisticsPanel = createStatisticsPanel();
@@ -181,8 +190,50 @@ public class BatchFixDialog extends DialogWrapper {
     
     @Override
     protected Action @Nullable [] createActions() {
-        if (!previewData.hasNeedsFix()) {
-            // No items need fix, only show close button
+        List<Action> actions = new ArrayList<>();
+        actions.add(getCancelAction());
+        
+        if (previewData.hasNeedsFix()) {
+            actions.add(new DialogWrapperAction("Fix Only Out of Sync (" + previewData.getNeedsFixCount() + ")") {
+                @Override
+                protected void doAction(java.awt.event.ActionEvent e) {
+                    selectedMode = FixMode.FIX_ONLY_NEEDS;
+                    doOKAction();
+                }
+            });
+            actions.add(new DialogWrapperAction("Resync All (" + previewData.getTotalCount() + ")") {
+                @Override
+                protected void doAction(java.awt.event.ActionEvent e) {
+                    selectedMode = FixMode.FIX_ALL;
+                    doOKAction();
+                }
+            });
+        }
+        
+        // Show Clean Up button if there are error entries
+        int errorCount = previewData.getBookmarkMissingCount() + previewData.getFileNotFoundCount();
+        if (errorCount > 0) {
+            actions.add(new DialogWrapperAction(
+                    CodeReadingNoteBundle.message("dialog.cleanup.button", errorCount)) {
+                @Override
+                protected void doAction(java.awt.event.ActionEvent e) {
+                    // Open CleanUpDialog for detailed selection
+                    List<LineFixResult> errorResults = new ArrayList<>();
+                    errorResults.addAll(previewData.getBookmarkMissingResults());
+                    errorResults.addAll(previewData.getFileNotFoundResults());
+                    
+                    CleanUpDialog cleanUpDialog = new CleanUpDialog(project, errorResults);
+                    if (cleanUpDialog.showAndGet()) {
+                        cleanUpSelection = cleanUpDialog.getSelectedResults();
+                        selectedMode = FixMode.CLEAN_UP;
+                        doOKAction();
+                    }
+                }
+            });
+        }
+        
+        // If no fix needed and no errors, just show Close
+        if (!previewData.hasNeedsFix() && errorCount == 0) {
             return new Action[]{
                 new DialogWrapperAction("Close") {
                     @Override
@@ -193,24 +244,7 @@ public class BatchFixDialog extends DialogWrapper {
             };
         }
         
-        // Has items need fix, show fix options
-        return new Action[]{
-            getCancelAction(),
-            new DialogWrapperAction("Fix Only Out of Sync (" + previewData.getNeedsFixCount() + ")") {
-                @Override
-                protected void doAction(java.awt.event.ActionEvent e) {
-                    selectedMode = FixMode.FIX_ONLY_NEEDS;
-                    doOKAction();
-                }
-            },
-            new DialogWrapperAction("Resync All (" + previewData.getTotalCount() + ")") {
-                @Override
-                protected void doAction(java.awt.event.ActionEvent e) {
-                    selectedMode = FixMode.FIX_ALL;
-                    doOKAction();
-                }
-            }
-        };
+        return actions.toArray(new Action[0]);
     }
     
     /**
@@ -218,5 +252,13 @@ public class BatchFixDialog extends DialogWrapper {
      */
     public FixMode getSelectedMode() {
         return selectedMode;
+    }
+    
+    /**
+     * Get the list of error entries selected for clean up.
+     * Only valid when selectedMode == CLEAN_UP.
+     */
+    public List<LineFixResult> getCleanUpSelection() {
+        return cleanUpSelection;
     }
 }
