@@ -4,6 +4,7 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.Topic;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup;
+import jp.kitabatakep.intellij.plugins.codereadingnote.TrashedLine;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
@@ -16,7 +17,9 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
         TOPIC,
         GROUP, 
         TOPIC_LINE,
-        UNGROUPED_LINES_FOLDER // Virtual folder for ungrouped lines
+        UNGROUPED_LINES_FOLDER,
+        TRASH_BIN,
+        TRASHED_LINE
     }
     
     private NodeType nodeType;
@@ -79,6 +82,13 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
         return null;
     }
     
+    public TrashedLine getTrashedLine() {
+        if (nodeType == NodeType.TRASHED_LINE) {
+            return (TrashedLine) getUserObject();
+        }
+        return null;
+    }
+    
     public String getDisplayName() {
         switch (nodeType) {
             case TOPIC:
@@ -114,6 +124,24 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
             case UNGROUPED_LINES_FOLDER:
                 return CodeReadingNoteBundle.message("tree.ungrouped.lines");
                 
+            case TRASH_BIN:
+                return CodeReadingNoteBundle.message("trash.bin.name") + " " + getChildCount();
+                
+            case TRASHED_LINE:
+                TrashedLine tl = (TrashedLine) getUserObject();
+                TopicLine trashedTopicLine = tl.getLine();
+                String trashedFileName = trashedTopicLine.pathForDisplay();
+                if (trashedFileName.contains("/") || trashedFileName.contains("\\")) {
+                    trashedFileName = trashedFileName.substring(trashedFileName.lastIndexOf("/") + 1);
+                    trashedFileName = trashedFileName.substring(trashedFileName.lastIndexOf("\\") + 1);
+                }
+                String trashedNote = trashedTopicLine.note();
+                String trashedPath = trashedFileName + ":" + (trashedTopicLine.line() + 1);
+                if (trashedNote != null && !trashedNote.trim().isEmpty()) {
+                    return trashedNote + " (" + trashedPath + ")";
+                }
+                return trashedPath;
+                
             default:
                 return getUserObject().toString();
         }
@@ -130,7 +158,8 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
     public boolean canHaveChildren() {
         return nodeType == NodeType.TOPIC || 
                nodeType == NodeType.GROUP || 
-               nodeType == NodeType.UNGROUPED_LINES_FOLDER;
+               nodeType == NodeType.UNGROUPED_LINES_FOLDER ||
+               nodeType == NodeType.TRASH_BIN;
     }
     
     /**

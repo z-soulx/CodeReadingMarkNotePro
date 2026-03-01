@@ -142,7 +142,6 @@ public class TopicTreePanel extends JPanel {
             }
         });
         
-        // Double-click listener for navigation
         topicTree.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -158,6 +157,16 @@ public class TopicTreePanel extends JPanel {
                         }
                     }
                 }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.isPopupTrigger()) showTrashContextMenu(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (e.isPopupTrigger()) showTrashContextMenu(e);
             }
         });
         
@@ -220,8 +229,6 @@ public class TopicTreePanel extends JPanel {
                 selectionListener.onTopicLineSelected(node.getTopicLine());
                 break;
             case UNGROUPED_LINES_FOLDER:
-                // 处理点击"Ungrouped Lines"文件夹的情况
-                // 需要找到父Topic并显示其ungrouped lines
                 if (node.getParent() instanceof TopicTreeNode) {
                     TopicTreeNode parentNode = (TopicTreeNode) node.getParent();
                     if (parentNode.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
@@ -229,6 +236,8 @@ public class TopicTreePanel extends JPanel {
                     }
                 }
                 break;
+            case TRASH_BIN:
+            case TRASHED_LINE:
             default:
                 selectionListener.onSelectionCleared();
                 break;
@@ -312,6 +321,18 @@ public class TopicTreePanel extends JPanel {
                         TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
                         topicNode.add(lineNode);
                     }
+                }
+            }
+            
+            java.util.ArrayList<TrashedLine> trashedLines = service.getTopicList().getTrashedLines();
+            if (!trashedLines.isEmpty()) {
+                TopicTreeNode trashNode = new TopicTreeNode(
+                        CodeReadingNoteBundle.message("trash.bin.name"),
+                        TopicTreeNode.NodeType.TRASH_BIN);
+                rootNode.add(trashNode);
+                for (TrashedLine tl : trashedLines) {
+                    TopicTreeNode tlNode = new TopicTreeNode(tl, TopicTreeNode.NodeType.TRASHED_LINE);
+                    trashNode.add(tlNode);
                 }
             }
             
@@ -854,6 +875,73 @@ public class TopicTreePanel extends JPanel {
     }
     
     /**
+     * 在整棵树中查找并选中任意位置的 TopicLine 节点（group / ungrouped / legacy）。
+     * 使用 invokeLater 确保在 loadTopics 完成后执行。
+     */
+    public void selectTopicLine(TopicLine target) {
+        if (target == null) return;
+        SwingUtilities.invokeLater(() -> {
+            if (!selectTopicLineRecursive(rootNode, target)) {
+                String uid = target.getBookmarkUid();
+                if (uid != null && !uid.isEmpty()) {
+                    selectTopicLineByUid(rootNode, uid);
+                }
+            }
+        });
+    }
+
+    private boolean selectTopicLineRecursive(javax.swing.tree.TreeNode parent, TopicLine target) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            javax.swing.tree.TreeNode child = parent.getChildAt(i);
+            if (child instanceof TopicTreeNode) {
+                TopicTreeNode node = (TopicTreeNode) child;
+                if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE && node.getTopicLine() == target) {
+                    selectAndScrollToNode(node);
+                    return true;
+                }
+                if (node.canHaveChildren() && selectTopicLineRecursive(node, target)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean selectTopicLineByUid(javax.swing.tree.TreeNode parent, String uid) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            javax.swing.tree.TreeNode child = parent.getChildAt(i);
+            if (child instanceof TopicTreeNode) {
+                TopicTreeNode node = (TopicTreeNode) child;
+                if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
+                    TopicLine tl = node.getTopicLine();
+                    if (tl != null && uid.equals(tl.getBookmarkUid())) {
+                        selectAndScrollToNode(node);
+                        return true;
+                    }
+                }
+                if (node.canHaveChildren() && selectTopicLineByUid(node, uid)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void selectAndScrollToNode(TopicTreeNode node) {
+        TreePath path = new TreePath(treeModel.getPathToRoot(node));
+        TreePath parentPath = path.getParentPath();
+        if (parentPath != null) {
+            topicTree.expandPath(parentPath);
+            TreePath grandParent = parentPath.getParentPath();
+            if (grandParent != null) {
+                topicTree.expandPath(grandParent);
+            }
+        }
+        topicTree.setSelectionPath(path);
+        topicTree.scrollPathToVisible(path);
+    }
+
+    /**
      * 选择Group中的特定TopicLine
      */
     public void selectGroupLine(TopicGroup group, TopicLine line) {
@@ -925,5 +1013,45 @@ public class TopicTreePanel extends JPanel {
                 }
             }
         }
+    }
+    
+    private void showTrashContextMenu(MouseEvent e) {
+        TreePath path = topicTree.getPathForLocation(e.getX(), e.getY());
+        if (path == null) return;
+        
+        Object component = path.getLastPathComponent();
+        if (!(component instanceof TopicTreeNode)) return;
+        
+        TopicTreeNode node = (TopicTreeNode) component;
+        topicTree.setSelectionPath(path);
+        
+        JPopupMenu menu = new JPopupMenu();
+        
+        if (node.getNodeType() == TopicTreeNode.NodeType.TRASH_BIN) {
+            JMenuItem emptyTrash = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.empty"));
+            emptyTrash.addActionListener(ev -> {
+                service.getTopicList().emptyTrash();
+            });
+            menu.add(emptyTrash);
+        } else if (node.getNodeType() == TopicTreeNode.NodeType.TRASHED_LINE) {
+            TrashedLine tl = node.getTrashedLine();
+            if (tl != null) {
+                JMenuItem restore = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.restore"));
+                restore.addActionListener(ev -> {
+                    service.getTopicList().restoreFromTrash(tl);
+                });
+                menu.add(restore);
+                
+                JMenuItem permDelete = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.permanent.delete"));
+                permDelete.addActionListener(ev -> {
+                    service.getTopicList().permanentlyDelete(tl);
+                });
+                menu.add(permDelete);
+            }
+        } else {
+            return;
+        }
+        
+        menu.show(topicTree, e.getX(), e.getY());
     }
 }

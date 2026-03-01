@@ -34,6 +34,10 @@ Expectation: Co-maintenance, welcome PR, Issues, ongoing maintenance (期望：�
 - Position fixing: Experimental feature to fix bookmark position shifts (位置修复：实验性功能修复书签位置偏移)
 - Third-party synchronization: GitHub repository sync for cross-device collaboration (第三方同步：GitHub仓库同步，实现跨设备协作)
 - Multi-language support: Independent English/Chinese interface switching (多语言支持：插件独立英文/中文界面切换)
+- Gutter note popup: Click gutter icon to edit/locate/delete notes inline (Gutter笔记弹窗：点击行首图标内联编辑/定位/删除笔记)
+- Reverse locate: Select note in TreeView from editor cursor (反定位：从编辑器光标定位到TreeView笔记节点)
+- Trash bin: Deleted notes go to recoverable trash instead of permanent delete (废纸篓：删除的笔记进入可恢复的废纸篓)
+- Distinctive inline annotations: End-of-line note annotations in teal color (行尾注释高亮：行尾笔记注释使用青色显示)
 
 ## Display (展示)
 ![img.png](img.png)

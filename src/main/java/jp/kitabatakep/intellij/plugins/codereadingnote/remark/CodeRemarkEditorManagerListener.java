@@ -24,9 +24,6 @@
 
 package jp.kitabatakep.intellij.plugins.codereadingnote.remark;
 
-import com.intellij.ide.bookmark.Bookmark;
-import com.intellij.ide.bookmark.BookmarkGroup;
-import com.intellij.ide.bookmark.BookmarksManager;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -34,7 +31,8 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.fileEditor.TextEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
+import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService;
+import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -44,21 +42,19 @@ public class CodeRemarkEditorManagerListener implements FileEditorManagerListene
     @Override
     public void fileOpened(@NotNull final FileEditorManager source, @NotNull final VirtualFile file) {
         final Project project = source.getProject();
-//        CodeRemarkEditorInlineInlayListener.getInstance(project).startListening();
 
         final Editor editor = getEditor(source, file);
-        if (null == editor) return; // Skipped.
-        List<CodeRemark> machRemarklist = CodeRemarkRepositoryFactory.getInstance(project).list(project, file);
-//        fixOffset(machRemarklist,project);
-        machRemarklist
-        .forEach(codeRemark -> {
-            EditorUtils.addAfterLineCodeRemark(editor, codeRemark.getLineNumber(), codeRemark.getText());
-        });
-    }
+        if (null == editor) return;
 
-    private void fixOffset(List<CodeRemark> machRemarklist, Project project) {
-        //wait dev
-       BookmarkUtils.getAllBookmark(project);
+        CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
+        List<TopicLine> topicLines = service.listSource(project, file);
+
+        for (TopicLine topicLine : topicLines) {
+            String noteText = StringUtils.spNote(topicLine.note());
+            String uid = topicLine.getBookmarkUid();
+            EditorUtils.addAfterLineCodeRemark(editor, topicLine.line(), noteText, uid);
+            EditorUtils.addGutterIcon(editor, project, topicLine.line(), uid, noteText);
+        }
     }
 
     private Editor getEditor(@NotNull final FileEditorManager source, @NotNull final VirtualFile file) {

@@ -10,6 +10,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.newvfs.BulkFileListener;
 import com.intellij.openapi.vfs.newvfs.events.*;
+import com.intellij.util.Alarm;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.messages.MessageBusConnection;
 import jp.kitabatakep.intellij.plugins.codereadingnote.remark.*;
@@ -37,6 +38,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     
     Project project;
     TopicList topicList;
+    private final Alarm remarkRefreshAlarm;
 
     String lastExportDir = "";
     String lastImportDir = "";
@@ -122,8 +124,8 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     {
         this.project = project;
         topicList = new TopicList(project);
+        remarkRefreshAlarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD, project);
         starConfit(project);
-//        new MyBookmarkListener(project);
         addMyListener(project);
         addVfsListener(project);
     }
@@ -194,8 +196,8 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
         messageBus.connect().subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
             @Override
             public void lineRemoved(Topic _topic, TopicLine _topicLine) {
-                    EditorUtils.removeLineCodeRemark(project,_topicLine);
-                    // 统一处理数据修改
+                    EditorUtils.removeLineCodeRemark(project, _topicLine);
+                    topicList.moveToTrash(_topicLine, _topic.name());
                     onDataModified();
             }
 
@@ -231,8 +233,18 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             }
             
             @Override
+            public void lineNoteChanged(Topic topic, TopicLine topicLine) {
+                remarkRefreshAlarm.cancelAllRequests();
+                remarkRefreshAlarm.addRequest(() -> {
+                    if (project.isDisposed()) return;
+                    EditorUtils.removeLineCodeRemark(project, topicLine);
+                    EditorUtils.addLineCodeRemark(project, topicLine);
+                }, 300);
+                onDataModified();
+            }
+            
+            @Override
             public void lineUpdated(Topic topic, TopicLine topicLine, int oldLineNum, int newLineNum) {
-                // 统一处理数据修改
                 onDataModified();
             }
             
@@ -321,7 +333,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     public Element getState()
     {
         Element container = new Element(AppConstants.appName);
-        container.addContent(TopicListExporter.export(getTopicList().iterator()));
+        container.addContent(TopicListExporter.export(getTopicList().iterator(), getTopicList().getTrashedLines()));
         Element state = new Element("state");
         state.setAttribute("lastExportDir", lastExportDir());
         state.setAttribute("lastImportDir", lastImportDir());
@@ -384,12 +396,13 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             topicList.setTopics(new ArrayList<>());
         }
 
+        topicList.setTrashedLines(TopicListImporter.importTrashedLines(project, element.getChild("topics")));
+
         Element stateElement = element.getChild("state");
         if (stateElement != null) {
             lastExportDir = stateElement.getAttributeValue("lastExportDir");
             lastImportDir = stateElement.getAttributeValue("lastImportDir");
         } else {
-            // Initialize with empty strings if state element doesn't exist
             lastExportDir = "";
             lastImportDir = "";
         }

@@ -11,6 +11,9 @@ public interface TopicNotifier
     // Line update event (e.g., when line number is modified)
     default void lineUpdated(Topic topic, TopicLine topicLine, int oldLineNum, int newLineNum) {}
     
+    // Fired when note text is edited (for refreshing inline annotations)
+    default void lineNoteChanged(Topic topic, TopicLine topicLine) {}
+    
     // Line reorder event (e.g., when TopicLine is moved within a Topic)
     default void linesReordered(Topic topic) {}
     

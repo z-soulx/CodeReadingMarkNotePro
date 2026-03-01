@@ -7,6 +7,7 @@ import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.pom.Navigatable;
+import com.intellij.util.messages.MessageBus;
 
 import java.io.File;
 
@@ -99,6 +100,11 @@ public class TopicLine implements Navigatable
     {
         this.note = note;
         topic.touch();
+        if (project != null && !project.isDisposed()) {
+            MessageBus messageBus = project.getMessageBus();
+            TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
+            publisher.lineNoteChanged(topic, this);
+        }
     }
 
     public String url() { return url; }

@@ -38,6 +38,7 @@ An IntelliJ IDEA plugin that helps developers take notes and create bookmarks wh
 | Plugin descriptor | `src/main/resources/META-INF/plugin.xml` |
 | Change notes | `src/main/resources/META-INF/changeNotes.html` |
 | Source | `src/main/java/jp/kitabatakep/intellij/plugins/codereadingnote/` |
+| Gutter/Popup | `src/.../remark/NoteGutterIconRenderer.java`, `NotePopupHelper.java` |
 | i18n bundles | `src/main/resources/messages/CodeReadingNoteBundle*.properties` |
 
 ## Progressive Loading

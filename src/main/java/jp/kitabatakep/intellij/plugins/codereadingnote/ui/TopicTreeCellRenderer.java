@@ -42,6 +42,14 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
             case UNGROUPED_LINES_FOLDER:
                 renderUngroupedFolderNode(node, selected);
                 break;
+                
+            case TRASH_BIN:
+                renderTrashBinNode(node);
+                break;
+                
+            case TRASHED_LINE:
+                renderTrashedLineNode(node);
+                break;
         }
     }
     
@@ -117,10 +125,37 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
         
         append(CodeReadingNoteBundle.message("tree.ungrouped.lines"), SimpleTextAttributes.GRAY_ATTRIBUTES);
         
-        // Add count
         int childCount = node.getChildCount();
         if (childCount > 0) {
             append(" (" + childCount + ")", SimpleTextAttributes.GRAY_ATTRIBUTES);
         }
+    }
+    
+    private void renderTrashBinNode(TopicTreeNode node) {
+        setIcon(AllIcons.Actions.GC);
+        append(CodeReadingNoteBundle.message("trash.bin.name"), SimpleTextAttributes.GRAY_ATTRIBUTES);
+        int childCount = node.getChildCount();
+        append("  " + childCount, SimpleTextAttributes.GRAY_ATTRIBUTES);
+    }
+    
+    private void renderTrashedLineNode(TopicTreeNode node) {
+        var trashedLine = node.getTrashedLine();
+        if (trashedLine == null) return;
+        
+        setIcon(AllIcons.General.Warning);
+        var topicLine = trashedLine.getLine();
+        String fileName = topicLine.pathForDisplay();
+        if (fileName.contains("/") || fileName.contains("\\")) {
+            fileName = fileName.substring(Math.max(fileName.lastIndexOf("/"), fileName.lastIndexOf("\\")) + 1);
+        }
+        
+        append(fileName, SimpleTextAttributes.GRAYED_ATTRIBUTES);
+        append(":" + (topicLine.line() + 1), SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES);
+        
+        if (!topicLine.note().isEmpty()) {
+            append(" - " + topicLine.note(), SimpleTextAttributes.GRAY_ITALIC_ATTRIBUTES);
+        }
+        
+        append(" [" + trashedLine.getOriginalTopicName() + "]", SimpleTextAttributes.GRAY_SMALL_ATTRIBUTES);
     }
 }

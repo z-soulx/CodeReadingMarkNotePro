@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.6.7</version>
+    <version>3.6.9</version>
     <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
     <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -34,11 +34,44 @@
               class="jp.kitabatakep.intellij.plugins.codereadingnote.remark.CodeRemarkEditorManagerListener"/>
    </projectListeners>
     <actions>
-        <!-- Editor context menu action -->
+        <!-- Editor context menu action: Add to Topic (Alt+M) -->
         <action
                 icon="MyIcons.PLUGIN"
                 id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction"
                 class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction">
+            <keyboard-shortcut keymap="$default" first-keystroke="alt M"/>
+            <add-to-group group-id="EditorPopupMenu" />
+        </action>
+
+        <!-- Navigate to note at current line (Alt+G) -->
+        <action
+                icon="MyIcons.PLUGIN"
+                id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.NavigateToNoteAction"
+                class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.NavigateToNoteAction"
+                text="Navigate to Note"
+                description="Navigate to the note at the current line">
+            <keyboard-shortcut keymap="$default" first-keystroke="alt G"/>
+            <add-to-group group-id="EditorPopupMenu" />
+        </action>
+
+        <!-- Remove note at current line (Alt+Delete) -->
+        <action
+                icon="AllIcons.General.Remove"
+                id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.RemoveNoteAtLineAction"
+                class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.RemoveNoteAtLineAction"
+                text="Remove Note at Line"
+                description="Remove the note at the current line">
+            <keyboard-shortcut keymap="$default" first-keystroke="alt DELETE"/>
+            <add-to-group group-id="EditorPopupMenu" />
+        </action>
+
+        <!-- Reverse locate: select note in TreeView from cursor (no shortcut, available via gutter popup button and context menu) -->
+        <action
+                icon="AllIcons.General.Locate"
+                id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.ReverseLocateAction"
+                class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.ReverseLocateAction"
+                text="Reverse Locate Note in Tree"
+                description="Select the note at the current line in the TreeView panel">
             <add-to-group group-id="EditorPopupMenu" />
         </action>
         

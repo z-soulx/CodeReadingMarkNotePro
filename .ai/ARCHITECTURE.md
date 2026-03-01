@@ -10,24 +10,25 @@ CodeReadingNoteService (project-level singleton)
             └── Group (tag-based grouping, custom naming)
 ```
 
-Core entities: `Topic` is a reading theme, `TopicLine` is an annotated code line within a topic, `Group` provides tag-based organization within topics.
+Core entities: `Topic` is a reading theme, `TopicLine` is an annotated code line within a topic, `Group` provides tag-based organization within topics, `TrashedLine` wraps deleted notes in a recoverable trash bin.
 
 ## Components
 
 | Layer | Key Classes | Responsibility |
 |-------|------------|----------------|
 | Service | `CodeReadingNoteService` | State management, persistence via `PersistentStateComponent` |
-| Domain | `Topic`, `TopicLine`, `TopicList` | Business entities and operations |
+| Domain | `Topic`, `TopicLine`, `TopicList`, `TrashedLine` | Business entities and operations |
 | Sync | `SyncProvider`, `SyncService`, `GitHubSyncProvider` | Remote sync with conflict detection |
 | UI | `ManagementPanel`, `TopicDetailPanel`, `TopicLineDetailPanel` | ToolWindow panels (JBList + JBSplitter) |
-| Actions | `TopicAddAction`, `TopicLineAddAction`, etc. | User operations |
+| Gutter | `NoteGutterIconRenderer`, `NotePopupHelper` | Custom gutter icon + interactive edit popup |
+| Actions | `TopicLineAddAction`, `NavigateToNoteAction`, `ReverseLocateAction`, etc. | User operations |
 | Integration | Editor inlay, bookmark linkage, i18n bundle | IDE integration |
 
 ## Communication
 
 Event-driven via IntelliJ `MessageBus`:
-- `TopicListNotifier` -- topic list changes (add/remove topic)
-- `TopicNotifier` -- single topic changes (lines added/removed)
+- `TopicListNotifier` -- topic list changes (add/remove topic, trash changes)
+- `TopicNotifier` -- single topic changes (lines added/removed, `lineNoteChanged`)
 
 Panels subscribe to notifiers; domain objects publish through MessageBus.
 

@@ -36,13 +36,8 @@ import com.intellij.openapi.editor.impl.EditorImpl;
 import com.intellij.openapi.editor.impl.FontInfo;
 import com.intellij.openapi.editor.markup.EffectType;
 import com.intellij.openapi.editor.markup.TextAttributes;
-import com.intellij.openapi.ui.popup.JBPopup;
-import com.intellij.openapi.ui.popup.JBPopupListener;
-import com.intellij.openapi.ui.popup.LightweightWindowEvent;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.paint.EffectPainter;
 import com.intellij.util.ui.UIUtil;
-import com.intellij.xdebugger.ui.DebuggerColors;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -60,12 +55,19 @@ public class CodeRemarkEditorInlineInlayRenderer
 
 
     private final String text;
+    private final String topicLineUid;
     private boolean isHovered = false;
     private boolean isEditorShowing = false;
     private int textStartXCoordinate = -1;
 
     public CodeRemarkEditorInlineInlayRenderer(@NotNull final String text) {
         this.text = text;
+        this.topicLineUid = null;
+    }
+
+    public CodeRemarkEditorInlineInlayRenderer(@NotNull final String text, String topicLineUid) {
+        this.text = text;
+        this.topicLineUid = topicLineUid;
     }
 
     @Override
@@ -132,6 +134,10 @@ public class CodeRemarkEditorInlineInlayRenderer
         return text;
     }
 
+    public String getTopicLineUid() {
+        return topicLineUid;
+    }
+
     private void setHovered(final boolean active, @NotNull final Inlay inlay, @NotNull final Editor editor) {
         if (editor instanceof EditorEx) {
             final boolean oldState = isHovered;
@@ -194,11 +200,13 @@ public class CodeRemarkEditorInlineInlayRenderer
         return UIUtil.getFontWithFallback(colorsScheme.getEditorFontName(), Font.PLAIN, colorsScheme.getEditorFontSize());
     }
 
-    private TextAttributes getAttributes(final Editor editor) {
-        if (isHovered) {
-            return editor.getColorsScheme().getAttributes(DebuggerColors.INLINED_VALUES_EXECUTION_LINE);
-        }
+    private static final Color NOTE_COLOR = new Color(0x5F, 0xB0, 0xB0);
+    private static final Color NOTE_COLOR_HOVERED = new Color(0x7E, 0xD3, 0xD3);
 
-        return editor.getColorsScheme().getAttributes(DebuggerColors.INLINED_VALUES);
+    private TextAttributes getAttributes(final Editor editor) {
+        TextAttributes attrs = new TextAttributes();
+        attrs.setForegroundColor(isHovered ? NOTE_COLOR_HOVERED : NOTE_COLOR);
+        attrs.setFontType(Font.ITALIC);
+        return attrs;
     }
 }

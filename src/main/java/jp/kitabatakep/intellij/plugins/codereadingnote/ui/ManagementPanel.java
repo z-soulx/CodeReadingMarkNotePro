@@ -303,7 +303,14 @@ public class ManagementPanel extends JPanel
         return selectedTopicLine;
     }
     
-    // Legacy method for backward compatibility
+    /**
+     * 反定位：从编辑器光标位置定位到 TreeView 中对应的 TopicLine 节点。
+     */
+    public void reverseLocate(TopicLine topicLine) {
+        if (topicLine == null) return;
+        topicTreePanel.selectTopicLine(topicLine);
+    }
+
     private void clear()
     {
         selectedTopic = null;
