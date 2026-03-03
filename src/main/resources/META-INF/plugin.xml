@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.6.9</version>
+    <version>3.7.0</version>
     <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
     <idea-version since-build="243" until-build="253.*"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -21,6 +21,7 @@
         <!-- TopicLineOperationService, BookmarkRepairService, LineNumberUpdateService are auto-registered -->
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings" />
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings" />
+        <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigTemplateService" />
         <projectConfigurable parentId="tools" instance="jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncConfigurable"
                              id="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfigurable"
                              displayName="Code Reading Note Sync"/>

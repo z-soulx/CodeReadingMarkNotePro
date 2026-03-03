@@ -1,5 +1,6 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.project.Project;
@@ -24,7 +25,8 @@ public class ManagementPanel extends JPanel
     // New tree-based UI components
     private TopicTreePanel topicTreePanel;
     private TopicDetailPanel topicDetailPanel;
-    private SearchPanel searchPanel; // 搜索面板
+    private SearchPanel searchPanel;
+    private AIWorkspacePanel aiWorkspacePanel;
     
     // Current selection state
     private Topic selectedTopic;
@@ -46,6 +48,7 @@ public class ManagementPanel extends JPanel
         topicTreePanel = new TopicTreePanel(project);
         topicDetailPanel = new TopicDetailPanel(project);
         searchPanel = new SearchPanel(project);
+        aiWorkspacePanel = new AIWorkspacePanel(project);
         
         // Set up tree selection listener
         topicTreePanel.setSelectionListener(new TopicTreePanel.TopicTreeSelectionListener() {
@@ -162,6 +165,7 @@ public class ManagementPanel extends JPanel
         JBTabbedPane tabbedPane = new JBTabbedPane();
         tabbedPane.addTab(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("tree.view.tab"), splitPane);
         tabbedPane.addTab(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("search.tab"), searchPanel);
+        tabbedPane.addTab(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("aiconfig.tab"), aiWorkspacePanel);
 
         add(actionToolBar(), BorderLayout.PAGE_START);
         add(tabbedPane, BorderLayout.CENTER);
@@ -278,15 +282,42 @@ public class ManagementPanel extends JPanel
         toolBar.setBorder(JBUI.Borders.merge(toolBar.getBorder(), JBUI.Borders.emptyLeft(12), true));
         toolBar.setOpaque(false);
         
-        // Create panel with toolbar and sync status label
+        // Right-side: help button + sync status
+        DefaultActionGroup helpGroup = new DefaultActionGroup();
+        helpGroup.add(new AnAction(
+            CodeReadingNoteBundle.message("aiconfig.action.help"),
+            CodeReadingNoteBundle.message("aiconfig.action.help.description"),
+            AllIcons.Actions.Help
+        ) {
+            @Override
+            public void actionPerformed(@org.jetbrains.annotations.NotNull AnActionEvent e) {
+                try {
+                    com.intellij.ide.BrowserUtil.browse(java.net.URI.create(
+                        "https://github.com/z-soulx/CodeReadingMarkNotePro/blob/master/help/README.md"));
+                } catch (Exception ex) {
+                    // ignore
+                }
+            }
+        });
+        ActionToolbar helpToolbar = ActionManager.getInstance().createActionToolbar(
+            AppConstants.appName + "Help", helpGroup, true);
+        helpToolbar.setTargetComponent(this);
+        helpToolbar.setReservePlaceAutoPopupIcon(false);
+        helpToolbar.setMinimumButtonSize(new Dimension(20, 20));
+        JComponent helpComponent = helpToolbar.getComponent();
+        helpComponent.setOpaque(false);
+
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        rightPanel.setOpaque(false);
+        SyncStatusLabel syncStatusLabel = new SyncStatusLabel(project);
+        rightPanel.add(syncStatusLabel);
+        rightPanel.add(helpComponent);
+
         JPanel toolbarPanel = new JPanel(new BorderLayout());
         toolbarPanel.setOpaque(false);
         toolbarPanel.add(toolBar, BorderLayout.WEST);
-        
-        // Add sync status label on the right side
-        SyncStatusLabel syncStatusLabel = new SyncStatusLabel(project);
-        toolbarPanel.add(syncStatusLabel, BorderLayout.EAST);
-        
+        toolbarPanel.add(rightPanel, BorderLayout.EAST);
+
         return toolbarPanel;
     }
     

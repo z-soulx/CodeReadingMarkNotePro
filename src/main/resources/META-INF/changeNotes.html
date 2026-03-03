@@ -1,5 +1,20 @@
 <html>
 <body>
+<h1>3.7.0</h1>
+<ul>
+    <li><b>AI Workspace:</b> New dedicated tab for managing personal AI config files (Cursor Rules, Claude, Windsurf, Codex, Copilot) with hierarchical file tree, sync status indicators (NEW/MODIFIED/SYNCED), and per-file checkbox tracking（<b>AI 工作空间：</b>新增独立标签页管理个人 AI 配置文件（Cursor Rules、Claude、Windsurf、Codex、Copilot），提供层级文件树、同步状态标记（新增/已修改/已同步）和逐文件追踪复选框）</li>
+    <li><b>Independent AI Config Sync:</b> Push/pull AI config files independently from code notes — manual trigger only, with change detection to skip unnecessary API calls（<b>独立 AI 配置同步：</b>AI 配置文件推送/拉取独立于代码笔记 — 仅手动触发，自动检测变更跳过无效推送）</li>
+    <li><b>Remote Deletion:</b> Untracking files and pushing now deletes them from remote; push with 0 tracked files clears all remote AI configs with confirmation（<b>远端删除：</b>取消追踪后推送将自动从远端删除文件；0 个追踪文件时推送会确认后清空远端 AI 配置）</li>
+    <li><b>Configurable Ignore Rules:</b> .gitignore-style ignore patterns for AI workspace — built-in rules (.DS_Store, *.tmp, etc.) plus user-configurable custom rules, all persisted（<b>可配置忽略规则：</b>AI 工作空间支持类似 .gitignore 的忽略规则 — 内置规则（.DS_Store、*.tmp 等）+ 用户自定义规则，均持久化保存）</li>
+    <li><b>Empty Directory Support:</b> Empty directories within scan scope are displayed in the tree and synchronized as directory markers（<b>空目录支持：</b>扫描范围内的空目录在树中展示并作为目录标记同步）</li>
+    <li><b>Quick Create AI Config:</b> One-click creation of new AI config files with auto-generated skeleton content（<b>快速新建 AI 配置：</b>一键创建新 AI 配置文件并自动生成骨架内容）</li>
+    <li><b>Custom Scan Paths:</b> Track any directory or file beyond built-in defaults, with path validation and feedback（<b>自定义扫描路径：</b>追踪默认路径之外的任意目录或文件，带路径验证和反馈提示）</li>
+    <li><b>Global Help Button:</b> Help button (?) on the main toolbar provides access to plugin documentation from any tab（<b>全局帮助按钮：</b>主工具栏右侧 ? 按钮，从任何标签页均可打开插件帮助文档）</li>
+    <li><b>Bilingual Help Docs:</b> All help documentation now includes both English and Chinese（<b>双语帮助文档：</b>所有帮助文档同时包含英文和中文）</li>
+    <li><b>Bug Fix:</b> Fixed checkbox tree propagation — unchecking a single file no longer unchecks parent and sibling files（<b>Bug 修复：</b>修复复选框树传播逻辑 — 取消单个文件不再影响父目录和兄弟文件）</li>
+    <li><b>Bug Fix:</b> Fixed tracked state persistence — file tracking/untracking state now survives IDE restart（<b>Bug 修复：</b>修复追踪状态持久化 — 文件追踪/取消追踪状态在 IDE 重启后保留）</li>
+    <li><b>Bug Fix:</b> Fixed custom path not taking effect due to VFS cache — now uses explicit VFS refresh（<b>Bug 修复：</b>修复自定义路径因 VFS 缓存不生效的问题 — 现使用显式 VFS 刷新）</li>
+</ul>
 <h1>3.6.9</h1>
 <ul>
     <li><b>Gutter Note Popup:</b> Click the bookmark ribbon icon in the gutter to open an interactive popup with note editing, Locate, Reverse Locate, Save (Enter), and Delete (Alt+Delete) buttons（<b>Gutter 笔记弹窗：</b>点击行首书签图标打开交互弹窗，支持编辑笔记、定位、反定位、保存 (Enter)、删除 (Alt+Delete)）</li>

@@ -334,7 +334,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         
         conn.setRequestProperty("User-Agent", "CodeReadingNotePro");
         
-        if ("PUT".equals(method) || "POST".equals(method)) {
+        if ("PUT".equals(method) || "POST".equals(method) || "DELETE".equals(method)) {
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
         }
@@ -449,6 +449,254 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         return null;
     }
     
+    // ========== File-based sync for AI configs ==========
+
+    @Override
+    @NotNull
+    public SyncResult pushFiles(@NotNull Project project, @NotNull SyncConfig config,
+                                @NotNull java.util.Map<String, byte[]> files, @NotNull String projectIdentifier,
+                                @NotNull java.util.Set<String> emptyDirs) {
+        if (!(config instanceof GitHubSyncConfig)) {
+            return SyncResult.failure("Invalid config type");
+        }
+
+        GitHubSyncConfig ghConfig = (GitHubSyncConfig) config;
+        int successCount = 0;
+        int failCount = 0;
+        int deletedCount = 0;
+
+        // Read old manifest to find files that should be deleted from remote
+        java.util.Set<String> oldManifestPaths = readRemoteManifest(ghConfig, projectIdentifier);
+        java.util.Set<String> newPaths = files.keySet();
+
+        // Delete remote files no longer tracked (skip directory markers)
+        for (String oldPath : oldManifestPaths) {
+            if (oldPath.endsWith("/")) continue;
+            if (!newPaths.contains(oldPath)) {
+                String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, oldPath);
+                if (deleteRemoteFile(ghConfig, remotePath, "Remove untracked AI config: " + oldPath)) {
+                    deletedCount++;
+                }
+            }
+        }
+
+        for (java.util.Map.Entry<String, byte[]> entry : files.entrySet()) {
+            String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, entry.getKey());
+            String content = new String(entry.getValue(), StandardCharsets.UTF_8);
+
+            try {
+                String sha = getFileSha(ghConfig, remotePath);
+                SyncResult result = pushFileWithMessage(ghConfig, remotePath, content, sha, "Update AI config: " + entry.getKey());
+                if (result.isSuccess()) {
+                    successCount++;
+                } else {
+                    failCount++;
+                    LOG.warn("Failed to push AI config file " + entry.getKey() + ": " + result.getMessage());
+                }
+            } catch (Exception e) {
+                failCount++;
+                LOG.warn("Failed to push AI config file " + entry.getKey(), e);
+            }
+        }
+
+        // Manifest includes file paths + empty dir markers (ending with '/')
+        java.util.Set<String> manifestPaths = new java.util.LinkedHashSet<>(newPaths);
+        for (String dir : emptyDirs) {
+            manifestPaths.add(dir.endsWith("/") ? dir : dir + "/");
+        }
+        pushAIConfigManifest(ghConfig, projectIdentifier, manifestPaths);
+
+        StringBuilder msg = new StringBuilder();
+        if (files.isEmpty() && deletedCount == 0 && emptyDirs.isEmpty()) {
+            return SyncResult.success("Remote AI configs cleared (0 tracked files)");
+        }
+        if (successCount > 0) msg.append("Pushed ").append(successCount).append(" file(s)");
+        if (deletedCount > 0) {
+            if (msg.length() > 0) msg.append(", ");
+            msg.append("deleted ").append(deletedCount).append(" from remote");
+        }
+        if (failCount > 0) {
+            if (msg.length() > 0) msg.append(", ");
+            msg.append(failCount).append(" failed");
+        }
+        return SyncResult.success(msg.toString());
+    }
+
+    @Override
+    @NotNull
+    public SyncResult pullFiles(@NotNull Project project, @NotNull SyncConfig config,
+                                @NotNull String projectIdentifier) {
+        if (!(config instanceof GitHubSyncConfig)) {
+            return SyncResult.failure("Invalid config type");
+        }
+
+        GitHubSyncConfig ghConfig = (GitHubSyncConfig) config;
+
+        try {
+            // Read the manifest to know which files exist
+            String manifestPath = buildAIConfigManifestPath(ghConfig, projectIdentifier);
+            String manifestContent = getFileContent(ghConfig, manifestPath);
+
+            if (manifestContent == null || manifestContent.trim().isEmpty()) {
+                return SyncResult.success("No AI config files on remote", "{}");
+            }
+
+            // Parse manifest (one relative path per line; dirs end with '/')
+            String[] manifestLines = manifestContent.trim().split("\n");
+            StringBuilder jsonBuilder = new StringBuilder("{");
+            boolean first = true;
+
+            for (String line : manifestLines) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                // Directory markers end with '/' — include as-is for the adapter to create
+                if (line.endsWith("/")) {
+                    if (!first) jsonBuilder.append(",");
+                    jsonBuilder.append("\"").append(escapeJson(line)).append("\":\"\"");
+                    first = false;
+                    continue;
+                }
+
+                String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, line);
+                try {
+                    String content = getFileContent(ghConfig, remotePath);
+                    if (content != null) {
+                        if (!first) jsonBuilder.append(",");
+                        jsonBuilder.append("\"").append(escapeJson(line)).append("\":\"")
+                                   .append(Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8)))
+                                   .append("\"");
+                        first = false;
+                    }
+                } catch (Exception e) {
+                    LOG.warn("Failed to pull AI config file: " + line, e);
+                }
+            }
+
+            jsonBuilder.append("}");
+            return SyncResult.success("Pulled AI config files", jsonBuilder.toString());
+        } catch (Exception e) {
+            LOG.error("Pull AI config files failed", e);
+            return SyncResult.failure(formatError("Pull AI configs", e), e);
+        }
+    }
+
+    @NotNull
+    private String buildAIConfigFilePath(@NotNull GitHubSyncConfig config, @NotNull String projectIdentifier,
+                                         @NotNull String relativePath) {
+        String basePath = config.getBasePath();
+        if (basePath.endsWith("/")) basePath = basePath.substring(0, basePath.length() - 1);
+        return String.format("%s/%s/ai-configs/%s", basePath, projectIdentifier, relativePath);
+    }
+
+    @NotNull
+    private String buildAIConfigManifestPath(@NotNull GitHubSyncConfig config, @NotNull String projectIdentifier) {
+        String basePath = config.getBasePath();
+        if (basePath.endsWith("/")) basePath = basePath.substring(0, basePath.length() - 1);
+        return String.format("%s/%s/ai-config-manifest.txt", basePath, projectIdentifier);
+    }
+
+    @NotNull
+    private SyncResult pushFileWithMessage(@NotNull GitHubSyncConfig config, @NotNull String filePath,
+                                           @NotNull String content, String sha, @NotNull String commitMessage) {
+        try {
+            String apiUrl = buildApiUrl(config, filePath);
+            HttpURLConnection conn = createConnection(apiUrl, "PUT", config.getToken());
+
+            String base64Content = Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder json = new StringBuilder();
+            json.append("{");
+            json.append("\"message\":\"").append(escapeJson(commitMessage)).append("\",");
+            json.append("\"content\":\"").append(base64Content).append("\",");
+            json.append("\"branch\":\"").append(escapeJson(config.getBranch())).append("\"");
+            if (sha != null) {
+                json.append(",\"sha\":\"").append(escapeJson(sha)).append("\"");
+            }
+            json.append("}");
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200 || responseCode == 201) {
+                conn.disconnect();
+                return SyncResult.success("File pushed successfully");
+            } else {
+                String error = readError(conn);
+                conn.disconnect();
+                return SyncResult.failure("Push failed: " + error);
+            }
+        } catch (Exception e) {
+            return SyncResult.failure(formatError("Push file", e), e);
+        }
+    }
+
+    @NotNull
+    private java.util.Set<String> readRemoteManifest(@NotNull GitHubSyncConfig config,
+                                                      @NotNull String projectIdentifier) {
+        java.util.Set<String> paths = new java.util.LinkedHashSet<>();
+        try {
+            String manifestPath = buildAIConfigManifestPath(config, projectIdentifier);
+            String content = getFileContent(config, manifestPath);
+            if (content != null && !content.trim().isEmpty()) {
+                for (String line : content.trim().split("\n")) {
+                    String trimmed = line.trim();
+                    if (!trimmed.isEmpty()) paths.add(trimmed);
+                }
+            }
+        } catch (Exception e) {
+            LOG.debug("Failed to read remote manifest", e);
+        }
+        return paths;
+    }
+
+    private boolean deleteRemoteFile(@NotNull GitHubSyncConfig config, @NotNull String filePath,
+                                     @NotNull String commitMessage) {
+        try {
+            String sha = getFileSha(config, filePath);
+            if (sha == null) return false;
+
+            String apiUrl = buildApiUrl(config, filePath);
+            HttpURLConnection conn = createConnection(apiUrl, "DELETE", config.getToken());
+
+            StringBuilder json = new StringBuilder();
+            json.append("{");
+            json.append("\"message\":\"").append(escapeJson(commitMessage)).append("\",");
+            json.append("\"sha\":\"").append(escapeJson(sha)).append("\",");
+            json.append("\"branch\":\"").append(escapeJson(config.getBranch())).append("\"");
+            json.append("}");
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            conn.disconnect();
+            if (responseCode == 200) {
+                LOG.info("Deleted remote file: " + filePath);
+                return true;
+            }
+            LOG.warn("Failed to delete remote file " + filePath + ": HTTP " + responseCode);
+            return false;
+        } catch (Exception e) {
+            LOG.warn("Failed to delete remote file: " + filePath, e);
+            return false;
+        }
+    }
+
+    private void pushAIConfigManifest(@NotNull GitHubSyncConfig config, @NotNull String projectIdentifier,
+                                      @NotNull java.util.Set<String> filePaths) {
+        try {
+            String manifestPath = buildAIConfigManifestPath(config, projectIdentifier);
+            String manifestContent = String.join("\n", filePaths);
+            String sha = getFileSha(config, manifestPath);
+            pushFileWithMessage(config, manifestPath, manifestContent, sha, "Update AI config manifest");
+        } catch (Exception e) {
+            LOG.warn("Failed to push AI config manifest", e);
+        }
+    }
+
     /**
      * 推送MD5文件到GitHub
      */
