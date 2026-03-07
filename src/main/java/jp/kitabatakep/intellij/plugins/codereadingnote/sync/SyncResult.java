@@ -45,6 +45,14 @@ public class SyncResult {
     public static SyncResult failure(@NotNull String message) {
         return new SyncResult(false, message, null, null);
     }
+
+    /**
+     * 创建失败结果（带数据，如详细报告）
+     */
+    @NotNull
+    public static SyncResult failureWithData(@NotNull String message, @Nullable String data) {
+        return new SyncResult(false, message, data, null);
+    }
     
     /**
      * 创建失败结果（带异常）

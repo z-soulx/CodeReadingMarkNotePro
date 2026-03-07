@@ -3,6 +3,7 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.sync.github;
 import com.intellij.openapi.project.Project;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.AbstractSyncProvider;
+import jp.kitabatakep.intellij.plugins.codereadingnote.sync.FilePushReport;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfig;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncProviderType;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult;
@@ -293,22 +294,31 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
             } else {
                 String error = readError(conn);
                 conn.disconnect();
-                return SyncResult.failure("Push failed: " + error);
+                return SyncResult.failure(error);
             }
             
         } catch (Exception e) {
             LOG.error("Push file failed", e);
-            return SyncResult.failure(formatError("Push file", e), e);
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            return SyncResult.failure("[Local] " + msg, e);
         }
     }
     
     /**
-     * 构建GitHub API URL
+     * Build GitHub API URL with proper URL-encoding of each path segment.
+     * Non-ASCII characters (e.g. Chinese) must be percent-encoded.
      */
     @NotNull
     private String buildApiUrl(@NotNull GitHubSyncConfig config, @NotNull String filePath) {
-        return String.format("%s/repos/%s/contents/%s", 
-            GITHUB_API_BASE, config.getRepository(), filePath);
+        String[] segments = filePath.split("/");
+        StringBuilder encodedPath = new StringBuilder();
+        for (int i = 0; i < segments.length; i++) {
+            if (i > 0) encodedPath.append("/");
+            encodedPath.append(URLEncoder.encode(segments[i], StandardCharsets.UTF_8)
+                    .replace("+", "%20"));
+        }
+        return String.format("%s/repos/%s/contents/%s",
+            GITHUB_API_BASE, config.getRepository(), encodedPath);
     }
     
     /**
@@ -359,28 +369,98 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
     }
     
     /**
-     * 读取错误信息
+     * Reads the error response and produces a clean, user-friendly message.
+     * GitHub API errors may be JSON ({"message":"..."}) or HTML error pages.
      */
     @NotNull
     private String readError(@NotNull HttpURLConnection conn) {
+        int httpCode;
+        try {
+            httpCode = conn.getResponseCode();
+        } catch (Exception e) {
+            return "Connection error";
+        }
+
+        String rawBody = "";
         try {
             InputStream errorStream = conn.getErrorStream();
             if (errorStream != null) {
                 try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(errorStream, StandardCharsets.UTF_8))) {
-                    StringBuilder error = new StringBuilder();
+                    StringBuilder sb = new StringBuilder();
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        error.append(line);
+                        sb.append(line);
                     }
-                    return error.toString();
+                    rawBody = sb.toString().trim();
                 }
             }
-            return "HTTP " + conn.getResponseCode();
         } catch (Exception e) {
             LOG.debug("Failed to read error stream", e);
-            return "Unknown error";
         }
+
+        return formatApiError(httpCode, rawBody);
+    }
+
+    /**
+     * Converts a raw HTTP error into a clean, actionable message.
+     * Tries JSON "message" field first, strips HTML if needed, and
+     * provides guidance based on the HTTP status code.
+     */
+    @NotNull
+    private String formatApiError(int httpCode, @NotNull String rawBody) {
+        // Try to extract JSON "message" field (GitHub API standard error format)
+        if (rawBody.startsWith("{")) {
+            Pattern msgPattern = Pattern.compile("\"message\"\\s*:\\s*\"([^\"]+)\"");
+            Matcher matcher = msgPattern.matcher(rawBody);
+            if (matcher.find()) {
+                return "[GitHub API " + httpCode + "] " + matcher.group(1);
+            }
+        }
+
+        // If body is HTML, extract just the <title> text and decode HTML entities
+        if (rawBody.contains("<html") || rawBody.contains("<HTML") || rawBody.contains("<!DOCTYPE")) {
+            Pattern titlePattern = Pattern.compile("<title>([^<]+)</title>", Pattern.CASE_INSENSITIVE);
+            Matcher matcher = titlePattern.matcher(rawBody);
+            String summary = matcher.find() ? decodeHtmlEntities(matcher.group(1).trim()) : "GitHub returned an HTML error page";
+            return "[GitHub API " + httpCode + "] " + summary + describeHttpAction(httpCode);
+        }
+
+        // Plain text or empty
+        if (!rawBody.isEmpty() && rawBody.length() < 200) {
+            return "[GitHub API " + httpCode + "] " + rawBody;
+        }
+
+        return "[GitHub API " + httpCode + "]" + describeHttpAction(httpCode);
+    }
+
+    @NotNull
+    private static String describeHttpAction(int httpCode) {
+        switch (httpCode) {
+            case 400: return " — Bad request. File path may contain invalid characters or be too long.";
+            case 401: return " — Authentication failed. Check your access token.";
+            case 403: return " — Permission denied. Token may lack write access to this repository.";
+            case 404: return " — Resource not found. Check repository name and branch.";
+            case 409: return " — Conflict. The file may have been modified concurrently.";
+            case 422: return " — Validation failed. The file content or commit message may be invalid.";
+            case 429: return " — Rate limited. Please wait a moment and retry.";
+            default:
+                if (httpCode >= 500) return " — GitHub server error. Please retry later.";
+                return "";
+        }
+    }
+
+    @NotNull
+    private static String decodeHtmlEntities(@NotNull String html) {
+        return html
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&middot;", "\u00B7")
+            .replace("&mdash;", "\u2014")
+            .replace("&ndash;", "\u2013")
+            .replace("&#39;", "'");
     }
     
     /**
@@ -455,71 +535,116 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
     @NotNull
     public SyncResult pushFiles(@NotNull Project project, @NotNull SyncConfig config,
                                 @NotNull java.util.Map<String, byte[]> files, @NotNull String projectIdentifier,
-                                @NotNull java.util.Set<String> emptyDirs) {
+                                @NotNull java.util.Set<String> emptyDirs,
+                                @NotNull java.util.Map<String, String> lastPushedFileHashes,
+                                boolean forceAll) {
         if (!(config instanceof GitHubSyncConfig)) {
             return SyncResult.failure("Invalid config type");
         }
 
         GitHubSyncConfig ghConfig = (GitHubSyncConfig) config;
-        int successCount = 0;
-        int failCount = 0;
-        int deletedCount = 0;
+        FilePushReport report = new FilePushReport();
 
-        // Read old manifest to find files that should be deleted from remote
+        // Read old manifest to find files/dirs that should be deleted from remote
         java.util.Set<String> oldManifestPaths = readRemoteManifest(ghConfig, projectIdentifier);
         java.util.Set<String> newPaths = files.keySet();
+        java.util.Set<String> newEmptyDirMarkers = new java.util.LinkedHashSet<>();
+        for (String dir : emptyDirs) {
+            newEmptyDirMarkers.add(dir.endsWith("/") ? dir : dir + "/");
+        }
 
-        // Delete remote files no longer tracked (skip directory markers)
+            // Delete remote files no longer tracked, and delete stale .gitkeep for removed empty dirs
         for (String oldPath : oldManifestPaths) {
-            if (oldPath.endsWith("/")) continue;
+            if (oldPath.endsWith("/")) {
+                if (!newEmptyDirMarkers.contains(oldPath)) {
+                    // Delete the .gitkeep file for the stale empty dir
+                    String gitkeepPath = buildAIConfigFilePath(ghConfig, projectIdentifier, oldPath + ".gitkeep");
+                    if (deleteRemoteFile(ghConfig, gitkeepPath, "Remove empty dir placeholder: " + oldPath)) {
+                        report.addDeleted(oldPath);
+                    }
+                }
+                continue;
+            }
             if (!newPaths.contains(oldPath)) {
                 String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, oldPath);
                 if (deleteRemoteFile(ghConfig, remotePath, "Remove untracked AI config: " + oldPath)) {
-                    deletedCount++;
+                    report.addDeleted(oldPath);
+                } else {
+                    report.addFailed(oldPath, "Failed to delete from remote");
                 }
             }
         }
 
+        // Push each tracked file, with optional per-file MD5 skip
         for (java.util.Map.Entry<String, byte[]> entry : files.entrySet()) {
-            String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, entry.getKey());
-            String content = new String(entry.getValue(), StandardCharsets.UTF_8);
+            String relativePath = entry.getKey();
+            byte[] fileBytes = entry.getValue();
+            String content = new String(fileBytes, StandardCharsets.UTF_8);
 
+            // Per-file MD5 comparison
+            if (!forceAll && !lastPushedFileHashes.isEmpty()) {
+                String localMd5 = calculateMD5(content);
+                String previousMd5 = lastPushedFileHashes.get(relativePath);
+                if (previousMd5 != null && localMd5.equals(previousMd5)) {
+                    report.addSkipped(relativePath);
+                    continue;
+                }
+            }
+
+            String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, relativePath);
             try {
                 String sha = getFileSha(ghConfig, remotePath);
-                SyncResult result = pushFileWithMessage(ghConfig, remotePath, content, sha, "Update AI config: " + entry.getKey());
+                SyncResult result = pushFileWithMessage(ghConfig, remotePath, content, sha,
+                        "Update AI config: " + relativePath);
                 if (result.isSuccess()) {
-                    successCount++;
+                    report.addPushed(relativePath);
                 } else {
-                    failCount++;
-                    LOG.warn("Failed to push AI config file " + entry.getKey() + ": " + result.getMessage());
+                    String reason = result.getMessage() != null ? result.getMessage() : "Unknown error";
+                    report.addFailed(relativePath, reason);
+                    LOG.warn("Failed to push AI config file " + relativePath + ": " + reason);
                 }
             } catch (Exception e) {
-                failCount++;
-                LOG.warn("Failed to push AI config file " + entry.getKey(), e);
+                String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                report.addFailed(relativePath, reason);
+                LOG.warn("Failed to push AI config file " + relativePath, e);
             }
         }
 
-        // Manifest includes file paths + empty dir markers (ending with '/')
-        java.util.Set<String> manifestPaths = new java.util.LinkedHashSet<>(newPaths);
-        for (String dir : emptyDirs) {
-            manifestPaths.add(dir.endsWith("/") ? dir : dir + "/");
+        // Push .gitkeep placeholder for each empty directory so the folder appears on GitHub
+        for (String dir : newEmptyDirMarkers) {
+            String gitkeepPath = buildAIConfigFilePath(ghConfig, projectIdentifier, dir + ".gitkeep");
+            try {
+                String sha = getFileSha(ghConfig, gitkeepPath);
+                SyncResult gkResult = pushFileWithMessage(ghConfig, gitkeepPath, "",
+                        sha, "Create empty dir placeholder: " + dir);
+                if (gkResult.isSuccess()) {
+                    report.addEmptyDir(dir);
+                } else {
+                    report.addFailed(dir, "Failed to create .gitkeep: " + gkResult.getMessage());
+                }
+            } catch (Exception e) {
+                report.addFailed(dir, "Failed to create .gitkeep: " + e.getMessage());
+            }
         }
+
+        // Build and push manifest (file paths + empty dir markers)
+        java.util.Set<String> manifestPaths = new java.util.LinkedHashSet<>(newPaths);
+        manifestPaths.addAll(newEmptyDirMarkers);
         pushAIConfigManifest(ghConfig, projectIdentifier, manifestPaths);
 
-        StringBuilder msg = new StringBuilder();
-        if (files.isEmpty() && deletedCount == 0 && emptyDirs.isEmpty()) {
-            return SyncResult.success("Remote AI configs cleared (0 tracked files)");
+        // Determine overall success/failure
+        boolean hasFailures = report.hasFailures();
+        String reportJson = report.toJson();
+
+        if (files.isEmpty() && report.getDeletedFiles().isEmpty() && emptyDirs.isEmpty()) {
+            return SyncResult.success("Remote AI configs cleared (0 tracked files)", reportJson);
         }
-        if (successCount > 0) msg.append("Pushed ").append(successCount).append(" file(s)");
-        if (deletedCount > 0) {
-            if (msg.length() > 0) msg.append(", ");
-            msg.append("deleted ").append(deletedCount).append(" from remote");
+
+        if (hasFailures) {
+            return SyncResult.failureWithData("ai.config.push.partial.failure", reportJson);
         }
-        if (failCount > 0) {
-            if (msg.length() > 0) msg.append(", ");
-            msg.append(failCount).append(" failed");
-        }
-        return SyncResult.success(msg.toString());
+
+        return SyncResult.success("ai.config.push.completed", reportJson);
     }
 
     @Override
@@ -625,10 +750,11 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
             } else {
                 String error = readError(conn);
                 conn.disconnect();
-                return SyncResult.failure("Push failed: " + error);
+                return SyncResult.failure(error);
             }
         } catch (Exception e) {
-            return SyncResult.failure(formatError("Push file", e), e);
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            return SyncResult.failure("[Local] " + msg, e);
         }
     }
 
@@ -682,6 +808,51 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         } catch (Exception e) {
             LOG.warn("Failed to delete remote file: " + filePath, e);
             return false;
+        }
+    }
+
+    @NotNull
+    private String buildAIConfigRegistryPath(@NotNull GitHubSyncConfig config, @NotNull String projectIdentifier) {
+        String basePath = config.getBasePath();
+        if (basePath.endsWith("/")) basePath = basePath.substring(0, basePath.length() - 1);
+        return String.format("%s/%s/ai-config-registry.json", basePath, projectIdentifier);
+    }
+
+    @Override
+    @NotNull
+    public SyncResult pushMetadata(@NotNull SyncConfig config, @NotNull String projectIdentifier,
+                                   @NotNull String metadataJson) {
+        if (!(config instanceof GitHubSyncConfig)) {
+            return SyncResult.failure("Invalid config type");
+        }
+        GitHubSyncConfig ghConfig = (GitHubSyncConfig) config;
+        try {
+            String registryPath = buildAIConfigRegistryPath(ghConfig, projectIdentifier);
+            String sha = getFileSha(ghConfig, registryPath);
+            return pushFileWithMessage(ghConfig, registryPath, metadataJson, sha, "Update AI config registry");
+        } catch (Exception e) {
+            LOG.warn("Failed to push AI config metadata", e);
+            return SyncResult.failure("Failed to push metadata", e);
+        }
+    }
+
+    @Override
+    @NotNull
+    public SyncResult pullMetadata(@NotNull SyncConfig config, @NotNull String projectIdentifier) {
+        if (!(config instanceof GitHubSyncConfig)) {
+            return SyncResult.failure("Invalid config type");
+        }
+        GitHubSyncConfig ghConfig = (GitHubSyncConfig) config;
+        try {
+            String registryPath = buildAIConfigRegistryPath(ghConfig, projectIdentifier);
+            String content = getFileContent(ghConfig, registryPath);
+            if (content == null) {
+                return SyncResult.success("No metadata on remote");
+            }
+            return SyncResult.success("Metadata pulled", content);
+        } catch (Exception e) {
+            LOG.warn("Failed to pull AI config metadata", e);
+            return SyncResult.failure("Failed to pull metadata", e);
         }
     }
 

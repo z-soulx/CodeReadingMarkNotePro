@@ -144,6 +144,36 @@ public class AIWorkspacePanel extends JPanel {
         actions.addSeparator();
 
         actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all"),
+            CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all.description"),
+            AllIcons.Actions.Collapseall
+        ) {
+            @Override
+            public void actionPerformed(@NotNull AnActionEvent e) {
+                treePanel.toggleExpandCollapse();
+            }
+
+            @Override
+            public void update(@NotNull AnActionEvent e) {
+                boolean anyExpanded = treePanel.hasAnyExpanded();
+                e.getPresentation().setIcon(anyExpanded ? AllIcons.Actions.Collapseall : AllIcons.Actions.Expandall);
+                e.getPresentation().setText(anyExpanded
+                    ? CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all")
+                    : CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all"));
+                e.getPresentation().setDescription(anyExpanded
+                    ? CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all.description")
+                    : CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all.description"));
+            }
+
+            @Override
+            public @NotNull ActionUpdateThread getActionUpdateThread() {
+                return ActionUpdateThread.EDT;
+            }
+        });
+
+        actions.addSeparator();
+
+        actions.add(new AnAction(
             CodeReadingNoteBundle.message("aiconfig.action.open.in.editor"),
             CodeReadingNoteBundle.message("aiconfig.action.open.in.editor.description"),
             AllIcons.Actions.EditSource
@@ -402,6 +432,10 @@ public class AIWorkspacePanel extends JPanel {
     }
 
     private void pushAIConfigs() {
+        doPushAIConfigs(false);
+    }
+
+    private void doPushAIConfigs(boolean forceAll) {
         jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfig config =
             jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings.getInstance().getSyncConfig();
 
@@ -445,20 +479,12 @@ public class AIWorkspacePanel extends JPanel {
                     indicator.setIndeterminate(true);
                     indicator.setText(CodeReadingNoteBundle.message("progress.pushing.ai.configs"));
                     AIConfigSyncAdapter adapter = AIConfigSyncAdapter.getInstance(project);
-                    result = adapter.pushAIConfigs(config, project.getName());
+                    result = adapter.pushAIConfigs(config, project.getName(), forceAll);
                 }
 
                 @Override
                 public void onSuccess() {
-                    String message = result.getUserMessage();
-                    if ("ai.config.push.no.changes".equals(result.getMessage())) {
-                        message = CodeReadingNoteBundle.message("aiconfig.sync.push.no.changes");
-                    }
-                    com.intellij.openapi.ui.Messages.showInfoMessage(project,
-                        message,
-                        result.isSuccess()
-                            ? CodeReadingNoteBundle.message("aiconfig.sync.push.success.title")
-                            : CodeReadingNoteBundle.message("aiconfig.sync.push.failed.title"));
+                    handlePushResult(result);
                 }
 
                 @Override
@@ -468,6 +494,33 @@ public class AIWorkspacePanel extends JPanel {
                         CodeReadingNoteBundle.message("aiconfig.sync.push.failed.title"));
                 }
             });
+    }
+
+    private void handlePushResult(@NotNull jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult result) {
+        boolean noChanges = "ai.config.push.no.changes".equals(result.getMessage());
+
+        jp.kitabatakep.intellij.plugins.codereadingnote.sync.FilePushReport report;
+        if (noChanges) {
+            report = new jp.kitabatakep.intellij.plugins.codereadingnote.sync.FilePushReport();
+        } else {
+            report = null;
+            String reportData = result.getData();
+            if (reportData != null && reportData.startsWith("{")) {
+                try {
+                    report = jp.kitabatakep.intellij.plugins.codereadingnote.sync.FilePushReport.fromJson(reportData);
+                } catch (Exception ignored) { }
+            }
+            if (report == null) {
+                report = new jp.kitabatakep.intellij.plugins.codereadingnote.sync.FilePushReport();
+            }
+        }
+
+        PushReportDialog dialog = new PushReportDialog(project, report, result.isSuccess(), noChanges);
+        dialog.show();
+
+        if (dialog.getExitCode() == PushReportDialog.FORCE_PUSH_EXIT_CODE) {
+            doPushAIConfigs(true);
+        }
     }
 
     private void pullAIConfigs() {

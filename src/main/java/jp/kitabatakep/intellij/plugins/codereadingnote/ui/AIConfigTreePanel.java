@@ -95,6 +95,16 @@ public class AIConfigTreePanel extends JPanel {
                         propagateCheckStateRecursive(node);
                         updateAncestorDirStates(node);
                     }
+                    // Persist checked state for empty dirs (dirs with no file children)
+                    DirNode dir = (DirNode) userObj;
+                    if (dir.totalFileCount == 0) {
+                        AIConfigService svc = AIConfigService.getInstance(project);
+                        if (node.isChecked()) {
+                            svc.addTrackedEmptyDir(dir.fullPath);
+                        } else {
+                            svc.removeTrackedEmptyDir(dir.fullPath);
+                        }
+                    }
                 }
             }
         };
@@ -195,7 +205,13 @@ public class AIConfigTreePanel extends JPanel {
             dirTreeNode.add(fileNode);
         }
 
-        dirTreeNode.setChecked(areAllDescendantsTracked(dir));
+        if (dir.files.isEmpty() && dir.subdirs.isEmpty()) {
+            // Empty dir: restore persisted tracked state
+            Set<String> trackedEmptyDirs = AIConfigService.getInstance(project).getTrackedEmptyDirs();
+            dirTreeNode.setChecked(trackedEmptyDirs.contains(fullPath));
+        } else {
+            dirTreeNode.setChecked(areAllDescendantsTracked(dir));
+        }
         parentTreeNode.add(dirTreeNode);
     }
 
@@ -218,9 +234,39 @@ public class AIConfigTreePanel extends JPanel {
         dir.totalFileCount = count;
     }
 
-    private void expandAll() {
+    public void expandAll() {
         for (int i = 0; i < tree.getRowCount(); i++) {
             tree.expandRow(i);
+        }
+    }
+
+    public void collapseAll() {
+        for (int i = tree.getRowCount() - 1; i >= 1; i--) {
+            tree.collapseRow(i);
+        }
+    }
+
+    /**
+     * Checks if any non-leaf node is currently expanded.
+     * Returns true if there's at least one expanded folder.
+     */
+    public boolean hasAnyExpanded() {
+        for (int i = 0; i < tree.getRowCount(); i++) {
+            TreePath path = tree.getPathForRow(i);
+            if (path == null) continue;
+            Object node = path.getLastPathComponent();
+            if (node instanceof TreeNode && !((TreeNode) node).isLeaf() && tree.isExpanded(i)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void toggleExpandCollapse() {
+        if (hasAnyExpanded()) {
+            collapseAll();
+        } else {
+            expandAll();
         }
     }
 
@@ -248,6 +294,7 @@ public class AIConfigTreePanel extends JPanel {
 
     private void propagateCheckStateRecursive(@NotNull CheckedTreeNode parentNode) {
         boolean checked = parentNode.isChecked();
+        AIConfigService svc = AIConfigService.getInstance(project);
         for (int i = 0; i < parentNode.getChildCount(); i++) {
             TreeNode child = parentNode.getChildAt(i);
             if (child instanceof CheckedTreeNode) {
@@ -257,6 +304,14 @@ public class AIConfigTreePanel extends JPanel {
                 if (userObj instanceof AIConfigEntry) {
                     ((AIConfigEntry) userObj).setTracked(checked);
                 } else if (userObj instanceof DirNode) {
+                    DirNode dir = (DirNode) userObj;
+                    if (dir.totalFileCount == 0) {
+                        if (checked) {
+                            svc.addTrackedEmptyDir(dir.fullPath);
+                        } else {
+                            svc.removeTrackedEmptyDir(dir.fullPath);
+                        }
+                    }
                     propagateCheckStateRecursive(childNode);
                 }
             }

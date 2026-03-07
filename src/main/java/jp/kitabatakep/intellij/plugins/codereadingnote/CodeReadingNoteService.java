@@ -438,14 +438,10 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     }
 
     public List<TopicLine> listSource(Project project, @NotNull VirtualFile file) {
-        List<TopicLine> collect = topicList.getTopics().stream()
-            .filter(topic -> topic.getLines().stream()
-                .anyMatch(topicLine -> topicLine.file() != null && topicLine.file().equals(file)))
+        return topicList.getTopics().stream()
             .flatMap(topic -> topic.getLines().stream())
-            .filter(topicLine -> topicLine.file() != null)  // 过滤掉file为null的TopicLine
+            .filter(topicLine -> topicLine.file() != null && topicLine.file().equals(file))
             .collect(Collectors.toList());
-        return collect;
-
     }
 
     private Predicate<CodeRemark> stateFilter(String fileName, String contentHash, Integer lineNumber) {

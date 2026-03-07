@@ -218,6 +218,53 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
         }
     }
 
+    @NotNull
+    public Set<String> getTrackedEmptyDirs() {
+        if (persistentState.trackedEmptyDirs == null) return new LinkedHashSet<>();
+        return new LinkedHashSet<>(persistentState.trackedEmptyDirs);
+    }
+
+    public void setTrackedEmptyDirs(@NotNull Set<String> dirs) {
+        persistentState.trackedEmptyDirs = new ArrayList<>(dirs);
+    }
+
+    public void addTrackedEmptyDir(@NotNull String dirPath) {
+        if (persistentState.trackedEmptyDirs == null) {
+            persistentState.trackedEmptyDirs = new ArrayList<>();
+        }
+        if (!persistentState.trackedEmptyDirs.contains(dirPath)) {
+            persistentState.trackedEmptyDirs.add(dirPath);
+        }
+    }
+
+    public void removeTrackedEmptyDir(@NotNull String dirPath) {
+        if (persistentState.trackedEmptyDirs != null) {
+            persistentState.trackedEmptyDirs.remove(dirPath);
+        }
+    }
+
+    /**
+     * Applies tracked state from remote metadata (cross-machine sync).
+     * For each remote entry, if a matching local entry exists, updates its tracked flag.
+     */
+    public void applyRemoteTrackedState(@NotNull List<AIConfigSyncAdapter.TrackedEntryMeta> remoteEntries) {
+        if (remoteEntries.isEmpty()) return;
+        ensureInitialized();
+        Map<String, Boolean> trackedMap = new HashMap<>();
+        for (AIConfigSyncAdapter.TrackedEntryMeta meta : remoteEntries) {
+            trackedMap.put(meta.relativePath, meta.tracked);
+        }
+        int applied = 0;
+        for (AIConfigEntry entry : registry.getEntries()) {
+            Boolean tracked = trackedMap.get(entry.getRelativePath());
+            if (tracked != null) {
+                entry.setTracked(tracked);
+                applied++;
+            }
+        }
+        LOG.info("Applied remote tracked state: " + applied + " entries from " + trackedMap.size() + " remote");
+    }
+
     // --- PersistentStateComponent ---
 
     @Override
@@ -253,6 +300,7 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
         public List<String> customPaths = new ArrayList<>();
         public List<String> ignorePatterns = new ArrayList<>();
         public List<EntryState> trackedEntries = new ArrayList<>();
+        public List<String> trackedEmptyDirs = new ArrayList<>();
         public String lastPushedHash = "";
         public List<FileHashEntry> lastPushedFileHashes = new ArrayList<>();
     }
