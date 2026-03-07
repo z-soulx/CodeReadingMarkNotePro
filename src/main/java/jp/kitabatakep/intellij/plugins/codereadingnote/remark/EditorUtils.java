@@ -27,6 +27,10 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.remark;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorCustomElementRenderer;
 import com.intellij.openapi.editor.ex.EditorEx;
+import com.intellij.openapi.editor.markup.HighlighterLayer;
+import com.intellij.openapi.editor.markup.HighlighterTargetArea;
+import com.intellij.openapi.editor.markup.MarkupModel;
+import com.intellij.openapi.editor.markup.RangeHighlighter;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.TextEditor;
@@ -35,8 +39,6 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import org.jetbrains.annotations.NotNull;
-
-import static com.intellij.diff.util.DiffUtil.getLineCount;
 
 public class EditorUtils {
 
@@ -47,19 +49,26 @@ public class EditorUtils {
     }
 
     public static void addLineCodeRemark(Project project, TopicLine _topicLine) {
+        if (_topicLine.file() == null || !_topicLine.file().isValid()) return;
         FileEditorManager instance = FileEditorManager.getInstance(project);
         Editor editor = getEditor(instance, _topicLine.file());
         if (editor != null) {
-            EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), StringUtils.spNote(_topicLine.note()));
+            String uid = _topicLine.getBookmarkUid();
+            String noteText = StringUtils.spNote(_topicLine.note());
+            EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), noteText, uid);
+            EditorUtils.addGutterIcon(editor, project, _topicLine.line(), uid, noteText);
         }
     }
 
     public static void removeLineCodeRemark(Project project, TopicLine _topicLine) {
+        if (_topicLine.file() == null || !_topicLine.file().isValid()) return;
         FileEditorManager instance = FileEditorManager.getInstance(project);
         Editor editor = getEditor(instance, _topicLine.file());
-        if(editor != null)
-        EditorUtils.clearAfterLineEndCodeRemark(editor, _topicLine.line());
-}
+        if (editor != null) {
+            EditorUtils.clearAfterLineEndCodeRemark(editor, _topicLine.line());
+            EditorUtils.removeGutterIcon(editor, _topicLine.getBookmarkUid());
+        }
+    }
     public static Editor getEditor(@NotNull final FileEditorManager source, @NotNull final VirtualFile file) {
         final FileEditor fileEditor = source.getSelectedEditor(file);
         if (!(fileEditor instanceof TextEditor)) return null;
@@ -73,6 +82,11 @@ public class EditorUtils {
 
     public static void addAfterLineCodeRemark(@NotNull final Editor editor, final int lineNumber, @NotNull final String text) {
         addAfterLineEndElement(editor, lineNumber, new CodeRemarkEditorInlineInlayRenderer(text));
+    }
+
+    public static void addAfterLineCodeRemark(@NotNull final Editor editor, final int lineNumber,
+                                               @NotNull final String text, String topicLineUid) {
+        addAfterLineEndElement(editor, lineNumber, new CodeRemarkEditorInlineInlayRenderer(text, topicLineUid));
     }
 
     public static void addAfterLineEndElement(
@@ -97,11 +111,69 @@ public class EditorUtils {
         try {
             editor.getInlayModel().getAfterLineEndElementsForLogicalLine(lineNumber).forEach(inlay -> {
                 if (inlay.getRenderer().getClass().getName().equals(rendererClass.getName())) {
-                    Disposer.dispose(inlay); // Destroy Inlay
+                    Disposer.dispose(inlay);
                 }
             });
         } catch (final Throwable e) {
             e.printStackTrace();
+        }
+    }
+
+    // ========== Gutter Icon Methods ==========
+
+    public static void addGutterIcon(@NotNull final Editor editor, @NotNull final Project project,
+                                      final int lineNumber, String topicLineUid, @NotNull final String notePreview) {
+        try {
+            if (lineNumber >= editor.getDocument().getLineCount()) return;
+            if (topicLineUid == null || topicLineUid.isEmpty()) return;
+
+            removeGutterIcon(editor, topicLineUid);
+
+            int startOffset = editor.getDocument().getLineStartOffset(lineNumber);
+            MarkupModel markupModel = editor.getMarkupModel();
+            RangeHighlighter highlighter = markupModel.addRangeHighlighter(
+                    startOffset, startOffset, HighlighterLayer.LAST,
+                    null, HighlighterTargetArea.LINES_IN_RANGE);
+            highlighter.setGutterIconRenderer(new NoteGutterIconRenderer(project, topicLineUid, notePreview));
+        } catch (final Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void removeGutterIcon(@NotNull final Editor editor, String topicLineUid) {
+        try {
+            if (topicLineUid == null || topicLineUid.isEmpty()) return;
+            MarkupModel markupModel = editor.getMarkupModel();
+            for (RangeHighlighter highlighter : markupModel.getAllHighlighters()) {
+                if (highlighter.getGutterIconRenderer() instanceof NoteGutterIconRenderer) {
+                    NoteGutterIconRenderer renderer = (NoteGutterIconRenderer) highlighter.getGutterIconRenderer();
+                    if (topicLineUid.equals(renderer.getTopicLineUid())) {
+                        markupModel.removeHighlighter(highlighter);
+                        return;
+                    }
+                }
+            }
+        } catch (final Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void addGutterIconForTopicLine(@NotNull final Project project, @NotNull final TopicLine topicLine) {
+        if (topicLine.file() == null || !topicLine.file().isValid()) return;
+        FileEditorManager instance = FileEditorManager.getInstance(project);
+        Editor editor = getEditor(instance, topicLine.file());
+        if (editor != null) {
+            addGutterIcon(editor, project, topicLine.line(),
+                    topicLine.getBookmarkUid(), StringUtils.spNote(topicLine.note()));
+        }
+    }
+
+    public static void removeGutterIconForTopicLine(@NotNull final Project project, @NotNull final TopicLine topicLine) {
+        if (topicLine.file() == null || !topicLine.file().isValid()) return;
+        FileEditorManager instance = FileEditorManager.getInstance(project);
+        Editor editor = getEditor(instance, topicLine.file());
+        if (editor != null) {
+            removeGutterIcon(editor, topicLine.getBookmarkUid());
         }
     }
 }

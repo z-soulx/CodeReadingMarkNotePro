@@ -12,6 +12,7 @@ public class TopicList
 {
     private Project project;
     private ArrayList<Topic> topics = new ArrayList<>();
+    private ArrayList<TrashedLine> trashedLines = new ArrayList<>();
 
     public TopicList(Project project)
     {
@@ -20,7 +21,6 @@ public class TopicList
 
     public void addTopic(String name)
     {
-        // 设置 order 为当前 topics 数量，新 topic 会排在最后
         int order = topics.size();
         Topic topic = new Topic(project, name, new Date(), order);
         topics.add(topic);
@@ -36,6 +36,55 @@ public class TopicList
         MessageBus messageBus = project.getMessageBus();
         TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
         publisher.topicRemoved(topic);
+    }
+
+    // ========== Trash Bin ==========
+
+    public void moveToTrash(TopicLine line, String topicName) {
+        trashedLines.add(new TrashedLine(line, topicName, new Date()));
+        notifyTrashChanged();
+    }
+
+    public void restoreFromTrash(TrashedLine trashedLine) {
+        trashedLines.remove(trashedLine);
+        Topic target = null;
+        for (Topic t : topics) {
+            if (t.name().equals(trashedLine.getOriginalTopicName())) {
+                target = t;
+                break;
+            }
+        }
+        if (target == null && !topics.isEmpty()) {
+            target = topics.get(0);
+        }
+        if (target != null) {
+            target.addLine(trashedLine.getLine());
+        }
+        notifyTrashChanged();
+    }
+
+    public void permanentlyDelete(TrashedLine trashedLine) {
+        trashedLines.remove(trashedLine);
+        notifyTrashChanged();
+    }
+
+    public void emptyTrash() {
+        trashedLines.clear();
+        notifyTrashChanged();
+    }
+
+    public ArrayList<TrashedLine> getTrashedLines() {
+        return trashedLines;
+    }
+
+    public void setTrashedLines(ArrayList<TrashedLine> trashedLines) {
+        this.trashedLines = trashedLines;
+    }
+
+    private void notifyTrashChanged() {
+        MessageBus messageBus = project.getMessageBus();
+        TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
+        publisher.topicsLoaded();
     }
 
     public Iterator<Topic> iterator()

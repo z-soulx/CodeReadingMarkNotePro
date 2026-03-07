@@ -65,5 +65,88 @@ public interface SyncProvider {
      */
     long getRemoteLastModifiedTime(@NotNull Project project, @NotNull SyncConfig config, @NotNull String projectIdentifier);
     long getRemoteTimestamp(@NotNull Project project, @NotNull SyncConfig config, @NotNull String projectIdentifier);
+
+    /**
+     * Push multiple files to remote (for AI config sync).
+     * @param project 当前项目
+     * @param config 同步配置
+     * @param files map of relative path -> file content bytes
+     * @param projectIdentifier 项目唯一标识符
+     * @return 同步结果
+     */
+    @NotNull
+    default SyncResult pushFiles(@NotNull Project project, @NotNull SyncConfig config,
+                                 @NotNull java.util.Map<String, byte[]> files, @NotNull String projectIdentifier) {
+        return pushFiles(project, config, files, projectIdentifier, java.util.Collections.emptySet());
+    }
+
+    /**
+     * Push multiple files and empty directories to remote (for AI config sync).
+     * @param project 当前项目
+     * @param config 同步配置
+     * @param files map of relative path -> file content bytes
+     * @param projectIdentifier 项目唯一标识符
+     * @param emptyDirs set of empty directory relative paths to include in manifest
+     * @return 同步结果
+     */
+    @NotNull
+    default SyncResult pushFiles(@NotNull Project project, @NotNull SyncConfig config,
+                                 @NotNull java.util.Map<String, byte[]> files, @NotNull String projectIdentifier,
+                                 @NotNull java.util.Set<String> emptyDirs) {
+        return pushFiles(project, config, files, projectIdentifier, emptyDirs,
+                         java.util.Collections.emptyMap(), false);
+    }
+
+    /**
+     * Push multiple files with per-file MD5 change detection and optional force mode.
+     * @param project 当前项目
+     * @param config 同步配置
+     * @param files map of relative path -> file content bytes
+     * @param projectIdentifier 项目唯一标识符
+     * @param emptyDirs set of empty directory relative paths to include in manifest
+     * @param lastPushedFileHashes previously pushed per-file MD5 hashes for skip detection
+     * @param forceAll if true, bypass per-file MD5 comparison and push all files
+     * @return 同步结果 with FilePushReport JSON in data
+     */
+    @NotNull
+    default SyncResult pushFiles(@NotNull Project project, @NotNull SyncConfig config,
+                                 @NotNull java.util.Map<String, byte[]> files, @NotNull String projectIdentifier,
+                                 @NotNull java.util.Set<String> emptyDirs,
+                                 @NotNull java.util.Map<String, String> lastPushedFileHashes,
+                                 boolean forceAll) {
+        return SyncResult.failure("File sync not supported by this provider");
+    }
+
+    /**
+     * Pull multiple files from remote (for AI config sync).
+     * @param project 当前项目
+     * @param config 同步配置
+     * @param projectIdentifier 项目唯一标识符
+     * @return 同步结果 with data containing a JSON manifest, or null if no files
+     */
+    @NotNull
+    default SyncResult pullFiles(@NotNull Project project, @NotNull SyncConfig config,
+                                 @NotNull String projectIdentifier) {
+        return SyncResult.failure("File sync not supported by this provider");
+    }
+
+    /**
+     * Push workspace metadata JSON for cross-machine state sharing.
+     * @return 同步结果
+     */
+    @NotNull
+    default SyncResult pushMetadata(@NotNull SyncConfig config, @NotNull String projectIdentifier,
+                                    @NotNull String metadataJson) {
+        return SyncResult.failure("Metadata sync not supported by this provider");
+    }
+
+    /**
+     * Pull workspace metadata JSON from remote.
+     * @return 同步结果 with metadata JSON in data, or null data if not found
+     */
+    @NotNull
+    default SyncResult pullMetadata(@NotNull SyncConfig config, @NotNull String projectIdentifier) {
+        return SyncResult.failure("Metadata sync not supported by this provider");
+    }
 }
 

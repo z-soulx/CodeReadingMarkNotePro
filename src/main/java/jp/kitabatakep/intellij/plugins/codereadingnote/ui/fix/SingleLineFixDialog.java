@@ -82,21 +82,38 @@ public class SingleLineFixDialog extends DialogWrapper {
         panel.add(pathLabel, gbc);
         
         // Topic
+        int row = 2;
         if (result.getTopicLine().topic() != null) {
             gbc.gridx = 0;
-            gbc.gridy = 2;
+            gbc.gridy = row;
             gbc.weightx = 0;
             panel.add(new JBLabel("Topic:"), gbc);
             
             gbc.gridx = 1;
             gbc.weightx = 1;
-            panel.add(new JBLabel(result.getTopicLine().topic().name()), gbc);
+            JBLabel topicLabel = new JBLabel(result.getTopicLine().topic().name());
+            topicLabel.setFont(topicLabel.getFont().deriveFont(Font.BOLD));
+            panel.add(topicLabel, gbc);
+            row++;
+        }
+        
+        // Group
+        if (result.getTopicLine().hasGroup()) {
+            gbc.gridx = 0;
+            gbc.gridy = row;
+            gbc.weightx = 0;
+            panel.add(new JBLabel("Group:"), gbc);
+            
+            gbc.gridx = 1;
+            gbc.weightx = 1;
+            panel.add(new JBLabel(result.getTopicLine().getGroupName()), gbc);
+            row++;
         }
         
         // Note
         if (!result.getNote().isEmpty()) {
             gbc.gridx = 0;
-            gbc.gridy = 3;
+            gbc.gridy = row;
             gbc.weightx = 0;
             gbc.anchor = GridBagConstraints.NORTHWEST;
             panel.add(new JBLabel("Note:"), gbc);

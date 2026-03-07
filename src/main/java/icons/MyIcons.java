@@ -6,6 +6,6 @@ import javax.swing.*;
 
 public class MyIcons
 {
-//    public static final Icon PLUGIN = IconLoader.getIcon("/META-INF/pluginIcon.svg");
-    public static final Icon PLUGIN = IconLoader.getIcon("/META-INF/pluginIcon.svg",MyIcons.class);
+    public static final Icon PLUGIN = IconLoader.getIcon("/META-INF/pluginIcon.svg", MyIcons.class);
+    public static final Icon GUTTER_NOTE = IconLoader.getIcon("/icons/gutterNote.svg", MyIcons.class);
 }

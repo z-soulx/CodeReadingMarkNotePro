@@ -5,9 +5,15 @@ import org.jdom.Element;
 import java.text.SimpleDateFormat;
 import java.util.Iterator;
 
+import java.util.ArrayList;
+
 public class TopicListExporter
 {
-    public static Element export(Iterator<Topic> iterator)
+    public static Element export(Iterator<Topic> iterator) {
+        return export(iterator, new ArrayList<>());
+    }
+
+    public static Element export(Iterator<Topic> iterator, ArrayList<TrashedLine> trashedLines)
     {
         Element topicsElement = new Element("topics");
         while (iterator.hasNext()) {
@@ -76,6 +82,20 @@ public class TopicListExporter
                 topicElement.addContent(topicLinesElement);
             }
         }
+
+        if (trashedLines != null && !trashedLines.isEmpty()) {
+            Element trashElement = new Element("trash");
+            for (TrashedLine tl : trashedLines) {
+                Element entry = new Element("trashedLine");
+                entry.addContent(new Element("originalTopic").addContent(tl.getOriginalTopicName()));
+                entry.addContent(new Element("trashedAt").addContent(
+                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(tl.getTrashedAt())));
+                entry.addContent(createTopicLineElement(tl.getLine()));
+                trashElement.addContent(entry);
+            }
+            topicsElement.addContent(trashElement);
+        }
+
         return topicsElement;
     }
     

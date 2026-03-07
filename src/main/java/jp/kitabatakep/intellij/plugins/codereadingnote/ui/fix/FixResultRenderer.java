@@ -3,12 +3,14 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.ui.fix;
 import com.intellij.ui.SimpleColoredComponent;
 import com.intellij.ui.SimpleTextAttributes;
 import com.intellij.util.ui.JBUI;
+import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 
 import javax.swing.*;
 import java.awt.*;
 
 /**
  * LineFixResult 的列表渲染器
+ * Displays: [Icon] [Topic] > Group  FileName:Line (Status)
  */
 public class FixResultRenderer extends JPanel implements ListCellRenderer<LineFixResult> {
     
@@ -50,6 +52,9 @@ public class FixResultRenderer extends JPanel implements ListCellRenderer<LineFi
         // 清空之前的文本
         textComponent.clear();
         
+        // Render Topic/Group prefix
+        renderTopicGroupPrefix(value);
+        
         // 根据状态设置不同的文本样式
         switch (value.getStatus()) {
             case SYNCED:
@@ -66,10 +71,49 @@ public class FixResultRenderer extends JPanel implements ListCellRenderer<LineFi
                 break;
         }
         
+        // Render note preview
+        renderNotePreview(value);
+        
         // 设置工具提示
         setToolTipText(value.getHtmlText());
         
         return this;
+    }
+    
+    /**
+     * Render [Topic] > Group prefix
+     */
+    private void renderTopicGroupPrefix(LineFixResult result) {
+        TopicLine topicLine = result.getTopicLine();
+        
+        // Topic name
+        if (topicLine.topic() != null) {
+            textComponent.append("[", SimpleTextAttributes.GRAYED_ATTRIBUTES);
+            textComponent.append(topicLine.topic().name(), 
+                    new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, new Color(70, 130, 180)));
+            textComponent.append("]", SimpleTextAttributes.GRAYED_ATTRIBUTES);
+        }
+        
+        // Group name
+        if (topicLine.hasGroup()) {
+            textComponent.append(" > ", SimpleTextAttributes.GRAYED_ATTRIBUTES);
+            textComponent.append(topicLine.getGroupName(), 
+                    new SimpleTextAttributes(SimpleTextAttributes.STYLE_PLAIN, new Color(100, 149, 237)));
+        }
+        
+        textComponent.append("  ", SimpleTextAttributes.REGULAR_ATTRIBUTES);
+    }
+    
+    /**
+     * Render note preview (short)
+     */
+    private void renderNotePreview(LineFixResult result) {
+        String note = result.getNote();
+        if (note != null && !note.isEmpty()) {
+            String preview = note.length() > 25 ? note.substring(0, 25) + "..." : note;
+            textComponent.append("  - ", SimpleTextAttributes.GRAYED_ATTRIBUTES);
+            textComponent.append(preview, SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES);
+        }
     }
     
     /**
@@ -131,4 +175,3 @@ public class FixResultRenderer extends JPanel implements ListCellRenderer<LineFi
                 new SimpleTextAttributes(SimpleTextAttributes.STYLE_ITALIC, Color.GRAY));
     }
 }
-

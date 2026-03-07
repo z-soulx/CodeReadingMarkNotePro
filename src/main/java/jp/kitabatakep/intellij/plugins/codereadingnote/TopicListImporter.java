@@ -2,7 +2,6 @@ package jp.kitabatakep.intellij.plugins.codereadingnote;
 
 import com.intellij.openapi.project.Project;
 import org.jdom.Element;
-import org.w3c.dom.NodeList;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -117,6 +116,50 @@ public class TopicListImporter
             topicLines.add(topicLine);
         }
         return topicLines;
+    }
+
+    public static ArrayList<TrashedLine> importTrashedLines(Project project, Element topicsElement) {
+        ArrayList<TrashedLine> result = new ArrayList<>();
+        if (topicsElement == null) return result;
+        Element trashElement = topicsElement.getChild("trash");
+        if (trashElement == null) return result;
+
+        Topic dummyTopic = new Topic(project, "_trash_", new Date());
+        for (Element entry : trashElement.getChildren("trashedLine")) {
+            try {
+                String originalTopic = entry.getChild("originalTopic").getText();
+                String trashedAtStr = entry.getChild("trashedAt").getText();
+                Date trashedAt;
+                try {
+                    trashedAt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(trashedAtStr);
+                } catch (ParseException e) {
+                    trashedAt = new Date();
+                }
+
+                Element topicLineElement = entry.getChild("topicLine");
+                if (topicLineElement != null) {
+                    String lineStr = topicLineElement.getChild("line").getText();
+                    String inProject = topicLineElement.getChild("inProject").getText();
+                    String bookmarkUid = "";
+                    Element buidEl = topicLineElement.getChild("bookmarkUid");
+                    if (buidEl != null) bookmarkUid = buidEl.getText();
+
+                    TopicLine tl = TopicLine.createByImport(
+                            project, dummyTopic,
+                            topicLineElement.getChild("url").getText(),
+                            Integer.parseInt(lineStr),
+                            topicLineElement.getChild("note").getText(),
+                            "true".equals(inProject),
+                            topicLineElement.getChild("relativePath").getText(),
+                            bookmarkUid
+                    );
+                    result.add(new TrashedLine(tl, originalTopic, trashedAt));
+                }
+            } catch (Exception e) {
+                // skip malformed entries
+            }
+        }
+        return result;
     }
 
     public static class FormatException extends Exception {

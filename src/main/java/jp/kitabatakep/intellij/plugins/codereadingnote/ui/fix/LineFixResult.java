@@ -120,6 +120,50 @@ public class LineFixResult {
     }
     
     /**
+     * Get display text with Topic/Group location info for CleanUp dialog
+     */
+    public String getLocationDisplayText() {
+        StringBuilder sb = new StringBuilder();
+        
+        // Status icon
+        if (status == FixStatus.BOOKMARK_MISSING) {
+            sb.append("❌ ");
+        } else if (status == FixStatus.FILE_NOT_FOUND) {
+            sb.append("🚫 ");
+        }
+        
+        // Topic name
+        if (topicLine.topic() != null) {
+            sb.append("[").append(topicLine.topic().name()).append("]");
+        }
+        
+        // Group name
+        String groupName = topicLine.getGroupName();
+        if (groupName != null) {
+            sb.append(" > ").append(groupName);
+        }
+        
+        // File:line
+        sb.append("  ").append(getFileName()).append(":").append(getOldLine());
+        
+        // Status label
+        if (status == FixStatus.BOOKMARK_MISSING) {
+            sb.append(" (Bookmark Missing)");
+        } else if (status == FixStatus.FILE_NOT_FOUND) {
+            sb.append(" (File Not Found)");
+        }
+        
+        // Note preview
+        String note = getNote();
+        if (!note.isEmpty()) {
+            String preview = note.length() > 30 ? note.substring(0, 30) + "..." : note;
+            sb.append("  - ").append(preview);
+        }
+        
+        return sb.toString();
+    }
+    
+    /**
      * Get detailed display text (with path and note)
      */
     public String getDetailedText() {
@@ -140,6 +184,14 @@ public class LineFixResult {
      */
     public String getHtmlText() {
         StringBuilder html = new StringBuilder("<html>");
+        
+        // Topic/Group info
+        if (topicLine.topic() != null) {
+            html.append("<b>Topic:</b> ").append(topicLine.topic().name()).append("<br>");
+        }
+        if (topicLine.hasGroup()) {
+            html.append("<b>Group:</b> ").append(topicLine.getGroupName()).append("<br>");
+        }
         
         html.append("<b>File:</b> ").append(getFileName()).append("<br>");
         html.append("<b>Path:</b> ").append(getFilePath()).append("<br>");

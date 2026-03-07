@@ -109,6 +109,9 @@ public class BookmarkUtils {
 
     public static List<Bookmark> getAllBookmark(Project project) {
         BookmarkGroup group = BookmarksManager.getInstance(project).getGroup(AppConstants.appName);
+        if (group == null) {
+            return java.util.Collections.emptyList();
+        }
         return group.getBookmarks();
     }
 
@@ -146,7 +149,8 @@ public class BookmarkUtils {
     }
     
     /**
-     * Check if a bookmark already exists at the specified line in the file
+     * Check if a bookmark already exists at the specified line in the file.
+     * Uses native bookmark attributes ("url" and "line") to detect duplicates.
      * @return the existing bookmark's UUID if found, null otherwise
      */
     @Nullable
@@ -156,16 +160,17 @@ public class BookmarkUtils {
             return null;
         }
         
+        String fileUrl = file.getUrl();
+        
         for (Bookmark bookmark : group.getBookmarks()) {
-            Object lineObj = bookmark.getAttributes().get("line");
-            Object fileObj = bookmark.getAttributes().get("file");
+            Map<String, String> attrs = bookmark.getAttributes();
+            String lineStr = attrs.get("line");
+            String urlStr = attrs.get("url");
             
-            if (lineObj != null && fileObj != null) {
+            if (lineStr != null && urlStr != null) {
                 try {
-                    int bookmarkLine = Integer.parseInt(lineObj.toString());
-                    String bookmarkFile = fileObj.toString();
-                    
-                    if (bookmarkLine == line && file.getPath().equals(bookmarkFile)) {
+                    int bookmarkLine = Integer.parseInt(lineStr);
+                    if (bookmarkLine == line && fileUrl.equals(urlStr)) {
                         String uuid = StringUtils.extractUUID(group.getDescription(bookmark));
                         if (uuid != null) {
                             return uuid;
@@ -177,6 +182,26 @@ public class BookmarkUtils {
             }
         }
         return null;
+    }
+    
+    /**
+     * Check if any TopicLine already exists at the specified file and line across all topics.
+     * This is a data-level check independent of native bookmarks.
+     * @return true if a TopicLine already references this file:line
+     */
+    public static boolean hasTopicLineAtSameFileLine(@NotNull Project project, @NotNull VirtualFile file, int line) {
+        jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService service = 
+                jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService.getInstance(project);
+        java.util.Iterator<jp.kitabatakep.intellij.plugins.codereadingnote.Topic> iterator = service.getTopicList().iterator();
+        while (iterator.hasNext()) {
+            jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic = iterator.next();
+            for (TopicLine tl : topic.getLines()) {
+                if (tl.file() != null && tl.file().equals(file) && tl.line() == line) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     
     /**

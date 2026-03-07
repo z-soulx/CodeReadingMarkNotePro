@@ -65,9 +65,13 @@ public class FixRemarkAction extends CommonAnAction {
                 new FixPreviewData(previewData.getResults(), title)
         );
         
-        // 用户确认后执行修复
+        // 用户确认后执行修复或清理
         if (dialog.showAndGet()) {
-            performFix(previewData, dialog.getSelectedMode());
+            if (dialog.getSelectedMode() == BatchFixDialog.FixMode.CLEAN_UP) {
+                performCleanUp(dialog.getCleanUpSelection());
+            } else {
+                performFix(previewData, dialog.getSelectedMode());
+            }
         }
     }
     
@@ -152,6 +156,45 @@ public class FixRemarkAction extends CommonAnAction {
         showNotification(
             CodeReadingNoteBundle.message("message.fix.result.global"),
             message.toString(),
+            NotificationType.INFORMATION
+        );
+    }
+    
+    /**
+     * 执行清理：删除选中的错误 TopicLine
+     */
+    private void performCleanUp(List<LineFixResult> toCleanUp) {
+        if (toCleanUp == null || toCleanUp.isEmpty()) {
+            return;
+        }
+        
+        int successCount = 0;
+        
+        for (LineFixResult result : toCleanUp) {
+            TopicLine topicLine = result.getTopicLine();
+            try {
+                // Remove editor remark if file is still valid
+                if (topicLine.file() != null && topicLine.file().isValid()) {
+                    EditorUtils.removeLineCodeRemark(project, topicLine);
+                }
+                
+                // Remove associated bookmark if it still exists
+                BookmarkUtils.removeMachBookmark(topicLine, project);
+                
+                // Remove TopicLine from its Topic
+                if (topicLine.topic() != null) {
+                    topicLine.topic().removeLine(topicLine);
+                }
+                
+                successCount++;
+            } catch (Exception ex) {
+                // Log but continue with other items
+            }
+        }
+        
+        showNotification(
+            CodeReadingNoteBundle.message("message.cleanup.result.title"),
+            CodeReadingNoteBundle.message("message.cleanup.result", successCount, toCleanUp.size()),
             NotificationType.INFORMATION
         );
     }
