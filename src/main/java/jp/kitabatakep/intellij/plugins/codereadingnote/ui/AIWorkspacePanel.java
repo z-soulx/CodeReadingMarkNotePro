@@ -144,30 +144,24 @@ public class AIWorkspacePanel extends JPanel {
         actions.addSeparator();
 
         actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all"),
+            CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all.description"),
+            AllIcons.Actions.Expandall
+        ) {
+            @Override
+            public void actionPerformed(@NotNull AnActionEvent e) {
+                treePanel.expandAll();
+            }
+        });
+
+        actions.add(new AnAction(
             CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all"),
             CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all.description"),
             AllIcons.Actions.Collapseall
         ) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
-                treePanel.toggleExpandCollapse();
-            }
-
-            @Override
-            public void update(@NotNull AnActionEvent e) {
-                boolean anyExpanded = treePanel.hasAnyExpanded();
-                e.getPresentation().setIcon(anyExpanded ? AllIcons.Actions.Collapseall : AllIcons.Actions.Expandall);
-                e.getPresentation().setText(anyExpanded
-                    ? CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all")
-                    : CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all"));
-                e.getPresentation().setDescription(anyExpanded
-                    ? CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all.description")
-                    : CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all.description"));
-            }
-
-            @Override
-            public @NotNull ActionUpdateThread getActionUpdateThread() {
-                return ActionUpdateThread.EDT;
+                treePanel.collapseAll();
             }
         });
 
@@ -541,39 +535,91 @@ public class AIWorkspacePanel extends JPanel {
             return;
         }
 
-        int confirm = com.intellij.openapi.ui.Messages.showOkCancelDialog(
-            project,
-            CodeReadingNoteBundle.message("aiconfig.sync.pull.confirm"),
-            CodeReadingNoteBundle.message("aiconfig.action.sync.pull"),
-            CodeReadingNoteBundle.message("button.ok"),
-            CodeReadingNoteBundle.message("button.cancel"),
-            com.intellij.openapi.ui.Messages.getWarningIcon()
-        );
-        if (confirm != com.intellij.openapi.ui.Messages.OK) return;
-
+        // Phase A: fetch remote files in background
         com.intellij.openapi.progress.ProgressManager.getInstance().run(
             new com.intellij.openapi.progress.Task.Backgroundable(
                 project, CodeReadingNoteBundle.message("progress.pulling.ai.configs"), true) {
 
-                private jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult result;
+                private AIConfigSyncAdapter.FetchResult fetchResult;
 
                 @Override
                 public void run(@NotNull com.intellij.openapi.progress.ProgressIndicator indicator) {
                     indicator.setIndeterminate(true);
                     indicator.setText(CodeReadingNoteBundle.message("progress.pulling.ai.configs"));
                     AIConfigSyncAdapter adapter = AIConfigSyncAdapter.getInstance(project);
-                    result = adapter.pullAIConfigs(config, project.getName());
+                    fetchResult = adapter.fetchRemoteFiles(config, project.getName());
                 }
 
                 @Override
                 public void onSuccess() {
-                    treePanel.loadEntries();
-                    updateStatus();
-                    com.intellij.openapi.ui.Messages.showInfoMessage(project,
-                        result.getUserMessage(),
-                        result.isSuccess()
-                            ? CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title")
-                            : CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                    if (!fetchResult.isSuccess()) {
+                        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult err = fetchResult.getErrorResult();
+                        com.intellij.openapi.ui.Messages.showErrorDialog(project,
+                            err != null ? err.getUserMessage() : "Fetch failed",
+                            CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                        return;
+                    }
+
+                    java.util.Map<String, byte[]> remoteFiles = fetchResult.getRemoteFiles();
+                    AIConfigService aiService = AIConfigService.getInstance(project);
+                    AIConfigRegistry registry = aiService.getRegistry();
+                    java.util.Map<String, String> baseHashes = aiService.getLastPushedFileHashes();
+                    String basePath = project.getBasePath();
+                    if (basePath == null) return;
+
+                    java.util.List<jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeItem> mergeItems =
+                        jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeAnalyzer.analyze(
+                            remoteFiles, registry, baseHashes, basePath);
+
+                    // If all unchanged, show a simple message
+                    boolean allUnchanged = mergeItems.stream()
+                        .allMatch(item -> item.getCategory() == jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeCategory.UNCHANGED);
+                    if (allUnchanged) {
+                        com.intellij.openapi.ui.Messages.showInfoMessage(project,
+                            CodeReadingNoteBundle.message("aiconfig.merge.no.changes"),
+                            CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title"));
+                        return;
+                    }
+
+                    // Show merge preview dialog on EDT
+                    AIConfigMergePreviewDialog mergeDialog = new AIConfigMergePreviewDialog(project, mergeItems);
+                    if (!mergeDialog.showAndGet()) return;
+
+                    // Phase B: apply merge decisions in background
+                    java.util.List<jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeItem> decisions = mergeDialog.getMergeItems();
+                    jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncProvider provider = fetchResult.getProvider();
+
+                    com.intellij.openapi.progress.ProgressManager.getInstance().run(
+                        new com.intellij.openapi.progress.Task.Backgroundable(
+                            project, CodeReadingNoteBundle.message("progress.pulling.ai.configs"), true) {
+
+                            private jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult applyResult;
+
+                            @Override
+                            public void run(@NotNull com.intellij.openapi.progress.ProgressIndicator ind) {
+                                ind.setIndeterminate(true);
+                                AIConfigSyncAdapter adapter = AIConfigSyncAdapter.getInstance(project);
+                                applyResult = adapter.applyMergeDecisions(decisions, config, project.getName(), provider);
+                            }
+
+                            @Override
+                            public void onSuccess() {
+                                treePanel.loadEntries();
+                                updateStatus();
+                                com.intellij.openapi.ui.Messages.showInfoMessage(project,
+                                    applyResult.getUserMessage(),
+                                    applyResult.isSuccess()
+                                        ? CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title")
+                                        : CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                            }
+
+                            @Override
+                            public void onThrowable(@NotNull Throwable error) {
+                                com.intellij.openapi.ui.Messages.showErrorDialog(project,
+                                    error.getMessage(),
+                                    CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                            }
+                        });
                 }
 
                 @Override
@@ -586,33 +632,45 @@ public class AIWorkspacePanel extends JPanel {
     }
 
     private void createNewAIConfig() {
-        AIConfigCreateDialog dialog = new AIConfigCreateDialog(project);
+        AISkeletonCreateDialog dialog = new AISkeletonCreateDialog(project);
         if (!dialog.showAndGet()) return;
 
         String basePath = project.getBasePath();
         if (basePath == null) return;
 
-        String relativePath = dialog.getRelativePath();
-        String content = dialog.getBoilerplateContent();
+        java.util.List<String> selectedDirs = dialog.getSelectedDirNames();
+        int created = 0;
 
         try {
-            File targetFile = new File(basePath, relativePath);
-            File parent = targetFile.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
+            File aiRoot = new File(basePath, ".ai");
+            if (!aiRoot.exists()) {
+                aiRoot.mkdirs();
             }
-            java.nio.file.Files.write(targetFile.toPath(), content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+            for (String dirName : selectedDirs) {
+                File subDir = new File(aiRoot, dirName);
+                if (!subDir.exists()) {
+                    subDir.mkdirs();
+                    created++;
+                }
+            }
+
+            // Force VFS refresh so rescan can discover the new dirs immediately
+            String aiRootPath = aiRoot.getAbsolutePath().replace('\\', '/');
+            VirtualFile aiVf = LocalFileSystem.getInstance().refreshAndFindFileByPath(aiRootPath);
+            if (aiVf != null) {
+                aiVf.refresh(false, true);
+            }
 
             AIConfigService aiService = AIConfigService.getInstance(project);
             aiService.rescan();
             treePanel.loadEntries();
             updateStatus();
 
-            // Open the newly created file in editor
-            VirtualFile vf = LocalFileSystem.getInstance().refreshAndFindFileByPath(
-                targetFile.getAbsolutePath().replace('\\', '/'));
-            if (vf != null) {
-                com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).openFile(vf, true);
+            if (created > 0) {
+                com.intellij.openapi.ui.Messages.showInfoMessage(project,
+                    CodeReadingNoteBundle.message("aiconfig.skeleton.success", created),
+                    CodeReadingNoteBundle.message("aiconfig.skeleton.title"));
             }
         } catch (Exception ex) {
             com.intellij.openapi.ui.Messages.showErrorDialog(project,

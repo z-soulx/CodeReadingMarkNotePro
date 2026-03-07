@@ -5,6 +5,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -138,9 +139,138 @@ public final class AIConfigSyncAdapter {
         return pushAIConfigs(config, projectIdentifier, false);
     }
 
+    // ========== Merge-aware pull (two-phase) ==========
+
     /**
-     * Pull AI config files from remote and write them to the project.
-     * Also pulls workspace metadata for cross-machine state sharing.
+     * Phase A: fetch remote files and parse them into a map without writing to disk.
+     * Returns null on failure (caller should check the SyncResult stored in {@link FetchResult}).
+     */
+    @NotNull
+    public FetchResult fetchRemoteFiles(@NotNull SyncConfig config, @NotNull String projectIdentifier) {
+        SyncProvider provider = SyncProviderFactory.getProvider(config);
+        if (provider == null) {
+            return new FetchResult(SyncResult.failure("Unsupported sync provider: " + config.getProviderType()));
+        }
+
+        SyncResult result = provider.pullFiles(project, config, projectIdentifier);
+        if (!result.isSuccess()) {
+            return new FetchResult(result);
+        }
+
+        String data = result.getData();
+        if (data == null || data.equals("{}")) {
+            return new FetchResult(new LinkedHashMap<>(), provider);
+        }
+
+        Map<String, byte[]> remoteFiles = new LinkedHashMap<>();
+        try {
+            Pattern entryPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"");
+            Matcher matcher = entryPattern.matcher(data);
+            String basePath = project.getBasePath();
+
+            while (matcher.find()) {
+                String relativePath = unescapeJson(matcher.group(1));
+                String base64Content = matcher.group(2);
+
+                if (relativePath.endsWith("/") && base64Content.isEmpty()) {
+                    if (basePath != null) {
+                        File dir = new File(basePath, relativePath);
+                        if (!dir.exists()) {
+                            dir.mkdirs();
+                        }
+                    }
+                    continue;
+                }
+
+                byte[] content = Base64.getDecoder().decode(base64Content);
+                remoteFiles.put(relativePath, content);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to parse pulled AI config data", e);
+            return new FetchResult(SyncResult.failure("Failed to parse AI config data: " + e.getMessage()));
+        }
+
+        return new FetchResult(remoteFiles, provider);
+    }
+
+    /**
+     * Phase B: apply user-selected merge decisions to disk, then reconcile metadata.
+     */
+    @NotNull
+    public SyncResult applyMergeDecisions(
+            @NotNull List<AIConfigMergeItem> mergeItems,
+            @NotNull SyncConfig config,
+            @NotNull String projectIdentifier,
+            @NotNull SyncProvider provider) {
+
+        String basePath = project.getBasePath();
+        if (basePath == null) {
+            return SyncResult.failure("Project base path is null");
+        }
+
+        int written = 0;
+        int deleted = 0;
+        int skipped = 0;
+        int failed = 0;
+
+        for (AIConfigMergeItem item : mergeItems) {
+            AIConfigMergeItem.Action action = item.getUserAction();
+            String relativePath = item.getRelativePath();
+
+            switch (action) {
+                case TAKE_REMOTE:
+                case ADD: {
+                    byte[] content = item.getRemoteContent();
+                    if (content == null) { skipped++; break; }
+                    try {
+                        File targetFile = new File(basePath, relativePath);
+                        File parent = targetFile.getParentFile();
+                        if (parent != null && !parent.exists()) {
+                            parent.mkdirs();
+                        }
+                        Files.write(targetFile.toPath(), content);
+                        written++;
+                    } catch (Exception e) {
+                        failed++;
+                        LOG.warn("Failed to write AI config file: " + relativePath, e);
+                    }
+                    break;
+                }
+                case DELETE: {
+                    try {
+                        File targetFile = new File(basePath, relativePath);
+                        if (targetFile.exists()) {
+                            java.nio.file.Files.deleteIfExists(targetFile.toPath());
+                            deleted++;
+                        }
+                    } catch (Exception e) {
+                        failed++;
+                        LOG.warn("Failed to delete AI config file: " + relativePath, e);
+                    }
+                    break;
+                }
+                case KEEP_LOCAL:
+                case SKIP:
+                default:
+                    skipped++;
+                    break;
+            }
+        }
+
+        AIConfigService aiService = AIConfigService.getInstance(project);
+
+        pullAndApplyMetadataPreRescan(provider, config, projectIdentifier, aiService);
+        aiService.rescan();
+        pullAndApplyMetadataPostRescan(provider, config, projectIdentifier, aiService);
+        updateHashesAfterPull(aiService);
+
+        String msg = "Pulled: " + written + " written, " + deleted + " deleted, "
+                + skipped + " skipped" + (failed > 0 ? ", " + failed + " failed" : "");
+        return failed == 0 ? SyncResult.success(msg) : SyncResult.success(msg);
+    }
+
+    /**
+     * Legacy pull that overwrites everything (kept for backward compatibility).
      */
     @NotNull
     public SyncResult pullAIConfigs(@NotNull SyncConfig config, @NotNull String projectIdentifier) {
@@ -206,15 +336,19 @@ public final class AIConfigSyncAdapter {
 
         AIConfigService aiService = AIConfigService.getInstance(project);
 
-        // Phase 1: apply customPaths + ignorePatterns BEFORE rescan (they affect discovery)
         pullAndApplyMetadataPreRescan(provider, config, projectIdentifier, aiService);
-
         aiService.rescan();
-
-        // Phase 2: apply trackedEntries + file hashes AFTER rescan (modify newly created entries)
         pullAndApplyMetadataPostRescan(provider, config, projectIdentifier, aiService);
+        updateHashesAfterPull(aiService);
 
-        // Update hashes to match pulled state, avoiding unnecessary re-push
+        if (failed == 0) {
+            return SyncResult.success("Pulled " + written + " AI config file(s)");
+        } else {
+            return SyncResult.success("Pulled " + written + " file(s), " + failed + " failed");
+        }
+    }
+
+    private void updateHashesAfterPull(@NotNull AIConfigService aiService) {
         AIConfigRegistry updatedRegistry = aiService.getRegistry();
         String baseHash = updatedRegistry.computeTrackedContentHash();
         Set<String> emptyDirSet = aiService.getTrackedEmptyDirs();
@@ -228,11 +362,45 @@ public final class AIConfigSyncAdapter {
             }
         }
         aiService.setLastPushedFileHashes(fileHashes);
+    }
 
-        if (failed == 0) {
-            return SyncResult.success("Pulled " + written + " AI config file(s)");
-        } else {
-            return SyncResult.success("Pulled " + written + " file(s), " + failed + " failed");
+    /**
+     * Result of fetching remote files without writing them.
+     */
+    public static class FetchResult {
+        private final SyncResult errorResult;
+        private final Map<String, byte[]> remoteFiles;
+        private final SyncProvider provider;
+
+        FetchResult(@NotNull SyncResult errorResult) {
+            this.errorResult = errorResult;
+            this.remoteFiles = null;
+            this.provider = null;
+        }
+
+        FetchResult(@NotNull Map<String, byte[]> remoteFiles, @NotNull SyncProvider provider) {
+            this.errorResult = null;
+            this.remoteFiles = remoteFiles;
+            this.provider = provider;
+        }
+
+        public boolean isSuccess() {
+            return remoteFiles != null;
+        }
+
+        @Nullable
+        public SyncResult getErrorResult() {
+            return errorResult;
+        }
+
+        @NotNull
+        public Map<String, byte[]> getRemoteFiles() {
+            return remoteFiles != null ? remoteFiles : Collections.emptyMap();
+        }
+
+        @Nullable
+        public SyncProvider getProvider() {
+            return provider;
         }
     }
 

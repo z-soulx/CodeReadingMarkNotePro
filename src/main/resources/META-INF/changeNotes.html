@@ -1,24 +1,22 @@
 <html>
 <body>
+<h1>3.7.1</h1>
+<ul>
+    <li><b>AI Config Merge Pull:</b> Pull now shows a per-file merge preview dialog with three-way hash comparison (local/remote/base). Files are categorized as New, Deleted, Remote Changed, Local Changed, Both Changed, or Unchanged — each with smart default actions. Bulk "Accept All Remote" / "Keep All Local" buttons for quick decisions（<b>AI 配置合并拉取：</b>拉取时显示逐文件合并预览对话框，基于三方哈希比较。文件分类为新增、已删除、远端修改、本地修改、双方修改或无变化，每类带智能默认操作。支持批量"全部使用远端"/"全部保留本地"）</li>
+    <li><b>AI Skeleton Creator:</b> "New AI Config" replaced with ".ai/ Skeleton Creator" — creates directory structures only (no files). Includes preset templates (Custom/Minimal/Standard/Full) and a collapsible Quick Reference guide explaining each directory's purpose（<b>AI 骨架创建器：</b>"新建 AI 配置"替换为".ai/ 骨架创建器"— 仅创建目录结构。内含预设模板（自定义/最小/标准/完整）和可折叠快速参考指南）</li>
+    <li><b>Fix:</b> Split expand/collapse toggle into two separate buttons to fix unreliable state detection（<b>修复：</b>将展开/收缩切换拆分为两个独立按钮，修复状态检测不可靠的问题）</li>
+    <li><b>Fix:</b> Improved skeleton folder creation speed by forcing VFS refresh before rescan（<b>修复：</b>通过强制 VFS 刷新提升骨架文件夹创建速度）</li>
+</ul>
 <h1>3.7.0</h1>
 <ul>
     <li><b>AI Workspace:</b> New dedicated tab for managing AI config files (Cursor Rules, Claude, Windsurf, Codex, Copilot) with hierarchical file tree, sync status indicators (NEW/MODIFIED/SYNCED), and per-file checkbox tracking（<b>AI 工作空间：</b>新增独立标签页管理 AI 配置文件，提供层级文件树、同步状态标记和逐文件追踪复选框）</li>
     <li><b>Independent AI Config Sync:</b> Push/pull AI config files independently from code notes with incremental MD5-based change detection — only changed files are pushed（<b>独立 AI 配置同步：</b>AI 配置推送/拉取独立于代码笔记，基于 MD5 增量推送，仅推送变更文件）</li>
-    <li><b>Detailed Push Reports:</b> Every push shows a structured report dialog with summary statistics and collapsible detail sections (pushed, skipped, failed with reasons, deleted, empty dirs). Force Push button integrated directly in the report（<b>详细推送报告：</b>每次推送弹出结构化报告，含汇总统计和可折叠详情（已推送、已跳过、失败原因、已删除、空目录），强制推送按钮集成在报告中）</li>
-    <li><b>Force Push:</b> Force push re-uploads all tracked files regardless of MD5 status — available directly from the push report dialog（<b>强制推送：</b>强制推送忽略 MD5 重新上传所有追踪文件，直接从推送报告中触发）</li>
-    <li><b>Remote Deletion:</b> Untracking files and pushing now deletes them from remote; tracking state changes (add/remove) are detected and trigger appropriate add/delete operations（<b>远端删除：</b>取消追踪后推送自动从远端删除；追踪状态变更（新增/移除）被检测并触发相应操作）</li>
-    <li><b>Empty Directory Sync:</b> Check empty directories in the tree to sync them as .gitkeep placeholders on remote. Unchecking removes them. State persisted across IDE restarts（<b>空目录同步：</b>在树中勾选空目录将作为 .gitkeep 同步到远端，取消勾选则删除，状态跨重启持久化）</li>
     <li><b>Cross-Platform Workspace State:</b> Tracked entries, custom paths, ignore patterns, push hashes, and empty dir tracking are synced as metadata — share your full workspace configuration across machines（<b>跨平台工作空间状态：</b>追踪条目、自定义路径、忽略规则、推送哈希和空目录追踪作为元数据同步，多设备共享完整工作空间配置）</li>
-    <li><b>Smart Error Messages:</b> GitHub API errors are parsed and classified (HTTP status, actionable advice). HTML responses stripped and decoded. Errors labeled as remote vs. local（<b>智能错误提示：</b>GitHub API 错误被解析分类（HTTP 状态码、可操作建议），HTML 响应自动清理解码，区分远端/本地错误）</li>
-    <li><b>URL Encoding:</b> Non-ASCII characters (e.g., Chinese) in file paths are properly URL-encoded for GitHub API calls（<b>URL 编码：</b>文件路径中的非 ASCII 字符（如中文）正确 URL 编码）</li>
     <li><b>Adaptive Expand/Collapse:</b> Single toggle button that auto-detects tree state — shows "Collapse" when any node is expanded, "Expand" when all collapsed（<b>自适应展开/收缩：</b>单一切换按钮自动检测树状态 — 有展开节点时显示收缩，全部折叠时显示展开）</li>
     <li><b>Configurable Ignore Rules:</b> .gitignore-style ignore patterns for AI workspace with built-in + user-configurable rules（<b>可配置忽略规则：</b>AI 工作空间类似 .gitignore 的忽略规则，内置 + 用户自定义）</li>
     <li><b>Quick Create & Custom Paths:</b> One-click AI config creation with skeleton content; track any directory beyond built-in defaults（<b>快速新建 & 自定义路径：</b>一键创建 AI 配置文件并生成骨架内容；追踪默认路径之外的任意目录）</li>
     <li><b>Bilingual Help Docs:</b> All help documentation includes both English and Chinese（<b>双语帮助文档：</b>所有帮助文档含英文和中文）</li>
     <li><b>Bug Fix:</b> Fixed gutter icons showing TopicLine marks from other files in the same topic — now only marks for the current file are displayed（<b>Bug 修复：</b>修复 Gutter 图标错误显示同 Topic 其他文件的标记 — 现仅显示当前文件的标记）</li>
-    <li><b>Bug Fix:</b> Fixed checkbox tree propagation — unchecking a single file no longer unchecks parent and sibling files（<b>Bug 修复：</b>修复复选框树传播逻辑 — 取消单个文件不再影响父目录和兄弟文件）</li>
-    <li><b>Bug Fix:</b> Fixed tracked state persistence across IDE restarts（<b>Bug 修复：</b>修复追踪状态持久化，重启后保留）</li>
-    <li><b>Bug Fix:</b> Fixed pull metadata application order — remote configuration now applies correctly after pull and rescan（<b>Bug 修复：</b>修复拉取元数据应用顺序，远端配置在拉取和重扫描后正确生效）</li>
 </ul>
 <h1>3.6.9</h1>
 <ul>
