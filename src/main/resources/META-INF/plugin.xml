@@ -21,7 +21,6 @@
         <!-- TopicLineOperationService, BookmarkRepairService, LineNumberUpdateService are auto-registered -->
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings" />
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings" />
-        <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigTemplateService" />
         <projectConfigurable parentId="tools" instance="jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncConfigurable"
                              id="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfigurable"
                              displayName="Code Reading Note Sync"/>
