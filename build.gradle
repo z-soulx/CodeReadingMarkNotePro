@@ -10,7 +10,7 @@ plugins {
 }
 
 group 'jp.kitabatakep'
-version '3.7.2'  // 插件版本号 - 发布新版本时更新此行
+version '3.7.3'  // 插件版本号 - 发布新版本时更新此行
 
 sourceCompatibility = 17
 targetCompatibility = 17
@@ -76,9 +76,9 @@ patchPluginXml {
         stripTag(stripTag(file(path).text, "html"), "body")
     }
 
-    // 设置版本兼容范围 - 向前兼容（最低2024.3，兼容到2025.3）
+    // 设置版本兼容范围 - 最低2024.3，无上限
     sinceBuild.set('243')    // 最低支持版本：2024.3 (构建号243)
-    untilBuild.set('253.*')  // 最高支持版本：2025.3.x (需要时可手动更新到更高版本)
+    untilBuild.set('')       // 不设上限，兼容所有未来版本
     
     pluginDescription.set(provider{ bodyInnerHTML("src/main/resources/META-INF/description.html") })
     changeNotes.set(provider{ bodyInnerHTML("src/main/resources/META-INF/changeNotes.html") } )
@@ -87,7 +87,7 @@ patchPluginXml {
 // 插件验证配置 - 验证向前兼容性
 runPluginVerifier {
     // 测试版本：覆盖支持的版本范围
-    ideVersions.set(['2024.3', '2025.1', '2025.2'])
+    ideVersions.set(['2024.3', '2025.1', '2025.2', '2026.1'])
     // 设置失败级别，只关注严重的兼容性问题
     failureLevel.set(['COMPATIBILITY_PROBLEMS'])
     // 下载目录配置

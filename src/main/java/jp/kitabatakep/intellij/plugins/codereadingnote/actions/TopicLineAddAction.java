@@ -284,12 +284,18 @@ public class TopicLineAddAction extends CommonAnAction {
         noteInputField.setPreferredSize(new JBDimension(250, 200));
         notePanel.add(noteInputField, BorderLayout.CENTER);
         
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton addButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.add.to.topic"));
-        JButton cancelButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.cancel"));
-        buttonPanel.add(addButton);
-        buttonPanel.add(cancelButton);
+        // Button panel with shortcut hints
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        JPanel buttonsRight = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton addButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.add.to.topic") + " (Ctrl+Enter)");
+        JButton cancelButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.cancel") + " (Esc)");
+        addButton.setMnemonic(KeyEvent.VK_A);
+        cancelButton.setMnemonic(KeyEvent.VK_C);
+        addButton.setToolTipText("Ctrl+Enter");
+        cancelButton.setToolTipText("Esc");
+        buttonsRight.add(addButton);
+        buttonsRight.add(cancelButton);
+        buttonPanel.add(buttonsRight, BorderLayout.EAST);
         
         // Layout main panel
         JPanel topGroupPanel = new JPanel(new BorderLayout());
@@ -382,6 +388,25 @@ public class TopicLineAddAction extends CommonAnAction {
             dialog.setVisible(false);
             dialog.dispose();
         });
+
+        // ESC key to close dialog
+        dialog.getRootPane().registerKeyboardAction(
+            e -> { dialog.setVisible(false); dialog.dispose(); },
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Ctrl+Enter to trigger Add action
+        dialog.getRootPane().registerKeyboardAction(
+            e -> addButton.doClick(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Auto-select first topic so shortcuts work immediately
+        if (!topics.isEmpty()) {
+            topicJList.setSelectedIndex(0);
+        }
 
         // Show dialog
         ApplicationManager.getApplication().executeOnPooledThread(() -> {

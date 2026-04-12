@@ -25,6 +25,7 @@ Code Reading Mark Note Pro 帮助你在阅读源码时创建笔记和书签，�
 
 ## Guides / 详细指南
 
+- **[Usage Tutorial / 完整使用教程](USAGE_TUTORIAL.md)** — All features, shortcuts, workflows, and FAQ / 所有功能、快捷键、工作流程和常见问题
 - **[Sync Guide / 同步功能指南](SYNC_GUIDE.md)** — GitHub sync setup, push/pull, merge strategies, remote repo structure / GitHub 同步配置、推送拉取、合并策略、远程仓库结构
 - **[AI Workspace Guide / AI 工作空间指南](AI_WORKSPACE_GUIDE.md)** — AI config management, file tree, sync status, quick create, ignore rules / AI 配置管理、文件树、同步状态、快速新建、忽略规则
 
@@ -80,9 +81,9 @@ Stored locally in `.idea/CodeReadingNote.xml`. Sync pushes data to your configur
 
 ### Q: Which IDEs are supported? / 支持哪些 IDE？
 
-All IDEs based on IntelliJ Platform 2024.3+: IntelliJ IDEA, WebStorm, PyCharm, GoLand, etc.
+All IDEs based on IntelliJ Platform 2024.3+ (no upper version limit): IntelliJ IDEA, WebStorm, PyCharm, GoLand, etc.
 
-所有基于 IntelliJ Platform 2024.3+ 的 IDE：IntelliJ IDEA、WebStorm、PyCharm、GoLand 等。
+所有基于 IntelliJ Platform 2024.3+ 的 IDE（无版本上限）：IntelliJ IDEA、WebStorm、PyCharm、GoLand 等。
 
 ### Q: Does the plugin modify project code? / 插件会影响项目代码吗？
 

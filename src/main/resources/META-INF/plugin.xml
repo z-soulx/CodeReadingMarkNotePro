@@ -5,9 +5,9 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.7.2</version>
-    <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
-    <idea-version since-build="243" until-build="253.*"/>
+    <version>3.7.3</version>
+    <!-- 版本兼容性：最低支持2024.3，无上限 -->
+    <idea-version since-build="243"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->
     <!-- 插件依赖：明确声明所需的IntelliJ模块 -->

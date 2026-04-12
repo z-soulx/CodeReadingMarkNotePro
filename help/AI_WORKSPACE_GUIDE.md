@@ -1,6 +1,6 @@
 # AI Workspace Guide / AI 工作空间使用指南
 
-> Code Reading Mark Note Pro v3.7.2+
+> Code Reading Mark Note Pro v3.7.3+
 
 ## Overview / 概述
 
