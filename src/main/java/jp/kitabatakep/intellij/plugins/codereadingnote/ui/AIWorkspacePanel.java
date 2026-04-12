@@ -350,7 +350,7 @@ public class AIWorkspacePanel extends JPanel {
         pathLabel.setFont(pathLabel.getFont().deriveFont(Font.BOLD));
         leftPanel.add(pathLabel);
 
-        JLabel typeLabel = new JLabel("[" + entry.getType().getDisplayName() + "]");
+        JLabel typeLabel = new JLabel("[" + AIConfigTypeRegistry.getEffectiveDisplayName(entry.getRelativePath()) + "]");
         typeLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
         leftPanel.add(typeLabel);
 
@@ -396,13 +396,13 @@ public class AIWorkspacePanel extends JPanel {
             }
         }
 
-        AIConfigType type = AIConfigType.detectType(pathPrefix);
+        String typeName = AIConfigTypeRegistry.getEffectiveDisplayName(pathPrefix);
 
         StringBuilder info = new StringBuilder();
         info.append("<html><body style='padding:16px;font-family:sans-serif;'>");
         info.append("<h2>").append(dirPath).append("/</h2>");
         info.append("<p><b>").append(CodeReadingNoteBundle.message("aiconfig.info.type")).append(":</b> ")
-            .append(type.getDisplayName()).append("</p>");
+            .append(typeName).append("</p>");
         info.append("<p><b>").append(CodeReadingNoteBundle.message("aiconfig.info.files")).append(":</b> ")
             .append(files.size()).append("</p>");
         if (!files.isEmpty()) {
@@ -606,11 +606,7 @@ public class AIWorkspacePanel extends JPanel {
                             public void onSuccess() {
                                 treePanel.loadEntries();
                                 updateStatus();
-                                com.intellij.openapi.ui.Messages.showInfoMessage(project,
-                                    applyResult.getUserMessage(),
-                                    applyResult.isSuccess()
-                                        ? CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title")
-                                        : CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                                showPullResultNotification(applyResult, decisions);
                             }
 
                             @Override
@@ -629,6 +625,36 @@ public class AIWorkspacePanel extends JPanel {
                         CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
                 }
             });
+    }
+
+    private void showPullResultNotification(
+            @NotNull jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult result,
+            @NotNull java.util.List<AIConfigMergeItem> decisions) {
+
+        int added = 0, updated = 0, deleted = 0, skipped = 0;
+        for (AIConfigMergeItem item : decisions) {
+            switch (item.getUserAction()) {
+                case ADD: added++; break;
+                case TAKE_REMOTE: updated++; break;
+                case DELETE: deleted++; break;
+                case SKIP: case KEEP_LOCAL: skipped++; break;
+            }
+        }
+
+        String summary = CodeReadingNoteBundle.message("aiconfig.sync.pull.summary",
+                added, updated, deleted, skipped);
+
+        com.intellij.notification.NotificationType type = result.isSuccess()
+                ? com.intellij.notification.NotificationType.INFORMATION
+                : com.intellij.notification.NotificationType.WARNING;
+
+        String title = result.isSuccess()
+                ? CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title")
+                : CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title");
+
+        com.intellij.notification.Notification notification = new com.intellij.notification.Notification(
+                "CodeReadingNote.AIConfig", title, summary, type);
+        com.intellij.notification.Notifications.Bus.notify(notification, project);
     }
 
     private void createNewAIConfig() {

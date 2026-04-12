@@ -66,6 +66,18 @@ public class AIConfigRegistry {
             }
         }
 
+        for (AIConfigTypeRegistry.CustomAIToolDef def : AIConfigTypeRegistry.getDefinitions()) {
+            if (def.pathPrefix == null || def.pathPrefix.isEmpty()) continue;
+            VirtualFile target = projectRoot.findFileByRelativePath(def.pathPrefix);
+            if (target == null || !target.isValid()) continue;
+            if (def.isDirectory && target.isDirectory()) {
+                discoveredDirs.add(getRelativePath(target, basePath));
+                collectFilesRecursively(target, basePath, discoveredPaths);
+            } else if (!target.isDirectory()) {
+                discoveredPaths.add(getRelativePath(target, basePath));
+            }
+        }
+
         for (String customPath : customPaths) {
             String absolutePath = (basePath + "/" + customPath).replace('\\', '/');
             VirtualFile target = LocalFileSystem.getInstance().refreshAndFindFileByPath(absolutePath);

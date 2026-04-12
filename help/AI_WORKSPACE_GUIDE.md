@@ -1,6 +1,6 @@
 # AI Workspace Guide / AI 工作空间使用指南
 
-> Code Reading Mark Note Pro v3.7.1+
+> Code Reading Mark Note Pro v3.7.2+
 
 ## Overview / 概述
 
@@ -99,7 +99,7 @@ Notes sync and AI config sync are **completely independent**:
 笔记同步与 AI 配置同步**完全独立**：
 
 - **Notes sync** (main toolbar ⬆⬇): Frequent changes, supports auto-sync / **笔记同步**（主工具栏 ⬆⬇）：变动频繁，支持自动同步
-- **AI config sync** (AI Workspace ⬆⬇): Less frequent, manual-only / **AI 配置同步**（AI 工作空间内 ⬆⬇）：变动较少，仅手动触发
+- **AI config sync** (AI Workspace ⬆⬇): Supports both manual and auto-sync / **AI 配置同步**（AI 工作空间内 ⬆⬇）：支持手动和自动同步
 
 ### Push / 推送
 
@@ -113,6 +113,74 @@ Notes sync and AI config sync are **completely independent**:
 1. Click **"Pull AI Configs"** / 点击 **「拉取AI配置」**
 2. Confirmation dialog warns "pull will overwrite local files" / 确认对话框提醒"拉取将覆盖本地文件"
 3. Remote files are written to local directories, tree auto-refreshes / 远程文件写入本地对应目录，文件树自动刷新
+
+### Auto-Sync / 自动同步
+
+> v3.7.2+
+
+#### How to Enable / 如何开启
+
+Settings → Tools → Code Reading Note Sync → check **"AI Config Auto Sync"**.
+
+设置 → Tools → Code Reading Note Sync → 勾选 **「AI配置自动同步」**。
+
+#### How It Works / 工作原理
+
+```
+ Local file change (VFS event)
+        │
+        ▼
+ Is the file a tracked AI config entry?
+        │ No → ignore
+        ▼ Yes
+ AIConfigAutoSyncScheduler.scheduleAutoSync()
+        │
+        ▼
+ Debounce 5 seconds (resets timer on each new change)
+        │
+        ▼
+ Pre-flight checks:
+   ├─ Sync enabled? + AI Config Auto Sync enabled?
+   ├─ Config valid? (repo/token/branch)
+   └─ Has prior sync history? (lastSyncedRemoteMetadataHash ≠ "")
+        │ Any check fails → skip, log reason
+        ▼ All pass
+ Remote conflict check:
+   Pull remote ai-config-registry.json →
+   Compare MD5(remote) with lastSyncedRemoteMetadataHash
+        │
+        ├─ Hash mismatch → CONFLICT
+        │     Pause auto-sync.
+        │     Show modal conflict dialog with 3 actions:
+        │       [Pull from Remote] — overwrite local with remote
+        │       [Force Push]       — overwrite remote with local
+        │       [Cancel]           — keep paused, resolve manually later
+        │
+        └─ Hash matches → SAFE
+              Execute pushAIConfigs() (same as manual push)
+              Update lastSyncedRemoteMetadataHash on success.
+```
+
+自动同步流程：
+
+1. 本地 AI 配置文件发生变更（VFS 事件监听）
+2. 判断该文件是否为已追踪(tracked)的 AI 配置 → 否则忽略
+3. 进入 5 秒防抖调度（每次新变更重置计时器，避免频繁推送）
+4. 飞行前检查：同步已启用？AI 配置自动同步已开启？配置合法？有过手动同步记录？
+5. 远端冲突检测：拉取远端 `ai-config-registry.json`，比较 MD5 哈希
+   - **哈希不匹配** → 检测到冲突，暂停自动推送，弹出冲突对话框（Pull / Force Push / Cancel）
+   - **哈希匹配** → 安全，执行推送
+
+#### Important Notes / 注意事项
+
+- **First sync must be manual**: Auto-sync requires at least one manual push or pull before it activates. This is because the conflict detection baseline (`lastSyncedRemoteMetadataHash`) is only set during a full manual sync.
+- **首次同步必须手动**：自动同步需要至少一次手动推送或拉取后才会激活，因为冲突检测基线 (`lastSyncedRemoteMetadataHash`) 仅在完整手动同步时设置。
+- **Auto-sync is push-only**: It only pushes local changes to remote. It does NOT auto-pull. To get remote changes, always use manual pull.
+- **自动同步仅推送**：只将本地变更推送到远端，不会自动拉取。获取远端变更始终需要手动拉取。
+- **Conflict = dialog, not overwrite**: If another device pushed changes, auto-sync pauses and shows a conflict dialog (Pull / Force Push / Cancel), same pattern as the topic sync conflict dialog. If you cancel, auto-sync stays paused until you manually resolve from the AI Workspace tab.
+- **冲突 = 对话框而非覆盖**：如果其他设备推送了变更，自动同步会暂停并弹出冲突对话框（拉取 / 强制推送 / 取消），与笔记同步冲突对话框相同模式。如果取消，自动同步保持暂停直到你从 AI 工作空间标签页手动解决。
+
+---
 
 ### Untrack → Push = Remote Delete / 取消追踪 → 推送 = 远端删除
 
@@ -173,6 +241,90 @@ Custom rules are persisted and survive IDE restarts.
 
 ---
 
+## Remote File Structure (GitHub) / 远端文件结构
+
+Understanding the remote file layout is essential for testing and debugging sync.
+
+了解远端文件布局对于测试和调试同步至关重要。
+
+```
+{basePath}/{projectName}/
+├── ai-config-manifest.txt        ← File list (one path per line)
+├── ai-config-registry.json       ← Metadata (tracked state, hashes, settings)
+└── ai-configs/                   ← Actual file content
+    ├── .cursor/rules/
+    │   └── CLAUDE.md
+    ├── .claude/
+    │   └── CLAUDE.md
+    └── .ai/
+        └── ARCHITECTURE.md
+```
+
+| File / 文件 | Role / 作用 |
+|------|------|
+| `ai-config-manifest.txt` | Plain text list of tracked file paths (one per line). Used during pull to know which files to fetch. / 追踪文件路径列表（每行一个），拉取时据此获取文件。 |
+| `ai-config-registry.json` | JSON metadata: customPaths, ignorePatterns, trackedEntries (path + tracked flag + type), lastPushedFileHashes, trackedEmptyDirs. **This is the conflict detection target** — auto-sync compares its MD5 hash. / JSON 元数据：自定义路径、忽略规则、追踪条目（路径+追踪标记+类型）、上次推送哈希、追踪空目录。**这是冲突检测的目标**——自动同步比较它的 MD5 哈希。 |
+| `ai-configs/{relativePath}` | Actual file content stored as individual GitHub files. / 实际文件内容，存储为独立的 GitHub 文件。 |
+
+---
+
+## Testing Auto-Sync with Remote Changes / 测试自动同步与远端变更
+
+### Scenario 1: Trigger Remote Conflict Detection / 场景一：触发远端冲突检测
+
+This tests what happens when another device (or manual edit) changes the remote, then local auto-sync tries to push.
+
+测试当其他设备（或手动编辑）修改了远端后，本地自动同步尝试推送会发生什么。
+
+**Steps / 步骤：**
+
+1. **Ensure auto-sync is active**: Do a manual push first so `lastSyncedRemoteMetadataHash` is set.
+
+   **确保自动同步已激活**：先手动推送一次，建立基线。
+
+2. **Edit `ai-config-registry.json` on GitHub**: Go to your sync repo on GitHub → navigate to `{basePath}/{projectName}/ai-config-registry.json` → click Edit → make any small change (e.g., add a space or toggle a `"tracked":true` to `false`) → commit.
+
+   **在 GitHub 上编辑 `ai-config-registry.json`**：打开同步仓库 → 找到 `{basePath}/{projectName}/ai-config-registry.json` → 点击编辑 → 做任意小改动（例如加一个空格、或将某个 `"tracked":true` 改为 `false`）→ 提交。
+
+3. **Modify a local tracked file**: Edit any tracked AI config file locally (e.g., add a line to `.cursor/rules/CLAUDE.md`).
+
+   **修改本地追踪文件**：编辑任一本地已追踪的 AI 配置文件（例如在 `.cursor/rules/CLAUDE.md` 中添加一行）。
+
+4. **Observe**: After 5 seconds, a conflict dialog should appear with three buttons: **Pull from Remote** / **Force Push to Remote** / **Cancel**. Auto-sync is paused.
+
+   **观察**：5 秒后应弹出冲突对话框，包含三个按钮：**从远端拉取** / **强制推送到远端** / **取消**。自动同步暂停。
+
+### Scenario 2: Normal Auto-Sync Push / 场景二：正常自动推送
+
+1. Do a manual push to establish baseline / 手动推送建立基线
+2. Edit a local tracked file / 编辑本地追踪文件
+3. Wait 5 seconds / 等待 5 秒
+4. Check GitHub — the file should be updated / 检查 GitHub — 文件应已更新
+
+### Scenario 3: Edit Remote File Content Directly / 场景三：直接编辑远端文件内容
+
+**What to edit**: `{basePath}/{projectName}/ai-configs/.cursor/rules/CLAUDE.md` (or any config file under `ai-configs/`).
+
+**编辑目标**：`{basePath}/{projectName}/ai-configs/.cursor/rules/CLAUDE.md`（或 `ai-configs/` 下任意配置文件）。
+
+**What happens**: If you only edit the file content on GitHub **without** also changing `ai-config-registry.json`, the local auto-sync **will not detect a conflict** — it will push and overwrite the remote file. This is by design: conflict detection is metadata-level, not file-level. To get the remote file changes, you need to **manually pull** before local auto-sync overwrites them.
+
+**结果**：如果只在 GitHub 上编辑文件内容而**不修改** `ai-config-registry.json`，本地自动同步**不会检测到冲突**——会推送并覆盖远端文件。这是设计如此：冲突检测基于元数据级别，非文件级别。要获取远端文件变更，需要在本地自动同步覆盖前**手动拉取**。
+
+### Summary Table / 总结表
+
+| What you edit on GitHub / 在 GitHub 上编辑 | Conflict detected? / 检测到冲突？ | Auto-sync behavior / 自动同步行为 |
+|------|------|------|
+| `ai-config-registry.json` | Yes ✓ | Paused + notification / 暂停 + 通知 |
+| `ai-configs/` files only | No ✗ | Pushes normally (may overwrite) / 正常推送（可能覆盖） |
+| Both registry + files | Yes ✓ | Paused + notification / 暂停 + 通知 |
+
+> **Tip**: In a real multi-device scenario, conflict detection always works correctly because the other device's plugin push updates **both** the config files and the registry.json simultaneously. Direct GitHub editing is an edge case.
+>
+> **提示**：在真实多设备场景中，冲突检测始终有效，因为另一台设备的插件推送会**同时更新**配置文件和 registry.json。直接编辑 GitHub 是边缘场景。
+
+---
+
 ## Data Persistence / 数据持久化
 
 The following states are preserved across IDE restarts (stored in `.idea/aiConfigRegistry.xml`):
@@ -194,15 +346,27 @@ No. They are completely independent. / 不会。两者完全独立。
 
 **Q: Which AI tools are supported? / 支持哪些 AI 工具？**
 
-Built-in: Cursor, Claude, AI Docs, Windsurf, Codex, Copilot. Track any file via custom paths.
+Built-in: Cursor, Claude, AI Docs, Windsurf, Codex, Copilot. Track any file via custom paths. v3.7.2+ also supports registering custom AI tool types at runtime.
 
-内置 Cursor、Claude、AI Docs、Windsurf、Codex、Copilot，可通过自定义路径追踪任意文件。
+内置 Cursor、Claude、AI Docs、Windsurf、Codex、Copilot，可通过自定义路径追踪任意文件。v3.7.2+ 还支持运行时注册自定义 AI 工具类型。
 
 **Q: Will AI config files be committed to the project Git? / AI 配置文件会被提交到项目 Git 吗？**
 
 No. AI Workspace does not change files' Git status. Sync uses a separate GitHub repo.
 
 不会。AI 工作空间不改变文件的 Git 状态。同步使用的是独立的 GitHub 仓库。
+
+**Q: Why doesn't auto-sync push after I enable it? / 为什么开启自动同步后不推送？**
+
+Auto-sync requires at least one manual push or pull to set the conflict detection baseline. Do a manual push first, then auto-sync will activate.
+
+自动同步需要至少一次手动推送或拉取来设置冲突检测基线。先手动推送一次，之后自动同步才会激活。
+
+**Q: I edited a file on GitHub but auto-sync didn't detect the conflict? / 我在 GitHub 上编辑了文件但自动同步没检测到冲突？**
+
+Conflict detection compares the `ai-config-registry.json` metadata hash, not individual file hashes. If you only edited file content under `ai-configs/`, the metadata hash is unchanged. In real multi-device usage, the plugin always updates both files and registry together, so this is only an issue with direct GitHub edits.
+
+冲突检测比较的是 `ai-config-registry.json` 元数据哈希，而非单个文件哈希。如果只编辑了 `ai-configs/` 下的文件内容，元数据哈希不变。在真实多设备使用中，插件总是同时更新文件和 registry，所以这只在直接编辑 GitHub 时才会出现。
 
 ---
 

@@ -1,8 +1,14 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
 import jp.kitabatakep.intellij.plugins.codereadingnote.sync.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -10,9 +16,8 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Bridges AI config file sync with the existing SyncService infrastructure.
@@ -22,6 +27,7 @@ import java.util.regex.Pattern;
 public final class AIConfigSyncAdapter {
 
     private static final Logger LOG = Logger.getInstance(AIConfigSyncAdapter.class);
+    private static final Gson GSON = new Gson();
 
     private final Project project;
 
@@ -48,8 +54,6 @@ public final class AIConfigSyncAdapter {
 
         Map<String, byte[]> trackedFiles = registry.collectTrackedFilesContent();
 
-        // Combined hash check (skip entire push if nothing changed at all, unless forcing)
-        // Include tracked empty dirs in hash so checking/unchecking them triggers a push
         String baseHash = registry.computeTrackedContentHash();
         Set<String> emptyDirSet = aiService.getTrackedEmptyDirs();
         String currentHash = baseHash + "|EDIRS:" + emptyDirSet.stream().sorted()
@@ -73,7 +77,6 @@ public final class AIConfigSyncAdapter {
         SyncResult result = provider.pushFiles(project, config, trackedFiles, projectIdentifier,
                                                emptyDirs, lastFileHashes, forceAll);
 
-        // Parse the detailed report from result data
         FilePushReport report = null;
         String reportData = result.getData();
         if (reportData != null && reportData.startsWith("{")) {
@@ -84,37 +87,26 @@ public final class AIConfigSyncAdapter {
             }
         }
 
-        // Selective hash recording: only record hashes for pushed + skipped files, not failed
         Map<String, String> newFileHashes = new HashMap<>(aiService.getLastPushedFileHashes());
 
         if (report != null) {
-            // Pushed files: update their hashes to current content hash
             for (String pushed : report.getPushedFiles()) {
                 AIConfigEntry entry = registry.findByPath(pushed);
                 if (entry != null && !entry.getContentHash().isEmpty()) {
                     newFileHashes.put(pushed, entry.getContentHash());
                 }
             }
-            // Skipped files: hashes already correct in the map, no change needed
-
-            // Failed files: remove from hash map so they'll be retried next push
             for (String failedPath : report.getFailedFiles().keySet()) {
                 newFileHashes.remove(failedPath);
             }
-
-            // Deleted files: remove from hash map
             for (String deleted : report.getDeletedFiles()) {
                 newFileHashes.remove(deleted);
             }
-
             aiService.setLastPushedFileHashes(newFileHashes);
-
-            // Only update combined hash if there are no failures
             if (!report.hasFailures()) {
                 aiService.setLastPushedHash(currentHash);
             }
         } else if (result.isSuccess()) {
-            // Fallback: no report available, use legacy behavior
             aiService.setLastPushedHash(currentHash);
             Map<String, String> fileHashes = new HashMap<>();
             for (AIConfigEntry entry : registry.getTrackedEntries()) {
@@ -125,7 +117,6 @@ public final class AIConfigSyncAdapter {
             aiService.setLastPushedFileHashes(fileHashes);
         }
 
-        // Best-effort: push workspace metadata for cross-machine state sharing
         if (result.isSuccess() || (report != null && !report.getPushedFiles().isEmpty())) {
             pushWorkspaceMetadata(provider, config, projectIdentifier, aiService);
         }
@@ -133,7 +124,6 @@ public final class AIConfigSyncAdapter {
         return result;
     }
 
-    /** Convenience overload for non-force push. */
     @NotNull
     public SyncResult pushAIConfigs(@NotNull SyncConfig config, @NotNull String projectIdentifier) {
         return pushAIConfigs(config, projectIdentifier, false);
@@ -143,7 +133,6 @@ public final class AIConfigSyncAdapter {
 
     /**
      * Phase A: fetch remote files and parse them into a map without writing to disk.
-     * Returns null on failure (caller should check the SyncResult stored in {@link FetchResult}).
      */
     @NotNull
     public FetchResult fetchRemoteFiles(@NotNull SyncConfig config, @NotNull String projectIdentifier) {
@@ -164,14 +153,14 @@ public final class AIConfigSyncAdapter {
 
         Map<String, byte[]> remoteFiles = new LinkedHashMap<>();
         try {
-            Pattern entryPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"");
-            Matcher matcher = entryPattern.matcher(data);
+            JsonObject jsonObj = JsonParser.parseString(data).getAsJsonObject();
             String basePath = project.getBasePath();
 
-            while (matcher.find()) {
-                String relativePath = unescapeJson(matcher.group(1));
-                String base64Content = matcher.group(2);
+            for (Map.Entry<String, JsonElement> entry : jsonObj.entrySet()) {
+                String relativePath = entry.getKey();
+                String base64Content = entry.getValue().getAsString();
 
+                // TODO: directory creation here is a side effect during fetch (before user confirms merge).
                 if (relativePath.endsWith("/") && base64Content.isEmpty()) {
                     if (basePath != null) {
                         File dir = new File(basePath, relativePath);
@@ -208,10 +197,7 @@ public final class AIConfigSyncAdapter {
             return SyncResult.failure("Project base path is null");
         }
 
-        int written = 0;
-        int deleted = 0;
-        int skipped = 0;
-        int failed = 0;
+        int written = 0, deleted = 0, skipped = 0, failed = 0;
 
         for (AIConfigMergeItem item : mergeItems) {
             AIConfigMergeItem.Action action = item.getUserAction();
@@ -240,7 +226,7 @@ public final class AIConfigSyncAdapter {
                     try {
                         File targetFile = new File(basePath, relativePath);
                         if (targetFile.exists()) {
-                            java.nio.file.Files.deleteIfExists(targetFile.toPath());
+                            Files.deleteIfExists(targetFile.toPath());
                             deleted++;
                         }
                     } catch (Exception e) {
@@ -259,14 +245,13 @@ public final class AIConfigSyncAdapter {
 
         AIConfigService aiService = AIConfigService.getInstance(project);
 
-        pullAndApplyMetadataPreRescan(provider, config, projectIdentifier, aiService);
-        aiService.rescan();
-        pullAndApplyMetadataPostRescan(provider, config, projectIdentifier, aiService);
+        refreshProjectVFS(basePath);
+        pullAndApplyMetadata(provider, config, projectIdentifier, aiService);
         updateHashesAfterPull(aiService);
 
         String msg = "Pulled: " + written + " written, " + deleted + " deleted, "
                 + skipped + " skipped" + (failed > 0 ? ", " + failed + " failed" : "");
-        return failed == 0 ? SyncResult.success(msg) : SyncResult.success(msg);
+        return failed > 0 ? SyncResult.failure(msg) : SyncResult.success(msg);
     }
 
     /**
@@ -294,16 +279,14 @@ public final class AIConfigSyncAdapter {
             return SyncResult.failure("Project base path is null");
         }
 
-        int written = 0;
-        int failed = 0;
+        int written = 0, failed = 0;
 
         try {
-            Pattern entryPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"");
-            Matcher matcher = entryPattern.matcher(data);
+            JsonObject jsonObj = JsonParser.parseString(data).getAsJsonObject();
 
-            while (matcher.find()) {
-                String relativePath = unescapeJson(matcher.group(1));
-                String base64Content = matcher.group(2);
+            for (Map.Entry<String, JsonElement> entry : jsonObj.entrySet()) {
+                String relativePath = entry.getKey();
+                String base64Content = entry.getValue().getAsString();
 
                 if (relativePath.endsWith("/") && base64Content.isEmpty()) {
                     File dir = new File(basePath, relativePath);
@@ -316,12 +299,10 @@ public final class AIConfigSyncAdapter {
                 try {
                     byte[] content = Base64.getDecoder().decode(base64Content);
                     File targetFile = new File(basePath, relativePath);
-
                     File parent = targetFile.getParentFile();
                     if (parent != null && !parent.exists()) {
                         parent.mkdirs();
                     }
-
                     Files.write(targetFile.toPath(), content);
                     written++;
                 } catch (Exception e) {
@@ -336,15 +317,14 @@ public final class AIConfigSyncAdapter {
 
         AIConfigService aiService = AIConfigService.getInstance(project);
 
-        pullAndApplyMetadataPreRescan(provider, config, projectIdentifier, aiService);
-        aiService.rescan();
-        pullAndApplyMetadataPostRescan(provider, config, projectIdentifier, aiService);
+        refreshProjectVFS(basePath);
+        pullAndApplyMetadata(provider, config, projectIdentifier, aiService);
         updateHashesAfterPull(aiService);
 
         if (failed == 0) {
             return SyncResult.success("Pulled " + written + " AI config file(s)");
         } else {
-            return SyncResult.success("Pulled " + written + " file(s), " + failed + " failed");
+            return SyncResult.failure("Pulled " + written + " file(s), " + failed + " failed");
         }
     }
 
@@ -364,9 +344,8 @@ public final class AIConfigSyncAdapter {
         aiService.setLastPushedFileHashes(fileHashes);
     }
 
-    /**
-     * Result of fetching remote files without writing them.
-     */
+    // ========== FetchResult ==========
+
     public static class FetchResult {
         private final SyncResult errorResult;
         private final Map<String, byte[]> remoteFiles;
@@ -384,14 +363,10 @@ public final class AIConfigSyncAdapter {
             this.provider = provider;
         }
 
-        public boolean isSuccess() {
-            return remoteFiles != null;
-        }
+        public boolean isSuccess() { return remoteFiles != null; }
 
         @Nullable
-        public SyncResult getErrorResult() {
-            return errorResult;
-        }
+        public SyncResult getErrorResult() { return errorResult; }
 
         @NotNull
         public Map<String, byte[]> getRemoteFiles() {
@@ -399,9 +374,7 @@ public final class AIConfigSyncAdapter {
         }
 
         @Nullable
-        public SyncProvider getProvider() {
-            return provider;
-        }
+        public SyncProvider getProvider() { return provider; }
     }
 
     // ========== Workspace metadata sync ==========
@@ -411,7 +384,9 @@ public final class AIConfigSyncAdapter {
         try {
             String metadataJson = serializeMetadata(aiService);
             SyncResult metaResult = provider.pushMetadata(config, projectIdentifier, metadataJson);
-            if (!metaResult.isSuccess()) {
+            if (metaResult.isSuccess()) {
+                aiService.setLastSyncedRemoteMetadataHash(computeMD5(metadataJson));
+            } else {
                 LOG.warn("Failed to push workspace metadata: " + metaResult.getMessage());
             }
         } catch (Exception e) {
@@ -419,271 +394,95 @@ public final class AIConfigSyncAdapter {
         }
     }
 
-    /** Cached metadata JSON from remote, used across the two-phase apply. */
-    private String cachedRemoteMetadataJson;
-
-    private void pullAndApplyMetadataPreRescan(@NotNull SyncProvider provider, @NotNull SyncConfig config,
-                                                @NotNull String projectIdentifier, @NotNull AIConfigService aiService) {
-        cachedRemoteMetadataJson = null;
+    /**
+     * Unified metadata pull and apply: pre-rescan (customPaths, ignorePatterns),
+     * then rescan, then post-rescan (tracked state, empty dirs).
+     */
+    private void pullAndApplyMetadata(@NotNull SyncProvider provider, @NotNull SyncConfig config,
+                                      @NotNull String projectIdentifier, @NotNull AIConfigService aiService) {
+        AIConfigMetadata metadata = null;
+        String rawJson = null;
         try {
             SyncResult metaResult = provider.pullMetadata(config, projectIdentifier);
             if (metaResult.isSuccess() && metaResult.getData() != null) {
-                cachedRemoteMetadataJson = metaResult.getData();
-                applyMetadataPreRescan(cachedRemoteMetadataJson, aiService);
+                rawJson = metaResult.getData();
+                metadata = GSON.fromJson(rawJson, AIConfigMetadata.class);
             }
         } catch (Exception e) {
-            LOG.warn("Failed to pull workspace metadata (pre-rescan)", e);
+            LOG.warn("Failed to pull workspace metadata", e);
         }
-    }
 
-    private void pullAndApplyMetadataPostRescan(@NotNull SyncProvider provider, @NotNull SyncConfig config,
-                                                 @NotNull String projectIdentifier, @NotNull AIConfigService aiService) {
-        if (cachedRemoteMetadataJson == null) return;
-        try {
-            applyMetadataPostRescan(cachedRemoteMetadataJson, aiService);
-        } catch (Exception e) {
-            LOG.warn("Failed to apply workspace metadata (post-rescan)", e);
-        } finally {
-            cachedRemoteMetadataJson = null;
+        if (metadata == null) return;
+
+        if (rawJson != null) {
+            aiService.setLastSyncedRemoteMetadataHash(computeMD5(rawJson));
         }
+
+        applyMetadataPreRescan(metadata, aiService);
+        aiService.rescan();
+        applyMetadataPostRescan(metadata, aiService);
     }
 
     @NotNull
     private String serializeMetadata(@NotNull AIConfigService aiService) {
         AIConfigRegistry registry = aiService.getRegistry();
-        StringBuilder sb = new StringBuilder("{");
 
-        // customPaths
-        sb.append("\"customPaths\":[");
-        boolean first = true;
-        for (String p : registry.getCustomPaths()) {
-            if (!first) sb.append(",");
-            sb.append("\"").append(escapeJson(p)).append("\"");
-            first = false;
-        }
-        sb.append("],");
+        AIConfigMetadata metadata = new AIConfigMetadata();
+        metadata.customPaths = new ArrayList<>(registry.getCustomPaths());
+        metadata.ignorePatterns = new ArrayList<>(registry.getUserIgnorePatterns());
 
-        // ignorePatterns
-        sb.append("\"ignorePatterns\":[");
-        first = true;
-        for (String p : registry.getUserIgnorePatterns()) {
-            if (!first) sb.append(",");
-            sb.append("\"").append(escapeJson(p)).append("\"");
-            first = false;
-        }
-        sb.append("],");
-
-        // trackedEntries
-        sb.append("\"trackedEntries\":[");
-        first = true;
         for (AIConfigEntry entry : registry.getEntries()) {
-            if (!first) sb.append(",");
-            sb.append("{\"relativePath\":\"").append(escapeJson(entry.getRelativePath())).append("\"")
-              .append(",\"tracked\":").append(entry.isTracked())
-              .append(",\"typeName\":\"").append(escapeJson(entry.getType().name())).append("\"}");
-            first = false;
+            metadata.trackedEntries.add(new AIConfigMetadata.TrackedEntry(
+                    entry.getRelativePath(), entry.isTracked(), entry.getType().name()));
         }
-        sb.append("],");
 
-        // lastPushedFileHashes
-        sb.append("\"lastPushedFileHashes\":[");
-        first = true;
         for (Map.Entry<String, String> e : aiService.getLastPushedFileHashes().entrySet()) {
-            if (!first) sb.append(",");
-            sb.append("{\"relativePath\":\"").append(escapeJson(e.getKey())).append("\"")
-              .append(",\"contentHash\":\"").append(escapeJson(e.getValue())).append("\"}");
-            first = false;
+            metadata.lastPushedFileHashes.add(new AIConfigMetadata.FileHash(e.getKey(), e.getValue()));
         }
-        sb.append("],");
 
-        // trackedEmptyDirs
-        sb.append("\"trackedEmptyDirs\":[");
-        first = true;
-        for (String dir : aiService.getTrackedEmptyDirs()) {
-            if (!first) sb.append(",");
-            sb.append("\"").append(escapeJson(dir)).append("\"");
-            first = false;
-        }
-        sb.append("]}");
+        metadata.trackedEmptyDirs = new ArrayList<>(aiService.getTrackedEmptyDirs());
 
-        return sb.toString();
+        return GSON.toJson(metadata);
     }
 
-    /**
-     * Phase 1 (before rescan): apply customPaths and ignorePatterns so rescan
-     * discovers the correct set of files.
-     */
-    private void applyMetadataPreRescan(@NotNull String metadataJson, @NotNull AIConfigService aiService) {
+    private void applyMetadataPreRescan(@NotNull AIConfigMetadata metadata, @NotNull AIConfigService aiService) {
         AIConfigRegistry registry = aiService.getRegistry();
 
-        List<String> remoteCustomPaths = parseJsonStringList(metadataJson, "customPaths");
-        if (!remoteCustomPaths.isEmpty()) {
+        if (metadata.customPaths != null && !metadata.customPaths.isEmpty()) {
             Set<String> merged = new LinkedHashSet<>(registry.getCustomPaths());
-            merged.addAll(remoteCustomPaths);
+            merged.addAll(metadata.customPaths);
             registry.setCustomPaths(merged);
         }
 
-        List<String> remoteIgnorePatterns = parseJsonStringList(metadataJson, "ignorePatterns");
-        if (!remoteIgnorePatterns.isEmpty()) {
+        if (metadata.ignorePatterns != null && !metadata.ignorePatterns.isEmpty()) {
             Set<String> merged = new LinkedHashSet<>(registry.getUserIgnorePatterns());
-            merged.addAll(remoteIgnorePatterns);
+            merged.addAll(metadata.ignorePatterns);
             registry.setUserIgnorePatterns(new ArrayList<>(merged));
         }
 
-        LOG.info("Applied remote metadata (pre-rescan): " + remoteCustomPaths.size() + " custom paths, "
-                 + remoteIgnorePatterns.size() + " ignore patterns");
+        LOG.info("Applied remote metadata (pre-rescan): "
+                + (metadata.customPaths != null ? metadata.customPaths.size() : 0) + " custom paths, "
+                + (metadata.ignorePatterns != null ? metadata.ignorePatterns.size() : 0) + " ignore patterns");
     }
 
-    /**
-     * Phase 2 (after rescan): apply trackedEntries and file hashes to the
-     * newly created entries so they reflect the remote state.
-     */
-    private void applyMetadataPostRescan(@NotNull String metadataJson, @NotNull AIConfigService aiService) {
-        List<TrackedEntryMeta> remoteTracked = parseTrackedEntries(metadataJson);
+    private void applyMetadataPostRescan(@NotNull AIConfigMetadata metadata, @NotNull AIConfigService aiService) {
+        List<TrackedEntryMeta> remoteTracked = metadata.toTrackedEntryMetas();
         aiService.applyRemoteTrackedState(remoteTracked);
 
-        Map<String, String> remoteHashes = parseFileHashes(metadataJson);
-        if (!remoteHashes.isEmpty()) {
-            aiService.setLastPushedFileHashes(remoteHashes);
-        }
-
-        List<String> remoteEmptyDirs = parseJsonStringList(metadataJson, "trackedEmptyDirs");
-        if (!remoteEmptyDirs.isEmpty()) {
-            aiService.setTrackedEmptyDirs(new LinkedHashSet<>(remoteEmptyDirs));
+        if (metadata.trackedEmptyDirs != null && !metadata.trackedEmptyDirs.isEmpty()) {
+            aiService.setTrackedEmptyDirs(new LinkedHashSet<>(metadata.trackedEmptyDirs));
         }
 
         LOG.info("Applied remote metadata (post-rescan): " + remoteTracked.size() + " tracked entries, "
-                 + remoteHashes.size() + " file hashes, " + remoteEmptyDirs.size() + " tracked empty dirs");
-    }
-
-    // ========== Metadata JSON parsing helpers ==========
-
-    @NotNull
-    private List<String> parseJsonStringList(@NotNull String json, @NotNull String key) {
-        List<String> result = new ArrayList<>();
-        String prefix = "\"" + key + "\":[";
-        int start = json.indexOf(prefix);
-        if (start < 0) return result;
-        start += prefix.length();
-        int end = json.indexOf("]", start);
-        if (end <= start) return result;
-        String content = json.substring(start, end);
-        if (content.isEmpty()) return result;
-
-        int i = 0;
-        while (i < content.length()) {
-            int qStart = content.indexOf('"', i);
-            if (qStart < 0) break;
-            int qEnd = findClosingQuote(content, qStart + 1);
-            if (qEnd < 0) break;
-            result.add(unescapeJson(content.substring(qStart + 1, qEnd)));
-            i = qEnd + 1;
-        }
-        return result;
-    }
-
-    @NotNull
-    private List<TrackedEntryMeta> parseTrackedEntries(@NotNull String json) {
-        List<TrackedEntryMeta> result = new ArrayList<>();
-        String prefix = "\"trackedEntries\":[";
-        int start = json.indexOf(prefix);
-        if (start < 0) return result;
-        start += prefix.length();
-
-        // Find matching ]
-        int depth = 1;
-        int end = start;
-        while (end < json.length() && depth > 0) {
-            char c = json.charAt(end);
-            if (c == '[') depth++;
-            else if (c == ']') depth--;
-            if (depth > 0) end++;
-        }
-        String content = json.substring(start, end);
-
-        // Parse each {...} object
-        int i = 0;
-        while (i < content.length()) {
-            int objStart = content.indexOf('{', i);
-            if (objStart < 0) break;
-            int objEnd = content.indexOf('}', objStart);
-            if (objEnd < 0) break;
-            String obj = content.substring(objStart, objEnd + 1);
-            String path = extractJsonStringValue(obj, "relativePath");
-            boolean tracked = obj.contains("\"tracked\":true");
-            String typeName = extractJsonStringValue(obj, "typeName");
-            if (path != null) {
-                result.add(new TrackedEntryMeta(path, tracked, typeName != null ? typeName : "CUSTOM"));
-            }
-            i = objEnd + 1;
-        }
-        return result;
-    }
-
-    @NotNull
-    private Map<String, String> parseFileHashes(@NotNull String json) {
-        Map<String, String> result = new LinkedHashMap<>();
-        String prefix = "\"lastPushedFileHashes\":[";
-        int start = json.indexOf(prefix);
-        if (start < 0) return result;
-        start += prefix.length();
-
-        int depth = 1;
-        int end = start;
-        while (end < json.length() && depth > 0) {
-            char c = json.charAt(end);
-            if (c == '[') depth++;
-            else if (c == ']') depth--;
-            if (depth > 0) end++;
-        }
-        String content = json.substring(start, end);
-
-        int i = 0;
-        while (i < content.length()) {
-            int objStart = content.indexOf('{', i);
-            if (objStart < 0) break;
-            int objEnd = content.indexOf('}', objStart);
-            if (objEnd < 0) break;
-            String obj = content.substring(objStart, objEnd + 1);
-            String path = extractJsonStringValue(obj, "relativePath");
-            String hash = extractJsonStringValue(obj, "contentHash");
-            if (path != null && hash != null) {
-                result.put(path, hash);
-            }
-            i = objEnd + 1;
-        }
-        return result;
-    }
-
-    private String extractJsonStringValue(@NotNull String json, @NotNull String key) {
-        String prefix = "\"" + key + "\":\"";
-        int start = json.indexOf(prefix);
-        if (start < 0) return null;
-        start += prefix.length();
-        int end = findClosingQuote(json, start);
-        if (end < 0) return null;
-        return unescapeJson(json.substring(start, end));
-    }
-
-    private int findClosingQuote(@NotNull String s, int from) {
-        for (int i = from; i < s.length(); i++) {
-            if (s.charAt(i) == '\\') { i++; continue; }
-            if (s.charAt(i) == '"') return i;
-        }
-        return -1;
+                + (metadata.trackedEmptyDirs != null ? metadata.trackedEmptyDirs.size() : 0) + " tracked empty dirs");
     }
 
     // ========== Utility ==========
 
-    /**
-     * Returns the set of empty directories the user has explicitly checked for sync.
-     * These are stored in AIConfigService persistent state.
-     */
     @NotNull
     private Set<String> findEmptyTrackedDirs(@NotNull AIConfigRegistry registry) {
         AIConfigService aiService = AIConfigService.getInstance(project);
         Set<String> persisted = aiService.getTrackedEmptyDirs();
-        // Only include dirs that still exist in the discovered dirs (not stale)
         Set<String> discoveredDirs = registry.getDiscoveredDirs();
         Set<String> result = new LinkedHashSet<>();
         for (String dir : persisted) {
@@ -694,19 +493,54 @@ public final class AIConfigSyncAdapter {
         return result;
     }
 
-    @NotNull
-    private String escapeJson(@NotNull String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+    private void refreshProjectVFS(@NotNull String basePath) {
+        VirtualFile projectRoot = LocalFileSystem.getInstance().refreshAndFindFileByPath(
+                basePath.replace('\\', '/'));
+        if (projectRoot != null) {
+            projectRoot.refresh(false, true);
+        }
+    }
+
+    /**
+     * Checks if remote metadata has been modified since our last sync.
+     * Used by auto-sync to avoid overwriting newer remote content.
+     *
+     * @return true if remote has changes we haven't synced, false if safe to push
+     */
+    public boolean checkRemoteConflict(@NotNull SyncConfig config, @NotNull String projectIdentifier) {
+        AIConfigService aiService = AIConfigService.getInstance(project);
+        String lastKnownHash = aiService.getLastSyncedRemoteMetadataHash();
+        if (lastKnownHash.isEmpty()) return false;
+
+        try {
+            SyncProvider provider = SyncProviderFactory.getProvider(config);
+            SyncResult metaResult = provider.pullMetadata(config, projectIdentifier);
+            if (!metaResult.isSuccess() || metaResult.getData() == null) {
+                return false;
+            }
+            String currentRemoteHash = computeMD5(metaResult.getData());
+            return !lastKnownHash.equals(currentRemoteHash);
+        } catch (Exception e) {
+            LOG.warn("Failed to check remote conflict", e);
+            return false;
+        }
     }
 
     @NotNull
-    private String unescapeJson(@NotNull String str) {
-        return str.replace("\\\\", "\\")
-                  .replace("\\\"", "\"")
-                  .replace("\\n", "\n")
-                  .replace("\\r", "\r")
-                  .replace("\\t", "\t");
+    private static String computeMD5(@NotNull String data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(data.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                String h = Integer.toHexString(0xff & b);
+                if (h.length() == 1) hex.append('0');
+                hex.append(h);
+            }
+            return hex.toString();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     /**

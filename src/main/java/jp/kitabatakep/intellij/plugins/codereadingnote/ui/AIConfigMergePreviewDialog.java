@@ -1,11 +1,17 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
+import com.intellij.diff.DiffContentFactory;
+import com.intellij.diff.DiffManager;
+import com.intellij.diff.contents.DiffContent;
+import com.intellij.diff.requests.SimpleDiffRequest;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.util.ui.JBUI;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeCategory;
 import jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeItem;
+import jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigRegistry;
+import jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigService;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -13,6 +19,9 @@ import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -21,12 +30,15 @@ import java.util.List;
  */
 public class AIConfigMergePreviewDialog extends DialogWrapper {
 
+    private final Project project;
     private final List<AIConfigMergeItem> items;
     private final JLabel summaryLabel;
     private MergeTableModel tableModel;
+    private JTable table;
 
     public AIConfigMergePreviewDialog(@NotNull Project project, @NotNull List<AIConfigMergeItem> items) {
         super(project);
+        this.project = project;
         this.items = items;
         this.summaryLabel = new JLabel();
         setTitle(CodeReadingNoteBundle.message("aiconfig.merge.preview.title"));
@@ -41,23 +53,33 @@ public class AIConfigMergePreviewDialog extends DialogWrapper {
         JPanel panel = new JPanel(new BorderLayout(0, 8));
         panel.setPreferredSize(new Dimension(620, 400));
 
-        // Bulk action buttons
         JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         JButton acceptAllRemote = new JButton(CodeReadingNoteBundle.message("aiconfig.merge.bulk.accept.remote"));
         JButton keepAllLocal = new JButton(CodeReadingNoteBundle.message("aiconfig.merge.bulk.keep.local"));
+        JButton viewDiffBtn = new JButton(CodeReadingNoteBundle.message("aiconfig.merge.view.diff"));
         acceptAllRemote.addActionListener(e -> bulkSetAction(true));
         keepAllLocal.addActionListener(e -> bulkSetAction(false));
+        viewDiffBtn.addActionListener(e -> showDiffForSelectedRow());
         buttonBar.add(acceptAllRemote);
         buttonBar.add(keepAllLocal);
+        buttonBar.add(viewDiffBtn);
         panel.add(buttonBar, BorderLayout.NORTH);
 
-        // Table
         tableModel = new MergeTableModel(items);
-        JTable table = new JTable(tableModel);
+        table = new JTable(tableModel);
         table.setRowHeight(24);
         table.getColumnModel().getColumn(0).setPreferredWidth(300);
         table.getColumnModel().getColumn(1).setPreferredWidth(130);
         table.getColumnModel().getColumn(2).setPreferredWidth(130);
+
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && table.getSelectedRow() >= 0) {
+                    showDiffForSelectedRow();
+                }
+            }
+        });
 
         // Category column renderer with color coding
         table.getColumnModel().getColumn(1).setCellRenderer(new CategoryRenderer());
@@ -140,6 +162,42 @@ public class AIConfigMergePreviewDialog extends DialogWrapper {
         }
         summaryLabel.setText(CodeReadingNoteBundle.message("aiconfig.merge.summary",
             toUpdate, toAdd, conflicts, unchanged));
+    }
+
+    private void showDiffForSelectedRow() {
+        int row = table.getSelectedRow();
+        if (row < 0 || row >= items.size()) return;
+
+        AIConfigMergeItem item = items.get(row);
+        if (item.getCategory() == AIConfigMergeCategory.UNCHANGED) return;
+
+        String localContent = "";
+        if (item.getCategory() != AIConfigMergeCategory.NEW_REMOTE) {
+            AIConfigRegistry registry = AIConfigService.getInstance(project).getRegistry();
+            var entry = registry.findByPath(item.getRelativePath());
+            if (entry != null) {
+                String content = registry.readFileContent(entry);
+                if (content != null) localContent = content;
+            }
+        }
+
+        String remoteContent = "";
+        byte[] remoteBytes = item.getRemoteContent();
+        if (remoteBytes != null) {
+            remoteContent = new String(remoteBytes, StandardCharsets.UTF_8);
+        }
+
+        DiffContentFactory dcf = DiffContentFactory.getInstance();
+        DiffContent localDc = dcf.create(project, localContent);
+        DiffContent remoteDc = dcf.create(project, remoteContent);
+
+        SimpleDiffRequest request = new SimpleDiffRequest(
+                item.getRelativePath(),
+                localDc, remoteDc,
+                CodeReadingNoteBundle.message("aiconfig.merge.diff.local"),
+                CodeReadingNoteBundle.message("aiconfig.merge.diff.remote"));
+
+        DiffManager.getInstance().showDiff(project, request);
     }
 
     @NotNull

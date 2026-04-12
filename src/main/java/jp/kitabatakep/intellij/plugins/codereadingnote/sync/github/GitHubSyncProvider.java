@@ -204,30 +204,36 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
     }
     
     /**
-     * 获取文件内容
+     * Returns file content as a UTF-8 string (suitable for text files like manifests, metadata, notes).
      */
     private String getFileContent(@NotNull GitHubSyncConfig config, @NotNull String filePath) throws IOException {
+        byte[] bytes = getFileContentBytes(config, filePath);
+        return bytes != null ? new String(bytes, StandardCharsets.UTF_8) : null;
+    }
+
+    /**
+     * Returns raw file content bytes, preserving binary fidelity.
+     */
+    private byte[] getFileContentBytes(@NotNull GitHubSyncConfig config, @NotNull String filePath) throws IOException {
         String apiUrl = buildApiUrl(config, filePath);
         HttpURLConnection conn = createConnection(apiUrl, "GET", config.getToken());
-        
+
         int responseCode = conn.getResponseCode();
         if (responseCode == 200) {
             String response = readResponse(conn);
             conn.disconnect();
-            
-            // 从JSON响应中提取content（base64编码）
+
             Pattern pattern = Pattern.compile("\"content\"\\s*:\\s*\"([^\"]+)\"");
             Matcher matcher = pattern.matcher(response);
             if (matcher.find()) {
                 String base64Content = matcher.group(1).replace("\\n", "");
-                byte[] decoded = Base64.getDecoder().decode(base64Content);
-                return new String(decoded, StandardCharsets.UTF_8);
+                return Base64.getDecoder().decode(base64Content);
             }
         } else if (responseCode == 404) {
             conn.disconnect();
             return null;
         }
-        
+
         String error = readError(conn);
         conn.disconnect();
         throw new IOException("Failed to get file: " + error);
@@ -488,16 +494,16 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         }
     }
     
-    /**
-     * 计算字符串的MD5哈希值
-     */
     @NotNull
     private String calculateMD5(@NotNull String data) {
+        return calculateMD5Bytes(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @NotNull
+    private String calculateMD5Bytes(@NotNull byte[] data) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hashBytes = md.digest(data.getBytes(StandardCharsets.UTF_8));
-            
-            // 转换为16进制字符串
+            byte[] hashBytes = md.digest(data);
             StringBuilder hexString = new StringBuilder();
             for (byte b : hashBytes) {
                 String hex = Integer.toHexString(0xff & b);
@@ -575,15 +581,12 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
             }
         }
 
-        // Push each tracked file, with optional per-file MD5 skip
         for (java.util.Map.Entry<String, byte[]> entry : files.entrySet()) {
             String relativePath = entry.getKey();
             byte[] fileBytes = entry.getValue();
-            String content = new String(fileBytes, StandardCharsets.UTF_8);
 
-            // Per-file MD5 comparison
             if (!forceAll && !lastPushedFileHashes.isEmpty()) {
-                String localMd5 = calculateMD5(content);
+                String localMd5 = calculateMD5Bytes(fileBytes);
                 String previousMd5 = lastPushedFileHashes.get(relativePath);
                 if (previousMd5 != null && localMd5.equals(previousMd5)) {
                     report.addSkipped(relativePath);
@@ -594,7 +597,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
             String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, relativePath);
             try {
                 String sha = getFileSha(ghConfig, remotePath);
-                SyncResult result = pushFileWithMessage(ghConfig, remotePath, content, sha,
+                SyncResult result = pushFileBytes(ghConfig, remotePath, fileBytes, sha,
                         "Update AI config: " + relativePath);
                 if (result.isSuccess()) {
                     report.addPushed(relativePath);
@@ -685,11 +688,11 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
 
                 String remotePath = buildAIConfigFilePath(ghConfig, projectIdentifier, line);
                 try {
-                    String content = getFileContent(ghConfig, remotePath);
-                    if (content != null) {
+                    byte[] contentBytes = getFileContentBytes(ghConfig, remotePath);
+                    if (contentBytes != null) {
                         if (!first) jsonBuilder.append(",");
                         jsonBuilder.append("\"").append(escapeJson(line)).append("\":\"")
-                                   .append(Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8)))
+                                   .append(Base64.getEncoder().encodeToString(contentBytes))
                                    .append("\"");
                         first = false;
                     }
@@ -719,6 +722,46 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         String basePath = config.getBasePath();
         if (basePath.endsWith("/")) basePath = basePath.substring(0, basePath.length() - 1);
         return String.format("%s/%s/ai-config-manifest.txt", basePath, projectIdentifier);
+    }
+
+    /**
+     * Pushes raw bytes to GitHub, preserving binary content fidelity.
+     */
+    @NotNull
+    private SyncResult pushFileBytes(@NotNull GitHubSyncConfig config, @NotNull String filePath,
+                                     @NotNull byte[] contentBytes, String sha, @NotNull String commitMessage) {
+        try {
+            String apiUrl = buildApiUrl(config, filePath);
+            HttpURLConnection conn = createConnection(apiUrl, "PUT", config.getToken());
+
+            String base64Content = Base64.getEncoder().encodeToString(contentBytes);
+            StringBuilder json = new StringBuilder();
+            json.append("{");
+            json.append("\"message\":\"").append(escapeJson(commitMessage)).append("\",");
+            json.append("\"content\":\"").append(base64Content).append("\",");
+            json.append("\"branch\":\"").append(escapeJson(config.getBranch())).append("\"");
+            if (sha != null) {
+                json.append(",\"sha\":\"").append(escapeJson(sha)).append("\"");
+            }
+            json.append("}");
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200 || responseCode == 201) {
+                conn.disconnect();
+                return SyncResult.success("File pushed successfully");
+            } else {
+                String error = readError(conn);
+                conn.disconnect();
+                return SyncResult.failure(error);
+            }
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            return SyncResult.failure("[Local] " + msg, e);
+        }
     }
 
     @NotNull
