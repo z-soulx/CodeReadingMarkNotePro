@@ -2,6 +2,10 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.EditorSettings;
@@ -18,6 +22,7 @@ import com.intellij.util.ui.JBUI;
 import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.workspace.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,6 +40,7 @@ public class AIWorkspacePanel extends JPanel {
     private final JPanel previewPanel;
     private final JLabel statusLabel;
     private EditorEx currentEditor;
+    private MessageBusConnection messageBusConnection;
 
     public AIWorkspacePanel(@NotNull Project project) {
         super(new BorderLayout());
@@ -105,6 +111,41 @@ public class AIWorkspacePanel extends JPanel {
                 AIConfigService.getInstance(project).rescan();
                 treePanel.loadEntries();
                 updateStatus();
+            }
+        });
+
+        actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiworkspace.git.init"),
+            CodeReadingNoteBundle.message("aiworkspace.git.init.description"),
+            AllIcons.Actions.Diff
+        ) {
+            @Override public void actionPerformed(@NotNull AnActionEvent e) { initializeWorkspaceGit(); }
+            @Override public void update(@NotNull AnActionEvent e) {
+                e.getPresentation().setEnabled(!AIWorkspaceGitService.getInstance(project).isInitialized());
+            }
+            @Override public @NotNull ActionUpdateThread getActionUpdateThread() { return ActionUpdateThread.EDT; }
+        });
+
+        actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiworkspace.version.bump"),
+            CodeReadingNoteBundle.message("aiworkspace.version.bump.description"),
+            AllIcons.General.ArrowRight
+        ) { @Override public void actionPerformed(@NotNull AnActionEvent e) { bumpWorkspaceVersion(); } });
+
+        actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiworkspace.version.commit"),
+            CodeReadingNoteBundle.message("aiworkspace.version.commit.description"),
+            AllIcons.Actions.Upload
+        ) { @Override public void actionPerformed(@NotNull AnActionEvent e) { commitWorkspaceVersion(); } });
+
+        actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiworkspace.commands.manage"),
+            CodeReadingNoteBundle.message("aiworkspace.commands.manage.description"),
+            AllIcons.Actions.ListChanges
+        ) {
+            @Override public void actionPerformed(@NotNull AnActionEvent e) {
+                try { new AIWorkspaceCommandsDialog(project).show(); }
+                catch (RuntimeException ex) { Messages.showErrorDialog(project, ex.getMessage(), CodeReadingNoteBundle.message("aiworkspace.error.title")); }
             }
         });
 
@@ -814,12 +855,43 @@ public class AIWorkspacePanel extends JPanel {
         int total = registry.size();
         long tracked = registry.getTrackedEntries().size();
 
-        statusLabel.setText(CodeReadingNoteBundle.message("aiconfig.status.summary", total, tracked));
+        boolean gitInitialized = AIWorkspaceGitService.getInstance(project).isInitialized();
+        String gitText = gitInitialized ? CodeReadingNoteBundle.message("aiworkspace.git.status.initialized") : CodeReadingNoteBundle.message("aiworkspace.git.status.not.initialized");
+        statusLabel.setText(CodeReadingNoteBundle.message("aiconfig.status.summary", total, tracked) + " | " + gitText);
+    }
+
+    private void initializeWorkspaceGit() {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, CodeReadingNoteBundle.message("aiworkspace.git.initializing"), true) {
+            private AIWorkspaceGitService.GitResult result;
+            @Override public void run(@NotNull ProgressIndicator indicator) { result = AIWorkspaceGitService.getInstance(project).initialize(); }
+            @Override public void onSuccess() { if (result.success) Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.git.init.success"), CodeReadingNoteBundle.message("aiworkspace.git.init")); else Messages.showErrorDialog(project, result.output, CodeReadingNoteBundle.message("aiworkspace.error.title")); updateStatus(); }
+        });
+    }
+
+    private void bumpWorkspaceVersion() {
+        try { String next = AIWorkspaceVersionService.getInstance(project).bumpPatch(); Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.version.bump.success", next), CodeReadingNoteBundle.message("aiworkspace.version.bump")); updateStatus(); }
+        catch (Exception ex) { Messages.showErrorDialog(project, ex.getMessage(), CodeReadingNoteBundle.message("aiworkspace.error.title")); }
+    }
+
+    private void commitWorkspaceVersion() {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, CodeReadingNoteBundle.message("aiworkspace.version.committing"), true) {
+            private AIWorkspaceGitService.GitResult result;
+            @Override public void run(@NotNull ProgressIndicator indicator) {
+                try { String version = AIWorkspaceVersionService.getInstance(project).readVersion(); result = AIWorkspaceGitService.getInstance(project).commit("chore: " + version); }
+                catch (Exception ex) { result = AIWorkspaceGitService.GitResult.failure(ex.getMessage()); }
+            }
+            @Override public void onSuccess() {
+                if (result.noChanges) Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.git.no.changes"), CodeReadingNoteBundle.message("aiworkspace.version.commit"));
+                else if (result.success) Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.git.commit.success"), CodeReadingNoteBundle.message("aiworkspace.version.commit"));
+                else Messages.showErrorDialog(project, result.output, CodeReadingNoteBundle.message("aiworkspace.error.title"));
+                updateStatus();
+            }
+        });
     }
 
     private void setupEventHandlers() {
-        MessageBusConnection connection = project.getMessageBus().connect();
-        connection.subscribe(AIConfigNotifier.AI_CONFIG_TOPIC, new AIConfigNotifier() {
+        messageBusConnection = project.getMessageBus().connect();
+        messageBusConnection.subscribe(AIConfigNotifier.AI_CONFIG_TOPIC, new AIConfigNotifier() {
             @Override
             public void registryUpdated() {
                 SwingUtilities.invokeLater(() -> {
@@ -840,9 +912,11 @@ public class AIWorkspacePanel extends JPanel {
                 });
             }
         });
+        messageBusConnection.subscribe(AIWorkspaceService.TOPIC, () -> SwingUtilities.invokeLater(this::updateStatus));
     }
 
     public void dispose() {
         disposeCurrentEditor();
+        if (messageBusConnection != null) { messageBusConnection.disconnect(); messageBusConnection = null; }
     }
 }

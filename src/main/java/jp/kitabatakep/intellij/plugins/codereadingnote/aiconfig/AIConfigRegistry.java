@@ -22,7 +22,7 @@ public class AIConfigRegistry {
 
     /** Built-in ignore patterns that are always active */
     private static final List<String> BUILTIN_IGNORE_PATTERNS = Arrays.asList(
-        ".DS_Store", "Thumbs.db", "desktop.ini",
+        ".DS_Store", "Thumbs.db", "desktop.ini", ".git",".idea",
         "*.swp", "*.swo", "*.tmp", "*.bak"
     );
 

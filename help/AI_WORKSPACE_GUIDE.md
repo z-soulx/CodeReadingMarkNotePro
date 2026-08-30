@@ -1,12 +1,88 @@
 # AI Workspace Guide / AI 工作空间使用指南
 
-> Code Reading Mark Note Pro v3.7.3+
+> Code Reading Mark Note Pro v3.7.4+
+
+## Workspace Git and Version
+
+The runtime docs root is `.ai/docs`; if you later want the notes tree elsewhere, move it manually. The existing project `docs/` directory is never moved automatically. **Initialize .ai Git** opts into an independent repository, with `.ai/.gitignore` excluding `token.txt`, `runs/`, local temporary files, and the nested `.git/` metadata. **Bump Version** creates or increments `.ai/VERSION` from `1.0.0`; **Commit Workspace Version** stages only `.ai` changes with `chore: <version>`.
+
+### Custom Commands / 自定义命令
+
+Use **Manage Custom Commands** (the only command entry point in the toolbar) to see the saved command list. **Add** and **Edit** both open the same editor form with fields for id, display name, executable, arguments, project-relative working directory, enabled state, execution mode, and where `$FilePath$` comes from. Click **Save Command** to write immediately (no OK/Cancel footer and no extra confirmation). Close the window with the title-bar close button or Esc. Select a command and click **Run**: both modes send the command to IDEA Terminal (PowerShell on Windows). **IDEA Terminal** focuses the tab; **Silent Terminal** starts the same shell without stealing focus. Shell built-ins such as `cd ai3` work in either mode. Each command is stored in `.ai/workspace-commands.json`, which is included when you commit the `.ai` repository and can therefore be synchronized with the workspace Git repository.
+
+When the executable is `wt` or `wt.exe` on Windows, the configured working directory is passed explicitly with Windows Terminal's `-d` option so the new tab opens in that directory.
+
+**Execution mode is a real launch switch, not a comment.** **IDEA Terminal** types the command into a Terminal tab and focuses it (PowerShell on Windows, the default shell on macOS). **Silent Terminal (no focus)** uses the same IDEA Terminal session but does not steal focus — the shell still starts immediately so `cursor` / `typora` actually run. Both modes work on Windows and macOS because the Terminal shell resolves PATH. Shell built-ins such as `cd ai3` also work in Silent Terminal mode.
+
+Fill **Executable** with a portable program name (`cursor`, `typora`) when you want one `.ai/workspace-commands.json` to work on both operating systems. Absolute `.exe` paths remain valid on Windows.
+
+#### Command form fields / 命令表单字段
+
+| Field / 字段 | Purpose / 作用 | Example / 示例 |
+|---|---|---|
+| **ID** | Stable unique identifier used to find the command. Do not reuse an existing ID. / 用于查找命令的稳定唯一标识，不要与已有 ID 重复。 | `enter-ai-dir` |
+| **Display name** | Friendly name shown in the manager; it does not affect execution. / 管理窗口中显示的名称，不影响执行。 | `Enter AI directory` |
+| **Executable** | Program resolved through PATH, an absolute executable path, or a simple Terminal command. Do not quote the whole command. Use portable names (`cursor`, `typora`) for Windows + macOS Silent commands. / PATH 中的程序名、绝对路径或简单 Terminal 命令，不要把整条命令加引号。跨 Windows / macOS 的静默命令请填写便携程序名（`cursor`、`typora`）。 | `cursor` |
+| **Arguments** | Space-separated arguments appended after the executable. / 追加在可执行文件后的空格分隔参数。 | `buildPlugin` |
+| **Working directory** | Optional project-relative directory where the Terminal session starts. / 可选的项目内相对工作目录。 | `.ai` |
+| **Execution mode** | **IDEA Terminal** focuses a Terminal tab. **Silent Terminal (no focus)** uses the same shell without stealing focus. Both actually run the command. / **IDEA Terminal** 会聚焦终端页。**静默终端（不抢焦点）**使用同一个 shell，但不抢焦点。两种方式都会真正执行命令。 | Silent Terminal (no focus) |
+| **File for $FilePath$** | **Project tree selection** uses the highlighted file in the Project tool window (the file need not be open); if nothing is selected there, the open editor file is used. **Open editor file** uses only the current editor tab. / **项目树选中**使用项目工具窗口里高亮的文件（不必打开）；树里没有选中时回退到编辑器。**编辑器已打开的文件**只用当前编辑器标签页。 | Project tree selection |
+| **Enabled** | Disabled commands remain saved but cannot be run. / 禁用后命令仍保存，但不能执行。 | checked / 勾选 |
+
+Supported file macros / 支持的文件变量：`$FilePath$` is the absolute path of the chosen file, `$FileDir$` is its parent directory, and `$FileName$` is its file name. Each command chooses the source: Project tool window selection (default; falls back to the editor) or the open editor file. / `$FilePath$` 是所选文件的绝对路径，`$FileDir$` 是父目录，`$FileName$` 是文件名。每条命令可自选来源：项目工具窗口选中（默认，无选中则用编辑器）或编辑器已打开的文件。
+
+**Example / 示例: build the plugin / 构建插件**
+
+```text
+ID: build-plugin
+Display name: Build Plugin
+Executable: gradlew.bat
+Arguments: buildPlugin
+Working directory: (empty / 留空，表示项目根目录)
+Enabled: checked / 勾选
+Execution mode: Silent Terminal (no focus)
+```
+
+**Example — launch Cursor for the current project / 示例——静默启动 Cursor 打开当前项目**
+
+```text
+ID: launch-cursor-project
+Display name: Launch Cursor for this project
+Executable: cursor
+Arguments: .
+Working directory: (empty / 留空，表示项目根目录)
+Execution mode: Silent Terminal (no focus)
+Enabled: checked / 勾选
+```
+
+Windows / macOS: the IDEA Terminal shell resolves `cursor` from PATH (`cursor.cmd` on Windows). / Windows 与 macOS：由 IDEA Terminal 的 shell 从 PATH 解析 `cursor`（Windows 上是 `cursor.cmd`）。
+
+**Example — open the selected Markdown file in Typora / 示例——用 Typora 打开当前选中的 Markdown 文件**
+
+```text
+ID: open-selected-md
+Display name: Open selected Markdown in Typora
+Executable: typora
+Arguments: $FilePath$
+Working directory: (empty / 留空)
+Execution mode: Silent Terminal (no focus)
+File for $FilePath$: Project tree selection (fallback: editor)
+Enabled: checked / 勾选
+```
+
+Windows / macOS: the plugin resolves `typora` / `typora.exe` via PATH, then well-known install locations such as `C:\\Program Files\\Typora\\Typora.exe`. Highlight a Markdown file in the Project tool window (opening it is optional) so `$FilePath$` is that file; switch the command to **Open editor file** if you want the current tab instead. / Windows 与 macOS：插件会从 PATH 以及常见安装目录（如 `C:\\Program Files\\Typora\\Typora.exe`）解析 Typora。在项目工具窗口中高亮 Markdown 文件即可（不必打开）；若要用当前编辑器标签页，把该命令的文件来源改成「编辑器已打开的文件」。
+
+Click **Save Command / 保存命令** to write immediately. Later select the command and click **Run / 执行**. Both modes send the command to IDEA Terminal; Silent does not focus the tab. Close with the window X or Esc. / 点击“保存命令”立即写入；以后选中命令点击“执行”。两种模式都发送到 IDEA Terminal；静默模式不聚焦该标签页。用窗口关闭按钮或 Esc 关闭。
+
+“管理自定义命令”是工具栏中唯一的命令入口，可查看全部已保存命令。“添加”和“编辑”共用同一个编辑表单。点击“保存命令”立即写入，没有底部确定/取消，也不再弹出确认。选中命令点击“执行”时两种模式都发到 IDEA Terminal（Windows 使用 PowerShell）：普通模式会聚焦终端，**静默终端不抢焦点**但会立刻启动会话并执行命令。例如 `cd ai3`、`cursor .`、`typora` 都可以用静默终端。`$FilePath$` 默认取项目工具窗口里高亮的文件（不必打开），也可以改成只用编辑器当前标签页。跨系统请把可执行文件写成 `cursor` 或 `typora`。命令保存在 `.ai/workspace-commands.json`，可随 `.ai` 仓库同步。
+
+在 Windows 上，如果可执行文件填写为 `wt` 或 `wt.exe`，插件会通过 Windows Terminal 的 `-d` 参数显式传递配置的工作目录，确保新标签页进入该目录。
 
 ## Overview / 概述
 
-The **AI Workspace** brings personal AI config files (Cursor Rules, Claude rules, architecture docs, etc.) under unified management with a hierarchical file tree, sync status tracking, and independent manual sync.
+The **AI Workspace** brings personal AI config files (Cursor Rules, Claude rules, architecture docs, etc.) under unified management with a hierarchical file tree, sync status tracking, independent manual sync, an opt-in `.ai` Git repository, Semver versioning, and custom Terminal commands.
 
-**AI 工作空间** 将个人 AI 配置文件（Cursor Rules、Claude 规则、AI 架构文档等）纳入统一管理，提供层级文件树、同步状态追踪、独立手动同步。
+**AI 工作空间** 将个人 AI 配置文件（Cursor Rules、Claude 规则、AI 架构文档等）纳入统一管理，提供层级文件树、同步状态追踪、独立手动同步，以及可选的 `.ai` Git 仓库、Semver 版本和自定义 Terminal 命令。
 
 ---
 
@@ -39,10 +115,14 @@ Use **"Add Custom Path"** to track any directory or file.
 
 | Button / 按钮 | Function / 功能 |
 |------|------|
-| **Scan / 扫描** | Re-scan project for AI config files / 重新扫描项目中的 AI 配置文件 |
+| **Scan AI Configs / 扫描** | Re-scan project for AI config files / 重新扫描项目中的 AI 配置文件 |
+| **Initialize .ai Git / 初始化 .ai Git** | Opt in to an independent Git repository inside `.ai` / 在 `.ai` 内显式初始化独立 Git 仓库 |
+| **Bump Version / 升级版本** | Increment `.ai/VERSION` patch number / 递增 `.ai/VERSION` 补丁号 |
+| **Commit Workspace Version / 提交工作区版本** | Commit `.ai` changes with `chore: <version>` / 以 `chore: <version>` 提交 `.ai` 变更 |
+| **Manage Custom Commands / 管理自定义命令** | Add, save, delete, and run project commands / 添加、保存、删除并执行项目命令 |
 | **Add Custom Path / 添加自定义路径** | Track non-default directories (auto-validates path and provides feedback) / 添加非默认目录进行追踪（自动验证路径有效性并反馈结果） |
-| **New AI Config / 新建AI配置** | Choose type → auto-create directory & file with skeleton → open in editor / 选择类型 → 自动创建目录和文件（带骨架内容）→ 打开编辑 |
-| **Ignore Rules / 忽略规则** | Edit file/directory ignore rules (.gitignore-like, supports `*.ext`, `name`, `dir/`) / 编辑文件/目录忽略规则（类似 .gitignore，支持 `*.ext`、`name`、`dir/` 等模式） |
+| **Create AI Skeleton / 创建 AI 骨架** | Choose Workspace / Notes Space / All → create `.ai/` directories / 选择 Workspace / Notes Space / All → 创建 `.ai/` 目录 |
+| **Ignore Patterns / 忽略规则** | Edit file/directory ignore rules (.gitignore-like, supports `*.ext`, `name`, `dir/`) / 编辑文件/目录忽略规则（类似 .gitignore，支持 `*.ext`、`name`、`dir/` 等模式） |
 | **Open in Editor / 在编辑器中打开** | Open selected file in IDE editor / 在 IDE 编辑器中打开选中文件 |
 | **Push AI Configs / 推送AI配置** | Manually push tracked files to remote / 手动推送已追踪文件到远程 |
 | **Pull AI Configs / 拉取AI配置** | Manually pull from remote to local / 手动从远程拉取到本地 |
@@ -198,16 +278,17 @@ When 0 files are tracked, pushing shows a confirmation: "Push will clear all rem
 
 ---
 
-## Quick Create / 快速新建
+## Create AI Skeleton / 创建 AI 骨架
 
-Click **"New AI Config"** → choose type → enter file name → confirm.
+Click **"Create AI Skeleton"** → choose **Workspace**, **Notes Space**, or **All** → confirm.
 
-点击 **「新建AI配置」** → 选择类型 → 输入文件名 → 确认。
+点击 **「创建 AI 骨架」** → 选择 **Workspace**、**Notes Space** 或 **All** → 确认。
 
-- Types: Cursor Rule / Claude Rule / AI Doc / Windsurf / Codex / Copilot / Custom
-- 类型：Cursor Rule / Claude Rule / AI Doc / Windsurf / Codex / Copilot / Custom
-- Auto-creates directory and file with skeleton content / 自动创建目录和文件，填充骨架内容
-- Opens in editor after creation / 创建后自动在编辑器中打开
+- Creates `.ai/` directories only (no files) / 只创建 `.ai/` 目录，不生成文件
+- **Workspace**: `context`, `adr`, `specs`, `runs` / **Workspace**：`context`、`adr`、`specs`、`runs`
+- **Notes Space**: `docs` and its architecture/domain/scenario/integration/suppliers/shared/runbooks subdirectories / **Notes Space**：`docs` 及其 architecture/domain/scenario/integration/suppliers/shared/runbooks 子目录
+- **All**: both scopes / **All**：上述全部
+- Quick Reference in the dialog explains each directory / 对话框内的快速参考说明每个目录的用途
 
 ---
 

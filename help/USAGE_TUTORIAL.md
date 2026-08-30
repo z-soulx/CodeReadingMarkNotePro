@@ -1,6 +1,6 @@
 # Code Reading Mark Note Pro — Usage Tutorial / 完整使用教程
 
-> Code Reading Mark Note Pro v3.7.3+ | [GitHub](https://github.com/z-soulx/CodeReadingMarkNotePro) | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro)
+> Code Reading Mark Note Pro v3.7.4+ | [GitHub](https://github.com/z-soulx/CodeReadingMarkNotePro) | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro)
 
 ---
 
@@ -456,7 +456,9 @@ Manage personal AI config files (Cursor Rules, Claude, Codex, Windsurf, Copilot,
 - Per-file checkbox tracking / 逐文件复选框追踪
 - Independent push/pull from notes sync / 独立于笔记同步的推送/拉取
 - Auto-sync with conflict detection / 自动同步与冲突检测
-- .ai/ skeleton creator with preset templates / .ai/ 骨架创建器及预设模板
+- .ai/ skeleton creator with Workspace / Notes Space / All scopes / .ai/ 骨架创建器（Workspace / Notes Space / All）
+- Opt-in `.ai` Git, `.ai/VERSION` patch bump, and `chore: <version>` commit / 可选 `.ai` Git、`.ai/VERSION` 补丁升级、`chore: <version>` 提交
+- Custom commands in IDEA Terminal or Silent Terminal (no focus) / 自定义命令：IDEA Terminal 或静默终端（不抢焦点）
 - Configurable ignore rules / 可配置忽略规则
 - Custom path tracking / 自定义路径追踪
 
@@ -470,9 +472,9 @@ Manage personal AI config files (Cursor Rules, Claude, Codex, Windsurf, Copilot,
 
 **Settings → Tools → Code Reading Note Sync** → Language dropdown
 
-Supports English and Chinese. Changes take effect after IDE restart.
+Supports English and Chinese. Changes take effect immediately; no IDE restart is required.
 
-支持英文和中文，更改后需重启 IDE 生效。
+支持英文和中文，立即生效，无需重启 IDE。
 
 ### 16.2 Sync Configuration / 同步配置
 

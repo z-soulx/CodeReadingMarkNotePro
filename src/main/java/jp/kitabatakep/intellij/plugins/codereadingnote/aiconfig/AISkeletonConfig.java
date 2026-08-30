@@ -12,7 +12,7 @@ import java.util.*;
 public final class AISkeletonConfig {
 
     public enum Preset {
-        NONE, MINIMAL, STANDARD, FULL
+        WORKSPACE, NOTES, ALL
     }
 
     private AISkeletonConfig() {
@@ -53,22 +53,21 @@ public final class AISkeletonConfig {
     private static final List<DirEntry> ALL_DIRS = Collections.unmodifiableList(Arrays.asList(
         new DirEntry("context", "aiconfig.skeleton.dir.context", "aiconfig.skeleton.dir.context.desc",
                 "aiconfig.skeleton.reference.context", true),
-        new DirEntry("prd", "aiconfig.skeleton.dir.prd", "aiconfig.skeleton.dir.prd.desc",
-                "aiconfig.skeleton.reference.prd", true),
-        new DirEntry("spec", "aiconfig.skeleton.dir.spec", "aiconfig.skeleton.dir.spec.desc",
-                "aiconfig.skeleton.reference.spec", true),
         new DirEntry("adr", "aiconfig.skeleton.dir.adr", "aiconfig.skeleton.dir.adr.desc",
-                "aiconfig.skeleton.reference.adr", true),
+                "aiconfig.skeleton.reference.adr", false),
+        new DirEntry("specs", "aiconfig.skeleton.dir.specs", "aiconfig.skeleton.dir.specs.desc",
+                "aiconfig.skeleton.reference.spec", true),
         new DirEntry("runs", "aiconfig.skeleton.dir.runs", "aiconfig.skeleton.dir.runs.desc",
                 "aiconfig.skeleton.reference.runs", true),
-        new DirEntry("contracts", "aiconfig.skeleton.dir.contracts", "aiconfig.skeleton.dir.contracts.desc",
-                "aiconfig.skeleton.reference.contracts", false),
-        new DirEntry("tasks", "aiconfig.skeleton.dir.tasks", "aiconfig.skeleton.dir.tasks.desc",
-                "aiconfig.skeleton.reference.tasks", false),
-        new DirEntry("patterns", "aiconfig.skeleton.dir.patterns", "aiconfig.skeleton.dir.patterns.desc",
-                "aiconfig.skeleton.reference.patterns", false),
         new DirEntry("docs", "aiconfig.skeleton.dir.docs", "aiconfig.skeleton.dir.docs.desc",
-                "aiconfig.skeleton.reference.docs", false)
+                "aiconfig.skeleton.reference.docs", false),
+        new DirEntry("docs/architecture", "aiconfig.skeleton.dir.docs.architecture", "aiconfig.skeleton.dir.docs.architecture.desc", "aiconfig.skeleton.reference.docs.architecture", false),
+        new DirEntry("docs/domain", "aiconfig.skeleton.dir.docs.domain", "aiconfig.skeleton.dir.docs.domain.desc", "aiconfig.skeleton.reference.docs.domain", false),
+        new DirEntry("docs/scenario", "aiconfig.skeleton.dir.docs.scenario", "aiconfig.skeleton.dir.docs.scenario.desc", "aiconfig.skeleton.reference.docs.scenario", false),
+        new DirEntry("docs/integration", "aiconfig.skeleton.dir.docs.integration", "aiconfig.skeleton.dir.docs.integration.desc", "aiconfig.skeleton.reference.docs.integration", false),
+        new DirEntry("docs/suppliers", "aiconfig.skeleton.dir.docs.suppliers", "aiconfig.skeleton.dir.docs.suppliers.desc", "aiconfig.skeleton.reference.docs.suppliers", false),
+        new DirEntry("docs/shared", "aiconfig.skeleton.dir.docs.shared", "aiconfig.skeleton.dir.docs.shared.desc", "aiconfig.skeleton.reference.docs.shared", false),
+        new DirEntry("docs/runbooks", "aiconfig.skeleton.dir.docs.runbooks", "aiconfig.skeleton.dir.docs.runbooks.desc", "aiconfig.skeleton.reference.docs.runbooks", false)
     ));
 
     @NotNull
@@ -83,24 +82,14 @@ public final class AISkeletonConfig {
     public static Set<String> getDirsForPreset(@NotNull Preset preset) {
         Set<String> names = new LinkedHashSet<>();
         switch (preset) {
-            case NONE:
+            case WORKSPACE:
+                names.add("context"); names.add("adr"); names.add("specs"); names.add("runs");
                 break;
-            case MINIMAL:
-                for (DirEntry d : ALL_DIRS) {
-                    if (d.isRequired()) names.add(d.getName());
-                }
+            case NOTES:
+                for (DirEntry d : ALL_DIRS) if (d.getName().startsWith("docs")) names.add(d.getName());
                 break;
-            case STANDARD:
-                for (DirEntry d : ALL_DIRS) {
-                    if (d.isRequired()) names.add(d.getName());
-                }
-                names.add("contracts");
-                names.add("tasks");
-                break;
-            case FULL:
-                for (DirEntry d : ALL_DIRS) {
-                    names.add(d.getName());
-                }
+            case ALL:
+                for (DirEntry d : ALL_DIRS) names.add(d.getName());
                 break;
         }
         return names;
@@ -109,10 +98,9 @@ public final class AISkeletonConfig {
     @NotNull
     public static String getPresetDisplayName(@NotNull Preset preset) {
         switch (preset) {
-            case NONE: return CodeReadingNoteBundle.message("aiconfig.skeleton.preset.none");
-            case MINIMAL: return CodeReadingNoteBundle.message("aiconfig.skeleton.preset.minimal");
-            case STANDARD: return CodeReadingNoteBundle.message("aiconfig.skeleton.preset.standard");
-            case FULL: return CodeReadingNoteBundle.message("aiconfig.skeleton.preset.full");
+            case WORKSPACE: return CodeReadingNoteBundle.message("aiconfig.skeleton.preset.workspace");
+            case NOTES: return CodeReadingNoteBundle.message("aiconfig.skeleton.preset.notes");
+            case ALL: return CodeReadingNoteBundle.message("aiconfig.skeleton.preset.all");
             default: return preset.name();
         }
     }

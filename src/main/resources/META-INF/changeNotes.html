@@ -1,5 +1,13 @@
 <html>
 <body>
+<h1>3.7.4</h1>
+<ul>
+    <li><b>Custom Commands:</b> Manage all commands in one list/form dialog, save them in <code>.ai/workspace-commands.json</code>, and run them in IDEA Terminal (PowerShell on Windows, default shell on macOS). Save writes immediately with no OK/Cancel footer and no confirmation. <code>$FilePath$</code> / <code>$FileDir$</code> / <code>$FileName$</code> can use the Project tree selection (file need not be open) or the open editor file. / <b>自定义命令：</b>在统一列表/表单中管理命令，保存到 <code>.ai/workspace-commands.json</code>，通过 IDEA Terminal 执行（Windows 为 PowerShell，macOS 为默认 shell）。保存立即写入，无底部确定/取消、无二次确认。<code>$FilePath$</code> 等变量可使用项目树选中（不必打开）或编辑器已打开的文件。</li>
+    <li><b>Silent Terminal:</b> Silent mode uses the same Terminal shell without focusing the tool window, and starts the session immediately so Cursor, Typora, and shell built-ins such as <code>cd</code> actually run. On Windows, <code>wt</code>/<code>wt.exe</code> receives an explicit <code>-d</code> working directory. / <b>静默终端：</b>静默模式使用同一 Terminal shell 但不抢焦点，并立即启动会话，因此 Cursor、Typora 以及 <code>cd</code> 等内置命令会真正执行。Windows 上 <code>wt</code>/<code>wt.exe</code> 会显式传入 <code>-d</code> 工作目录。</li>
+    <li><b>Skeleton Scopes:</b> Create a Workspace, Notes Space, or All layout. Quick Reference explains the bilingual <code>context</code>, <code>adr</code>, <code>specs</code>, <code>runs</code>, and <code>docs</code> structure. / <b>骨架范围：</b>可创建 Workspace、Notes Space 或 All 布局。快速参考说明双语的 <code>context</code>、<code>adr</code>、<code>specs</code>、<code>runs</code>、<code>docs</code> 结构。</li>
+    <li><b>AI Workspace Git and Versioning:</b> Manage an independent <code>.ai</code> Git repository, docs root, <code>.ai/VERSION</code> patch upgrades, and quick commits without moving the existing project <code>docs/</code> directory. / <b>AI 工作区 Git 与版本管理：</b>支持独立 <code>.ai</code> Git 仓库、文档根目录、<code>.ai/VERSION</code> 补丁升级和快捷提交，不移动项目现有 <code>docs/</code> 目录。</li>
+    <li><b>Workspace Safety:</b> Git operations are restricted to <code>.ai</code>; the generated ignore file excludes tokens, runs, and local temporary files. / <b>工作区安全：</b>Git 操作限定在 <code>.ai</code>，自动生成的忽略文件排除 token、runs 和本地临时文件。</li>
+</ul>
 <h1>3.7.3</h1>
 <ul>
     <li><b>Dialog Keyboard Shortcuts:</b> "Add to Topic" dialog now supports <code>Ctrl+Enter</code> to confirm, <code>Esc</code> to close, and <code>Alt+A</code>/<code>Alt+C</code> button mnemonics. First topic auto-selected on open（<b>对话框快捷键：</b>"添加到主题"对话框支持 <code>Ctrl+Enter</code> 确认、<code>Esc</code> 关闭、<code>Alt+A</code>/<code>Alt+C</code> 按钮助记键，打开时自动选中第一个主题）</li>

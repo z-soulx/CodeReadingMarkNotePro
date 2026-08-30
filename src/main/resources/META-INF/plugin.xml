@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.7.3</version>
+    <version>3.7.4</version>
     <!-- 版本兼容性：最低支持2024.3，无上限 -->
     <idea-version since-build="243"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -13,6 +13,7 @@
     <!-- 插件依赖：明确声明所需的IntelliJ模块 -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
+    <depends optional="true">org.jetbrains.plugins.terminal</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
@@ -26,7 +27,7 @@
                              displayName="Code Reading Note Sync"/>
         <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
         <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
-        <!-- Startup activity for sync conflict detection -->
+        <!-- ProjectActivity: sync conflict check after project open -->
         <postStartupActivity implementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStartupActivity"/>
         <notificationGroup id="CodeReadingNote.AIConfig" displayType="BALLOON"/>
     </extensions>

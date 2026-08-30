@@ -26,7 +26,8 @@ public class AISkeletonCreateDialog extends DialogWrapper {
     private final Map<String, JCheckBox> dirCheckboxes = new LinkedHashMap<>();
     private JLabel statusLabel;
     private JPanel referencePanel;
-    private boolean referenceVisible = false;
+    private boolean referenceVisible = true;
+    private JScrollPane referenceScroll;
 
     public AISkeletonCreateDialog(@NotNull Project project) {
         super(project);
@@ -84,7 +85,9 @@ public class AISkeletonCreateDialog extends DialogWrapper {
             dirCheckboxes.put(dir.getName(), cb);
             rowPanel.add(cb, BorderLayout.WEST);
 
-            String tag = dir.isRequired() ? " [required]" : " [optional]";
+            String tag = dir.isRequired()
+                ? " " + CodeReadingNoteBundle.message("aiconfig.skeleton.required")
+                : " " + CodeReadingNoteBundle.message("aiconfig.skeleton.optional");
             JLabel descLabel = new JLabel(dir.getDescription() + tag);
             descLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
             descLabel.setFont(descLabel.getFont().deriveFont(Font.ITALIC, 11f));
@@ -108,6 +111,7 @@ public class AISkeletonCreateDialog extends DialogWrapper {
         refToggle.addActionListener(e -> {
             referenceVisible = !referenceVisible;
             referencePanel.setVisible(referenceVisible);
+            if (referenceScroll != null) referenceScroll.setVisible(referenceVisible);
             refToggle.setText(CodeReadingNoteBundle.message("aiconfig.skeleton.reference.title")
                 + (referenceVisible ? " \u25B2" : " \u25BC"));
             main.revalidate();
@@ -123,34 +127,41 @@ public class AISkeletonCreateDialog extends DialogWrapper {
         referencePanel.setBorder(JBUI.Borders.merge(
             JBUI.Borders.customLine(UIManager.getColor("Separator.foreground")),
             JBUI.Borders.empty(8, 12), true));
-        referencePanel.setVisible(false);
+        referencePanel.setVisible(referenceVisible);
 
         for (AISkeletonConfig.DirEntry dir : AISkeletonConfig.getAllDirs()) {
-            JLabel refLine = new JLabel(dir.getReferenceText());
-            refLine.setFont(refLine.getFont().deriveFont(Font.PLAIN, 11f));
-            refLine.setAlignmentX(Component.LEFT_ALIGNMENT);
-            referencePanel.add(refLine);
-            referencePanel.add(Box.createVerticalStrut(4));
+            JPanel card = new JPanel(new BorderLayout(0, 3));
+            card.setAlignmentX(Component.LEFT_ALIGNMENT);
+            card.setOpaque(false);
+            card.setBorder(JBUI.Borders.empty(5, 6));
+
+            JLabel path = new JLabel("<html><b>" + dir.getName() + "/</b></html>");
+            path.setFont(path.getFont().deriveFont(Font.PLAIN, 12f));
+            card.add(path, BorderLayout.NORTH);
+
+            String referenceText = dir.getReferenceText();
+            if (referenceText.startsWith("<html>")) {
+                referenceText = referenceText.replaceFirst("<html>", "<html><div style='width:420px'>")
+                    .replaceFirst("</html>$", "</div></html>");
+            }
+            JLabel detail = new JLabel(referenceText);
+            detail.setFont(detail.getFont().deriveFont(Font.PLAIN, 11f));
+            detail.setForeground(UIManager.getColor("Label.foreground"));
+            card.add(detail, BorderLayout.CENTER);
+            referencePanel.add(card);
+            referencePanel.add(new JSeparator(SwingConstants.HORIZONTAL));
         }
 
-        JScrollPane refScroll = new JScrollPane(referencePanel);
-        refScroll.setPreferredSize(new Dimension(0, 160));
-        refScroll.setBorder(JBUI.Borders.empty());
-        refScroll.setVisible(false);
+        referenceScroll = new JScrollPane(referencePanel);
+        referenceScroll.setPreferredSize(new Dimension(0, 220));
+        referenceScroll.setBorder(JBUI.Borders.empty());
+        referenceScroll.setVisible(referenceVisible);
 
-        // Wrap reference scroll so it toggles
-        JPanel refWrapper = new JPanel(new BorderLayout()) {
-            @Override
-            public boolean isVisible() {
-                return referenceVisible;
-            }
-        };
-        refWrapper.add(refScroll, BorderLayout.CENTER);
-
-        // Use a wrapper that includes referencePanel visibility
         referencePanel.addPropertyChangeListener("visible", evt -> {
-            refScroll.setVisible(referenceVisible);
-            refWrapper.revalidate();
+            if (referenceScroll != null) {
+                referenceScroll.setVisible(referenceVisible);
+                referenceScroll.revalidate();
+            }
         });
 
         // Status label at bottom
@@ -160,7 +171,7 @@ public class AISkeletonCreateDialog extends DialogWrapper {
         statusLabel.setBorder(JBUI.Borders.empty(4, 8));
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.add(referencePanel, BorderLayout.CENTER);
+        bottomPanel.add(referenceScroll, BorderLayout.CENTER);
         bottomPanel.add(statusLabel, BorderLayout.SOUTH);
         main.add(bottomPanel, BorderLayout.SOUTH);
 
@@ -171,7 +182,7 @@ public class AISkeletonCreateDialog extends DialogWrapper {
 
     private void applyPreset() {
         AISkeletonConfig.Preset preset = (AISkeletonConfig.Preset) presetCombo.getSelectedItem();
-        if (preset == null) preset = AISkeletonConfig.Preset.NONE;
+        if (preset == null) preset = AISkeletonConfig.Preset.WORKSPACE;
         Set<String> selected = AISkeletonConfig.getDirsForPreset(preset);
         for (Map.Entry<String, JCheckBox> entry : dirCheckboxes.entrySet()) {
             entry.getValue().setSelected(selected.contains(entry.getKey()));
