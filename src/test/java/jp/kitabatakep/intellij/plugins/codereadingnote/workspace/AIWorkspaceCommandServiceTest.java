@@ -152,6 +152,48 @@ public class AIWorkspaceCommandServiceTest {
     }
 
     @Test
+    public void seedsOnlyWhenWorkspaceExistsAndCommandFileIsMissing() {
+        assertTrue(AIWorkspaceCommandService.shouldSeedBuiltIns(true, false));
+        assertFalse(AIWorkspaceCommandService.shouldSeedBuiltIns(true, true));
+        assertFalse(AIWorkspaceCommandService.shouldSeedBuiltIns(false, false));
+        assertFalse(AIWorkspaceCommandService.shouldSeedBuiltIns(false, true));
+    }
+
+    @Test
+    public void builtInCommandsAreSilentCursorAndTypora() throws Exception {
+        List<AIWorkspaceCommand> commands = AIWorkspaceCommandService.builtInCommands(
+                "Launch Cursor for this project", "Open selected Markdown in Typora");
+        assertEquals(2, commands.size());
+
+        AIWorkspaceCommand cursor = commands.get(0);
+        assertEquals(AIWorkspaceCommandService.ID_LAUNCH_CURSOR, cursor.id);
+        assertEquals("Launch Cursor for this project", cursor.displayName);
+        assertEquals("Launch Cursor for this project", cursor.name);
+        assertEquals("cursor", cursor.executable);
+        assertEquals(List.of("."), cursor.args);
+        assertEquals("silent", cursor.executionMode);
+        assertFalse(cursor.openTerminal);
+        assertFalse(cursor.confirmEachTime);
+        assertTrue(cursor.enabled);
+        assertEquals("project", cursor.fileSource);
+
+        AIWorkspaceCommand typora = commands.get(1);
+        assertEquals(AIWorkspaceCommandService.ID_OPEN_TYPORA, typora.id);
+        assertEquals("Open selected Markdown in Typora", typora.displayName);
+        assertEquals("typora", typora.executable);
+        assertEquals(List.of("$FilePath$"), typora.args);
+        assertEquals("silent", typora.executionMode);
+        assertFalse(typora.openTerminal);
+        assertFalse(typora.confirmEachTime);
+        assertEquals("project", typora.fileSource);
+
+        Path root = Files.createTempDirectory("builtin-commands");
+        for (AIWorkspaceCommand command : commands) {
+            AIWorkspaceCommandService.validate(command, root);
+        }
+    }
+
+    @Test
     public void guiCommandsDetachAndBatCommandsWait() {
         assertTrue(AIWorkspaceSilentLauncher.shouldDetach(
                 List.of("cmd.exe", "/c", "C:\\cursor.cmd", "."), true, false));

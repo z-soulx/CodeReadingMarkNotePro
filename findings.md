@@ -1,8 +1,9 @@
 # Findings
 
-- Constitution requires full i18n coverage, backward-compatible persistence, no blocking EDT I/O, and semver consistency.
-- Current repository has no planning files and no automated test suite according to project context.
-- The custom command manager dispatches commands through `TerminalToolWindowManager.createLocalShellWidget` and then `executeCommand`.
-- A saved command with executable `wt` currently sends only `wt` after setting the IDEA Terminal widget directory. Windows 10 Windows Terminal can open a new tab/window at its profile default instead of the inherited shell directory.
-- Silent mode now uses the same IDEA Terminal shell as Terminal mode, without focusing the tool window. Previously silent ProcessBuilder hit CreateProcess 193/2; previously unfocused Terminal passed `deferSessionStartUntilShown=true`, so the command never ran until the user opened Terminal.
-- `$FilePath$` previously used only the open editor file, so Typora opened `workspace-commands.json` when that tab was focused. Macros now use Project tool window selection by default (file need not be open), with an optional editor-only mode.
+- `AIWorkspaceCommandService.load()` currently returns an empty list when `.ai/workspace-commands.json` is missing; it never writes defaults.
+- `upsert()` / `delete()` persist whatever `load()` returns. Seeding only when the file is absent means deleting commands (including emptying `commands: []`) sticks.
+- Existing projects that already have the JSON must not get a forced merge of `launch-cursor-project` / `open-selected-md-in-typora`.
+- Seeded `displayName`/`name` must come from bundles (constitution: no hardcoded UI strings). IDs stay as given.
+- `validate()` accepts portable names `cursor` / `typora` and `$FilePath$`. Do not create `.ai/` just to seed; only seed when that directory already exists.
+- Startup already runs when `.ai/` exists (`AIWorkspaceVcsStartupActivity`); that is the right place to write the file without waiting for the command dialog.
+- Help currently documents Typora as id `open-selected-md`; the built-in id is `open-selected-md-in-typora`.

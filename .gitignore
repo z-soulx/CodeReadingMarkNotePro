@@ -10,8 +10,5 @@
 
 /build
 
-# .ai: contract layer is [Git]; runs/ (execution evidence) and local secrets are ignored
-/.ai/runs/
-/.ai/token.txt
-# The AI workspace has its own repository; never add its internal metadata to the plugin repo.
-/.ai/.git/
+# .ai is an independent Git workspace; never track it in the plugin repository.
+/.ai/

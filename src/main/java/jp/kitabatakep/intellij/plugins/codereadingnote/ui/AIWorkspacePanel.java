@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.nio.file.Path;
 /**
  * Main panel for the "AI Workspace" tab, showing AI config files
  * with a tree on the left and a file preview on the right.
@@ -117,26 +118,20 @@ public class AIWorkspacePanel extends JPanel {
         actions.add(new AnAction(
             CodeReadingNoteBundle.message("aiworkspace.git.init"),
             CodeReadingNoteBundle.message("aiworkspace.git.init.description"),
-            AllIcons.Actions.Diff
+            AllIcons.Actions.Commit
         ) {
-            @Override public void actionPerformed(@NotNull AnActionEvent e) { initializeWorkspaceGit(); }
+            @Override public void actionPerformed(@NotNull AnActionEvent e) { openWorkspaceGitUi(); }
             @Override public void update(@NotNull AnActionEvent e) {
-                e.getPresentation().setEnabled(!AIWorkspaceGitService.getInstance(project).isInitialized());
+                boolean initialized = AIWorkspaceGitService.getInstance(project).isInitialized();
+                e.getPresentation().setText(initialized
+                        ? CodeReadingNoteBundle.message("aiworkspace.git.open")
+                        : CodeReadingNoteBundle.message("aiworkspace.git.init"));
+                e.getPresentation().setDescription(initialized
+                        ? CodeReadingNoteBundle.message("aiworkspace.git.open.description")
+                        : CodeReadingNoteBundle.message("aiworkspace.git.init.description"));
             }
             @Override public @NotNull ActionUpdateThread getActionUpdateThread() { return ActionUpdateThread.EDT; }
         });
-
-        actions.add(new AnAction(
-            CodeReadingNoteBundle.message("aiworkspace.version.bump"),
-            CodeReadingNoteBundle.message("aiworkspace.version.bump.description"),
-            AllIcons.General.ArrowRight
-        ) { @Override public void actionPerformed(@NotNull AnActionEvent e) { bumpWorkspaceVersion(); } });
-
-        actions.add(new AnAction(
-            CodeReadingNoteBundle.message("aiworkspace.version.commit"),
-            CodeReadingNoteBundle.message("aiworkspace.version.commit.description"),
-            AllIcons.Actions.Upload
-        ) { @Override public void actionPerformed(@NotNull AnActionEvent e) { commitWorkspaceVersion(); } });
 
         actions.add(new AnAction(
             CodeReadingNoteBundle.message("aiworkspace.commands.manage"),
@@ -713,6 +708,7 @@ public class AIWorkspacePanel extends JPanel {
             if (!aiRoot.exists()) {
                 aiRoot.mkdirs();
             }
+            AIWorkspaceCommandService.getInstance(project).ensureSeeded();
 
             for (String dirName : selectedDirs) {
                 File subDir = new File(aiRoot, dirName);
@@ -860,33 +856,40 @@ public class AIWorkspacePanel extends JPanel {
         statusLabel.setText(CodeReadingNoteBundle.message("aiconfig.status.summary", total, tracked) + " | " + gitText);
     }
 
-    private void initializeWorkspaceGit() {
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, CodeReadingNoteBundle.message("aiworkspace.git.initializing"), true) {
-            private AIWorkspaceGitService.GitResult result;
-            @Override public void run(@NotNull ProgressIndicator indicator) { result = AIWorkspaceGitService.getInstance(project).initialize(); }
-            @Override public void onSuccess() { if (result.success) Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.git.init.success"), CodeReadingNoteBundle.message("aiworkspace.git.init")); else Messages.showErrorDialog(project, result.output, CodeReadingNoteBundle.message("aiworkspace.error.title")); updateStatus(); }
-        });
+    private void openWorkspaceGitUi() {
+        AIWorkspaceGitService git = AIWorkspaceGitService.getInstance(project);
+        if (!git.isInitialized()) {
+            ProgressManager.getInstance().run(new Task.Backgroundable(project, CodeReadingNoteBundle.message("aiworkspace.git.opening"), true) {
+                private AIWorkspaceGitService.GitResult result;
+                @Override public void run(@NotNull ProgressIndicator indicator) { result = git.initialize(); }
+                @Override public void onSuccess() {
+                    if (!result.success) {
+                        Messages.showErrorDialog(project, result.output, CodeReadingNoteBundle.message("aiworkspace.error.title"));
+                        updateStatus();
+                        return;
+                    }
+                    showNativeGitUi();
+                    if (result.untrackedFromParent) AIWorkspaceVcsSupport.notifyParentUntracked(project);
+                    updateStatus();
+                }
+            });
+            return;
+        }
+        AIWorkspaceGitService.GitResult isolation = git.ensureParentIsolation();
+        if (isolation.untrackedFromParent) AIWorkspaceVcsSupport.notifyParentUntracked(project);
+        showNativeGitUi();
     }
 
-    private void bumpWorkspaceVersion() {
-        try { String next = AIWorkspaceVersionService.getInstance(project).bumpPatch(); Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.version.bump.success", next), CodeReadingNoteBundle.message("aiworkspace.version.bump")); updateStatus(); }
-        catch (Exception ex) { Messages.showErrorDialog(project, ex.getMessage(), CodeReadingNoteBundle.message("aiworkspace.error.title")); }
-    }
-
-    private void commitWorkspaceVersion() {
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, CodeReadingNoteBundle.message("aiworkspace.version.committing"), true) {
-            private AIWorkspaceGitService.GitResult result;
-            @Override public void run(@NotNull ProgressIndicator indicator) {
-                try { String version = AIWorkspaceVersionService.getInstance(project).readVersion(); result = AIWorkspaceGitService.getInstance(project).commit("chore: " + version); }
-                catch (Exception ex) { result = AIWorkspaceGitService.GitResult.failure(ex.getMessage()); }
-            }
-            @Override public void onSuccess() {
-                if (result.noChanges) Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.git.no.changes"), CodeReadingNoteBundle.message("aiworkspace.version.commit"));
-                else if (result.success) Messages.showInfoMessage(project, CodeReadingNoteBundle.message("aiworkspace.git.commit.success"), CodeReadingNoteBundle.message("aiworkspace.version.commit"));
-                else Messages.showErrorDialog(project, result.output, CodeReadingNoteBundle.message("aiworkspace.error.title"));
-                updateStatus();
-            }
-        });
+    private void showNativeGitUi() {
+        AIWorkspaceVcsSupport.ensureDirectoryMapping(project);
+        Path root = AIWorkspaceService.getInstance(project).getWorkspaceRoot();
+        if (!java.nio.file.Files.isDirectory(root)) {
+            Messages.showErrorDialog(project, CodeReadingNoteBundle.message("aiworkspace.git.root.missing"), CodeReadingNoteBundle.message("aiworkspace.error.title"));
+            return;
+        }
+        if (!AIWorkspaceVcsSupport.openCommitUi(project)) {
+            Messages.showErrorDialog(project, CodeReadingNoteBundle.message("aiworkspace.git.ui.unavailable"), CodeReadingNoteBundle.message("aiworkspace.error.title"));
+        }
     }
 
     private void setupEventHandlers() {

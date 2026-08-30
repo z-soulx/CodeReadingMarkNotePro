@@ -1,5 +1,10 @@
 <html>
 <body>
+<h1>3.7.5</h1>
+<ul>
+    <li><b>.ai Git UI:</b> Isolate <code>.ai</code> from the parent Git root, untrack indexed <code>.ai</code> files, and use one toolbar button that initializes then opens IDEA Commit (later clicks only open). After the first mapping, the project Commit window keeps the <code>.ai</code> root. / <b>.ai Git 界面：</b>从父仓库隔离并取消跟踪 <code>.ai</code>。工具栏一个按钮：未初始化则初始化并打开 Commit，已初始化则打开。第一次登记 mapping 之后，项目 Commit 窗口会一直带上 <code>.ai</code>。</li>
+    <li><b>Built-in commands:</b> The first time <code>.ai/workspace-commands.json</code> is missing, the plugin writes Cursor and Typora silent commands. Users can delete them; an existing file is never re-seeded. / <b>内置命令：</b>第一次没有 <code>.ai/workspace-commands.json</code> 时写入 Cursor 与 Typora 静默命令。用户可删除；已有文件不会再次注入。</li>
+</ul>
 <h1>3.7.4</h1>
 <ul>
     <li><b>Custom Commands:</b> Manage all commands in one list/form dialog, save them in <code>.ai/workspace-commands.json</code>, and run them in IDEA Terminal (PowerShell on Windows, default shell on macOS). Save writes immediately with no OK/Cancel footer and no confirmation. <code>$FilePath$</code> / <code>$FileDir$</code> / <code>$FileName$</code> can use the Project tree selection (file need not be open) or the open editor file. / <b>自定义命令：</b>在统一列表/表单中管理命令，保存到 <code>.ai/workspace-commands.json</code>，通过 IDEA Terminal 执行（Windows 为 PowerShell，macOS 为默认 shell）。保存立即写入，无底部确定/取消、无二次确认。<code>$FilePath$</code> 等变量可使用项目树选中（不必打开）或编辑器已打开的文件。</li>

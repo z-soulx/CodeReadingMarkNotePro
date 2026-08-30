@@ -10,7 +10,7 @@ plugins {
 }
 
 group 'jp.kitabatakep'
-version '3.7.4'  // 插件版本号 - 发布新版本时更新此行
+version '3.7.5'  // 插件版本号 - 发布新版本时更新此行
 
 sourceCompatibility = 17
 targetCompatibility = 17
@@ -92,4 +92,39 @@ runPluginVerifier {
     failureLevel.set(['COMPATIBILITY_PROBLEMS'])
     // 下载目录配置
     downloadDir.set("${project.buildDir}/pluginVerifier/ides")
+}
+
+// Marketplace 一键发布：.\gradlew.bat publishPlugin
+// Token：环境变量 PUBLISH_TOKEN，或用户级 ~/.gradle/gradle.properties 的 intellijPublishToken
+// 签名（可选）：未配置时 signPlugin 会跳过；配置后会在 publishPlugin 前自动签名
+publishPlugin {
+    token.set(providers.environmentVariable("PUBLISH_TOKEN")
+            .orElse(providers.gradleProperty("intellijPublishToken")))
+    if (project.hasProperty("publishChannel")) {
+        channels.set([project.property("publishChannel").toString()])
+    }
+}
+
+signPlugin {
+    def chainFile = findProperty("certificateChainFile")
+    def keyFile = findProperty("privateKeyFile")
+    if (chainFile && keyFile) {
+        certificateChainFile.set(file(chainFile.toString()))
+        privateKeyFile.set(file(keyFile.toString()))
+        def pass = findProperty("privateKeyPassword")
+        if (pass) {
+            password.set(pass.toString())
+        }
+    } else {
+        def chain = System.getenv("CERTIFICATE_CHAIN")
+        def key = System.getenv("PRIVATE_KEY")
+        if (chain && key) {
+            certificateChain.set(chain)
+            privateKey.set(key)
+            def pass = System.getenv("PRIVATE_KEY_PASSWORD")
+            if (pass) {
+                password.set(pass)
+            }
+        }
+    }
 }

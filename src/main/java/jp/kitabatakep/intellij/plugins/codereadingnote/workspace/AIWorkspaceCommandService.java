@@ -33,13 +33,28 @@ import java.util.regex.Pattern;
 
 @Service(Service.Level.PROJECT)
 public final class AIWorkspaceCommandService {
+    static final String ID_LAUNCH_CURSOR = "launch-cursor-project";
+    static final String ID_OPEN_TYPORA = "open-selected-md-in-typora";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Pattern SHELL = Pattern.compile("[;&|<>`$()\\r\\n]");
     private final Project project;
     public AIWorkspaceCommandService(@NotNull Project project) { this.project = project; }
     @NotNull public static AIWorkspaceCommandService getInstance(@NotNull Project project) { return project.getService(AIWorkspaceCommandService.class); }
     @NotNull private Path file() { return AIWorkspaceService.getInstance(project).getWorkspaceRoot().resolve("workspace-commands.json"); }
+
+    /**
+     * Writes the two first-run commands only when {@code .ai/} exists and
+     * {@code workspace-commands.json} does not. An existing file (including
+     * {@code commands: []}) is never merged or rewritten.
+     */
+    public void ensureSeeded() throws IOException {
+        Path root = AIWorkspaceService.getInstance(project).getWorkspaceRoot();
+        if (!shouldSeedBuiltIns(Files.isDirectory(root), Files.exists(file()))) return;
+        save(builtInCommands());
+    }
+
     @NotNull public List<AIWorkspaceCommand> load() throws IOException {
+        ensureSeeded();
         if (!Files.exists(file())) return new ArrayList<>();
         WorkspaceCommands data = GSON.fromJson(Files.readString(file(), StandardCharsets.UTF_8), WorkspaceCommands.class);
         if (data == null || data.commands == null) return new ArrayList<>();
@@ -308,6 +323,41 @@ public final class AIWorkspaceCommandService {
     public static String resolveFileSource(String fileSource) {
         if (fileSource == null || fileSource.isBlank()) return "project";
         return "editor".equalsIgnoreCase(fileSource.trim()) ? "editor" : "project";
+    }
+
+    static boolean shouldSeedBuiltIns(boolean workspaceDirExists, boolean commandsFileExists) {
+        return workspaceDirExists && !commandsFileExists;
+    }
+
+    @NotNull static List<AIWorkspaceCommand> builtInCommands() {
+        return builtInCommands(
+                CodeReadingNoteBundle.message("aiworkspace.commands.builtin.cursor"),
+                CodeReadingNoteBundle.message("aiworkspace.commands.builtin.typora"));
+    }
+
+    @NotNull static List<AIWorkspaceCommand> builtInCommands(@NotNull String cursorName, @NotNull String typoraName) {
+        List<AIWorkspaceCommand> commands = new ArrayList<>();
+        commands.add(silentGuiCommand(ID_LAUNCH_CURSOR, cursorName, "cursor", List.of("."), "project"));
+        commands.add(silentGuiCommand(ID_OPEN_TYPORA, typoraName, "typora", List.of("$FilePath$"), "project"));
+        return commands;
+    }
+
+    @NotNull private static AIWorkspaceCommand silentGuiCommand(
+            @NotNull String id, @NotNull String name, @NotNull String executable,
+            @NotNull List<String> args, @NotNull String fileSource) {
+        AIWorkspaceCommand command = new AIWorkspaceCommand();
+        command.id = id;
+        command.name = name;
+        command.displayName = name;
+        command.executable = executable;
+        command.args = new ArrayList<>(args);
+        command.workingDirectory = "";
+        command.enabled = true;
+        command.openTerminal = false;
+        command.executionMode = "silent";
+        command.fileSource = fileSource;
+        command.confirmEachTime = false;
+        return command;
     }
 
     @Nullable private VirtualFile selectedProjectFile() {

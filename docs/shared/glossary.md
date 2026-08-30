@@ -41,7 +41,7 @@
 | 工作台元数据 | ai-config-registry.json | 远端跨平台 JSON：路径/规则/跟踪态/哈希/空目录 |
 | 同步角标 | NEW / MODIFIED / SYNCED | 树上文件相对上次推送的状态 |
 | 三方合并 | AIConfigMergeAnalyzer | 本地/远端/基线逐文件比对归类 |
-| 自定义命令 | AIWorkspaceCommand | `.ai/workspace-commands.json` 中的可执行命令；Terminal 或静默终端 |
+| 自定义命令 | AIWorkspaceCommand | `.ai/workspace-commands.json` 中的可执行命令；Terminal 或静默终端。文件缺失时写入一次 Cursor/Typora 默认项，可删且不回填 |
 | 静默终端 | Silent Terminal | 同一 IDEA Terminal 会话，不抢焦点，立即启动 shell |
 | 工作区版本 | `.ai/VERSION` | `.ai` 知识库的严格 Semver，默认 `1.0.0` |
 

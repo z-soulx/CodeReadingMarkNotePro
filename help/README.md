@@ -18,7 +18,7 @@ Code Reading Mark Note Pro 帮助你在阅读源码时创建笔记和书签，�
 | **Gutter Marks / Gutter 标记** | Note icons in editor gutter with hover preview & edit / 编辑器左侧显示笔记图标，悬浮查看/编辑 |
 | **Search / 搜索** | Global search across all notes / 全局搜索笔记内容 |
 | **GitHub Sync / GitHub 同步** | Push/pull notes to a dedicated GitHub repo for cross-device sync / 笔记数据推送/拉取到独立 GitHub 仓库，跨设备同步 |
-| **AI Workspace / AI 工作空间** | Manage personal AI config files, an opt-in `.ai` Git repo, Semver `.ai/VERSION`, and custom Terminal commands / 管理个人 AI 配置文件、可选 `.ai` Git 仓库、Semver `.ai/VERSION` 以及自定义 Terminal 命令 |
+| **AI Workspace / AI 工作空间** | Manage personal AI config files, an opt-in `.ai` Git repo with IDEA Commit UI, Semver `.ai/VERSION`, and custom Terminal commands / 管理个人 AI 配置文件、可选 `.ai` Git 仓库（含 IDEA 提交界面）、Semver `.ai/VERSION` 以及自定义 Terminal 命令 |
 | **Multi-language / 多语言** | Chinese/English UI, runtime switching / 中文/英文 UI，运行时切换 |
 
 ---
@@ -87,9 +87,9 @@ All IDEs based on IntelliJ Platform 2024.3+ (no upper version limit): IntelliJ I
 
 ### Q: Does the plugin modify project code? / 插件会影响项目代码吗？
 
-No. Note data is stored in `.idea/CodeReadingNote.xml` and does not modify source files. AI Workspace can create files under `.ai/` only when you use skeleton, Git, or custom-command features.
+No. Note data is stored in `.idea/CodeReadingNote.xml` and does not modify source files. AI Workspace writes under `.ai/` when you use skeleton, Git, or custom commands. Creating `.ai/` (or opening a project that already has it) also writes `workspace-commands.json` once if that file is missing.
 
-不会。笔记数据存储在 `.idea/CodeReadingNote.xml`，不修改源码。只有使用骨架创建、`.ai` Git 或自定义命令时，才会在项目的 `.ai/` 下写入文件。
+不会。笔记数据存储在 `.idea/CodeReadingNote.xml`，不修改源码。骨架创建、`.ai` Git 或自定义命令会在项目的 `.ai/` 下写入文件。创建 `.ai/`（或打开已有 `.ai/` 的项目）时，若还没有 `workspace-commands.json`，也会写入一次。
 
 ---
 

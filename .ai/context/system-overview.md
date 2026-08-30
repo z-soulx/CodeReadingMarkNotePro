@@ -31,7 +31,7 @@ notes in a recoverable trash bin.
 | Domain | `Topic`, `TopicLine`, `TopicList`, `TrashedLine` | Business entities and operations |
 | Sync | `SyncProvider`, `SyncService`, `GitHubSyncProvider`, `AutoSyncScheduler`, `SyncConflictDetector` | Remote sync with conflict detection, debounced auto push |
 | AI Config | `AIConfigService`, `AIConfigRegistry`, `AIConfigSyncAdapter`, `AIConfigAutoSyncScheduler`, `AIConfigMergeAnalyzer` | AI config discovery, tracking, independent sync, three-way merge |
-| AI Workspace | `AIWorkspaceService`, `AIWorkspaceGitService`, `AIWorkspaceVersionService`, `AIWorkspaceCommandService` | `.ai/docs` knowledge workspace, opt-in `.ai` Git, Semver VERSION, Terminal or silent-unfocused Terminal commands with IDEA file macros |
+| AI Workspace | `AIWorkspaceService`, `AIWorkspaceGitService`, `AIWorkspaceVcsSupport`, `AIWorkspaceChangeListService`, `AIWorkspaceVersionService`, `AIWorkspaceCommandService` | `.ai/docs` knowledge workspace, opt-in `.ai` Git, parent `/.ai/` ignore and untrack, IDEA Directory Mapping + `.ai` changelist + native Commit UI, Semver VERSION, Terminal or silent-unfocused Terminal commands with IDEA file macros |
 | UI | `ManagementPanel`, `TopicDetailPanel`, `AIWorkspacePanel`, `PushReportDialog` | ToolWindow panels (tabs: tree / search / AI workspace) |
 | Gutter | `NoteGutterIconRenderer`, `NotePopupHelper` | Custom gutter icon + interactive edit popup |
 | Actions | `TopicLineAddAction`, `NavigateToNoteAction`, etc. | User operations |
@@ -47,7 +47,7 @@ notes in a recoverable trash bin.
 | `ai-config-registry.json` (remote) | Cross-platform workspace metadata (tracked entries, custom paths, ignore patterns, file hashes, empty dirs) | Synced |
 | `aiWorkspace.xml` | Runtime docs root (defaults to `.ai/docs`) | Project-level local |
 | `.ai/VERSION` | Strict Semver workspace version (defaults to `1.0.0`) | `.ai` workspace |
-| `.ai/workspace-commands.json` | Custom commands, schemaVersion 1 | `.ai` workspace |
+| `.ai/workspace-commands.json` | Custom commands, schemaVersion 1. Missing file is seeded once with Cursor/Typora when `.ai/` exists. | `.ai` workspace |
 
 ## Events
 

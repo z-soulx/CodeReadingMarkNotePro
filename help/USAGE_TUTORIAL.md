@@ -1,6 +1,6 @@
 # Code Reading Mark Note Pro — Usage Tutorial / 完整使用教程
 
-> Code Reading Mark Note Pro v3.7.4+ | [GitHub](https://github.com/z-soulx/CodeReadingMarkNotePro) | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro)
+> Code Reading Mark Note Pro v3.7.5+ | [GitHub](https://github.com/z-soulx/CodeReadingMarkNotePro) | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro)
 
 ---
 
@@ -457,8 +457,8 @@ Manage personal AI config files (Cursor Rules, Claude, Codex, Windsurf, Copilot,
 - Independent push/pull from notes sync / 独立于笔记同步的推送/拉取
 - Auto-sync with conflict detection / 自动同步与冲突检测
 - .ai/ skeleton creator with Workspace / Notes Space / All scopes / .ai/ 骨架创建器（Workspace / Notes Space / All）
-- Opt-in `.ai` Git, `.ai/VERSION` patch bump, and `chore: <version>` commit / 可选 `.ai` Git、`.ai/VERSION` 补丁升级、`chore: <version>` 提交
-- Custom commands in IDEA Terminal or Silent Terminal (no focus) / 自定义命令：IDEA Terminal 或静默终端（不抢焦点）
+- Opt-in `.ai` Git with IDEA Commit UI (choose files and message yourself) / 可选 `.ai` Git，用 IDEA 提交界面自己选文件和写说明
+- Custom commands in IDEA Terminal or Silent Terminal (no focus); first missing `.ai/workspace-commands.json` is seeded with Cursor and Typora (deletable, not re-injected) / 自定义命令：IDEA Terminal 或静默终端（不抢焦点）；第一次没有 `.ai/workspace-commands.json` 时写入 Cursor、Typora（可删，不回填）
 - Configurable ignore rules / 可配置忽略规则
 - Custom path tracking / 自定义路径追踪
 

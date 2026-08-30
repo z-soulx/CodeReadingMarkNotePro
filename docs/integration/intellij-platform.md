@@ -24,6 +24,11 @@ dispose 时反注册，避免泄漏（constitution 红线）。
 `SyncStartupActivity` 实现 `ProjectActivity`（不再使用已过时的 `StartupActivity`），
 注册在 `com.intellij.postStartupActivity`。仅在同步与自动同步均开启时后台检查远端冲突。
 
+`AIWorkspaceVcsStartupActivity` 同样是 `ProjectActivity`：只要存在 `.ai/` 目录，就确保项目根
+`.gitignore` 含 `/.ai/`，并把父仓库索引中的 `.ai` 路径 `git rm --cached`（不自动提交）。
+若 `.ai/.git` 已存在，再用 `ProjectLevelVcsManager.setDirectoryMappings` 登记 `.ai` → Git，
+并把 `.ai` 变更移到独立 changelist。打开 Commit UI 走平台 action `CheckinFiles`，不编译依赖 Git4Idea。
+
 ## ToolWindow / Editor / Gutter
 
 - `ManagementPanel` 三页签（树 / 搜索 / AI 工作台）

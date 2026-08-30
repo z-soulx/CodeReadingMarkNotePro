@@ -32,7 +32,7 @@ criteria is a sign it belongs in `docs/` instead.
 
 ## Current Working Set
 
-_(none — 3.7.4 workspace units frozen)_
+_(none — 202608-ai-builtin-commands frozen)_
 
 When a spec is opened, list it here with a one-line status; remove the line when the
 unit is frozen. (This is the only volatile section of this file.)

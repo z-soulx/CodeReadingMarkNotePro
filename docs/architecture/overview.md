@@ -51,7 +51,7 @@ AI 配置工作台。技术栈：Java 17 + Gradle + IntelliJ Platform 2024.3+。
 | `ai-config-registry.json` | 远端工作台元数据 | 远端，跨平台 JSON 契约 |
 | `aiWorkspace.xml` | 运行时文档根（默认 `.ai/docs`） | 项目级，仅本地 |
 | `.ai/VERSION` | 工作区 Semver | `.ai` 工作区 |
-| `.ai/workspace-commands.json` | 自定义命令目录 | `.ai` 工作区 |
+| `.ai/workspace-commands.json` | 自定义命令目录；`.ai/` 已存在且该文件缺失时写入一次 Cursor/Typora 默认命令 | `.ai` 工作区 |
 
 本地 XML 与远端 JSON 双格式并存的理由见 `.ai/adr/0006`。
 
