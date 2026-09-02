@@ -1,0 +1,68 @@
+# Findings
+
+- The root-level planning files belong to the completed 3.7.5 built-in commands task and are preserved.
+- Repository red lines require full i18n coverage, matching Semver values in `build.gradle` and `plugin.xml`, and explicit verification before completion.
+- `INDEX.md` routes this change through the existing spec unit, UI/i18n resources, AI Workspace current-system docs, and the release runbook.
+- Completed changes must backflow into `docs/`; execution evidence belongs in gitignored `.ai/runs/`.
+- Current release version is 3.7.5 in both `build.gradle` and `plugin.xml`.
+- The Tool Window, Add to Topic action, and Navigate to Note action all currently reference `MyIcons.PLUGIN` in `plugin.xml`.
+- Existing help/current-system documentation already treats Manage Custom Commands as the command entry point and describes Run inside that dialog; no AI Workspace toolbar Run action is needed.
+- Release guidance requires bilingual product-facing change notes and matching version values before packaging.
+- The existing `202609-ui-entrypoint-regressions` unit is stale: it requests a new AI Workspace toolbar Run action and prematurely marks implementation/build/backflow complete.
+- `AIWorkspaceCommandsDialog` already creates Add, Save, Delete, and Run buttons in one `FlowLayout` row and delegates Run to `AIWorkspaceCommandService.runConfigured()`.
+- The dialog root forcibly sets `900x500`, overriding the layout-derived preferred width that includes the platform-specific button preferred sizes.
+- `icons.MyIcons.PLUGIN` exists as a public static field backed by the existing `/META-INF/pluginIcon.svg`; only the descriptor field references need qualification.
+- A stale `CodeReadingMarkNotePro-3.7.6.zip` and stale run record already exist from the superseded toolbar-Run interpretation; fresh evidence must supersede them.
+- `AIWorkspacePanel` currently exposes only Manage Custom Commands for commands, matching the corrected requirement.
+- The release metadata and end-user guides still advertised 3.7.5 before this update; the AI Workspace guide already identified Manage Custom Commands as the only toolbar command entry point.
+- Fresh package inspection confirms version 3.7.6, three qualified descriptor references, no legacy references, and all icon/dialog classes and resources present.
+- The packaged 3.7.6 `pluginIcon.svg` is byte-identical to the known-good 3.7.3 baseline (same SHA-256), so no visual asset redesign occurred.
+- Installed-plugin behavior on macOS, bilingual macOS control rendering, and real Terminal/Silent Terminal interaction cannot be executed in the current Windows non-GUI environment.
+- The `202609-ui-entrypoint-regressions` spec and run evidence are present on disk but are not tracked by the root repository because `/.ai/` ignores newly created `.ai` content; `.ai/context/INDEX.md` remains tracked.
+- User acceptance screenshots show the regression clearly: 3.7.3 rendered the yellow note icon in the Tool Window stripe and separately beside both editor actions; the new 3.7.6 package renders gray IDE fallback arrow/terminal icons instead.
+- Therefore, the presence of `icons.MyIcons.class`, `pluginIcon.svg`, and the string `icons.MyIcons.PLUGIN` in the package does not prove IntelliJ can resolve that field at descriptor-loading time.
+- Git history shows the known-good 3.7.3 descriptor used `MyIcons.PLUGIN`, not the fully qualified field name; an older commit `a7b4432` is explicitly titled `avoid error on plugin.xml by adding icons.MyIcons` and needs inspection.
+- The intended SVG is still the yellow note asset and `MyIcons.PLUGIN` loads it from `/META-INF/pluginIcon.svg` at Java runtime.
+- A repository-wide icon search command failed only because PowerShell parsed the regex brackets inside double quotes; rerun it with quoting-safe fixed strings.
+- Commit `a7b4432` changed direct `/META-INF/pluginIcon.svg` descriptor paths to `MyIcons.PLUGIN` specifically to avoid a plugin.xml error and added the `icons.MyIcons` class.
+- The known-good 3.7.3 source and package both use `MyIcons.PLUGIN`; its `MyIcons` implementation matches the current runtime loader call.
+- Direct resource paths are therefore not adopted without confirming current-platform support; the next check targets IntelliJ 2024.3's descriptor icon resolver.
+- Official JetBrains documentation fetches failed at the local PowerShell TLS layer; no documentation content was retrieved.
+- IntelliJ 2024.3's `ToolWindowEP`, `ActionManagerImpl`, and `IconLoader` classes are all in the cached `app-client.jar`; broad `javap` output did not isolate the shared descriptor resolver.
+- The next evidence source is the shipped 2024.3 plugins' own descriptors, which directly demonstrate icon syntax accepted by the same platform build.
+- Bundled 2024.3 Tool Window descriptors use symbolic icon fields: classes in the special `icons` package are referenced without that prefix (for example `GradleIcons.ToolWindowGradle` maps to `icons/GradleIcons.class`), while ordinary packages use fully qualified names.
+- Current Add/Navigate action classes do not override their presentation icon; their descriptor values control the menu icons.
+- The 3.7.3-to-3.7.5 diff does not change `MyIcons`, the short icon references, or action icon setup; only version, Terminal dependency/startup, and unrelated release wiring differ in the inspected files.
+- Previously listed build distribution archives are no longer present in the workspace at this turn; a fresh rebuild will recreate the candidate package.
+- Bundled class-path checks confirm `GradleIcons.ToolWindowGradle` resolves a real `icons/GradleIcons.class`, while descriptors for ordinary packages include the full package; `icons` is treated as a special convention.
+- `IconLoader.findResolvedIcon(String, ClassLoader)` delegates to resource-path loading and is not itself the symbolic field resolver used by descriptors.
+- The actual 2024.3 icon service is `com.intellij.ui.icons.CoreIconManager`, implementing `IconManager.getIcon(String, ClassLoader)`; this can be invoked directly against the plugin classloader for candidate validation.
+- Decompiled `getClassNameByIconPath()` shows `MyIcons.PLUGIN` gets the special `icons.` prefix, while `icons.MyIcons.PLUGIN` begins lowercase and is used as-is; both resolve the same `icons.MyIcons` class in 2024.3.
+- The new implementation treats strings containing `Icons.` and not ending in `.svg` as reflective fields, loads the computed class through the plugin classloader, and reads the named static `Icon` field.
+- This means the visual failure may be platform transformation/resource suitability rather than a simple class-not-found fallback; direct resolver rendering is required before editing.
+- Original-detail screenshots show the current menu icon area is roughly 40px tall and spans both Add/Navigate rows; the Tool Window icon is likewise clipped inside a smaller slot. This matches the SVG's intrinsic `viewBox="0 0 40 40"` size rather than a normal 16px fallback icon.
+- The old screenshots show the same yellow note artwork scaled to the expected 16px UI size. A dedicated 16x16 UI SVG can reuse the exact artwork while leaving the required 40x40 Marketplace `META-INF/pluginIcon.svg` unchanged.
+- The standalone `CoreIconManager` probe returned `CachedImageIcon` for short field, qualified field, and both resource-path variants; no candidate failed class/resource resolution.
+- Dimension/raster access then asserted because the standalone JVM had not precomputed IntelliJ's system scale factor; rerun after explicitly initializing a 1.0 diagnostic scale.
+- After precomputing 1.0 scale, `CoreIconManager` resolves all four candidates to identical 16x16 yellow-note PNGs; neither field syntax nor the 40x40 Marketplace SVG canvas reproduces the gray screenshot.
+- The installed gray icon therefore points to a different loaded artifact, cached descriptor/presentation state, or an IDE runtime error not reproduced by the isolated resolver; inspect the actual installed plugin and IDE log next.
+- The live IDE is IntelliJ IDEA 2025.3.1.1 (PID 2692), started at 11:21, before the 3.7.6 package was built.
+- Its actual plugin directory contains only `CodeReadingMarkNotePro-3.7.1.jar`; no installed 3.7.6 plugin directory/JAR was found. The screenshots therefore do not exercise the 3.7.6 implementation.
+- The current `idea.log` identifies plugin id `soulx.CodeReadingMarkNotePro` as loaded in that long-running process and contains no matching icon-load error in the searched lines.
+- No staged 3.7.6 update directory/file or post-build install/dynamic-reload event appears in the 2025.3 plugin locations and recent `idea.log`.
+- The live installed artifact reports version 3.7.1; a PowerShell precedence error interrupted the remaining icon-field listing, so that read-only check must be rerun correctly.
+- Corrected inspection confirms installed 3.7.1 uses `MyIcons.PLUGIN` in all three locations and contains both `icons/MyIcons.class` and `META-INF/pluginIcon.svg`; short references are visibly broken under the live 2025.3 UI and cannot be the final fix by themselves.
+- IntelliJ IDEA 2025.3.1.1 stores `CoreIconManager`, `ImageDataByPathLoaderKt`, and `IconLoader` in its `lib/app.jar`; its resolver can now be tested directly.
+- The JBR 21 probe against IDEA 2025.3 resolves short field, qualified field, and direct resource candidates to 16x16 icons. The direct `/META-INF/pluginIcon.svg` path is therefore supported by both the minimum 2024.3 platform and the user's 2025.3 runtime.
+- Product descriptor and spec now use the direct packaged resource path for all three entry points; this is materially different from installed 3.7.1's reflective short fields and the first 3.7.6 candidate's reflective qualified fields.
+- Four Java/IDE processes are active; PID 21220 uses the Gradle-cached JBR 21 and is the likely `runIde` process holding the sandbox plugin JAR.
+- Windows CIM command-line inspection was denied; use `jps -lv` to identify JVM roles without elevation.
+- Screenshot timestamps identify the gray-chevron UI as the 2024.3 `runIde` sandbox started at 14:09, not the later direct-resource build. Its PID 21220 still locks `build/idea-sandbox/plugins/CodeReadingMarkNotePro/lib/instrumented-CodeReadingMarkNotePro-3.7.6.jar`.
+- An alternate Gradle sandbox allowed a full forced rebuild without terminating the running IDE. The final package contains exactly three direct `/META-INF/pluginIcon.svg` references and no reflective plugin-icon field references.
+- IDEA 2025.3.1.1 resolved the direct path from the newly built sandbox JAR to a 16x16 yellow note. Raster inspection counted 126 yellow pixels out of 174 opaque pixels.
+- The 21:57 `runIde` disproved the stale-artifact explanation: its default sandbox JAR was generated at 21:57:18, contained three `/META-INF/pluginIcon.svg` references, and the log confirmed Code Reading Mark Note Pro 3.7.6 loaded at 21:57:23, yet the UI still showed placeholder chevrons.
+- Commits `e6be7d3` and `1734c63` do not change `MyIcons.java`, `pluginIcon.svg`, the two editor action classes, or the Tool Window factory. `e6be7d3` introduces the fixed-width command dialog and the optional Terminal dependency; `1734c63` adds AI Workspace Git/VCS behavior.
+- The Terminal plugin contains neither `icons/MyIcons.class` nor `META-INF/pluginIcon.svg`, so direct name/resource collision with Terminal is not the cause.
+- The next implementation uses `META-INF/pluginIcon.svg` only for Marketplace metadata and a plugin-unique `/icons/codeReadingMarkNote.svg` for runtime UI descriptors and `MyIcons.PLUGIN`.
+- The dedicated runtime implementation builds successfully. The final package contains three `/icons/codeReadingMarkNote.svg` descriptor references, no affected-entry reference to `META-INF/pluginIcon.svg` or `MyIcons.PLUGIN`, and retains the Marketplace SVG separately.
+- IDEA 2025.3.1.1 renders the packaged dedicated runtime SVG as the intended 16x16 yellow note. Its raster is byte-identical to the earlier known-good yellow-note raster.

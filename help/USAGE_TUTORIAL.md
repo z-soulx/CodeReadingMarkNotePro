@@ -1,6 +1,6 @@
 # Code Reading Mark Note Pro — Usage Tutorial / 完整使用教程
 
-> Code Reading Mark Note Pro v3.7.5+ | [GitHub](https://github.com/z-soulx/CodeReadingMarkNotePro) | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro)
+> Code Reading Mark Note Pro v3.7.6+ | [GitHub](https://github.com/z-soulx/CodeReadingMarkNotePro) | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/24163-code-reading-mark-note-pro)
 
 ---
 

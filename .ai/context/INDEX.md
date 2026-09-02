@@ -32,7 +32,7 @@ criteria is a sign it belongs in `docs/` instead.
 
 ## Current Working Set
 
-_(none — 202608-ai-builtin-commands frozen)_
+`202609-ui-entrypoint-regressions` - verification: 3.7.6 built; Windows/macOS installed-plugin checks pending.
 
 When a spec is opened, list it here with a one-line status; remove the line when the
 unit is frozen. (This is the only volatile section of this file.)

@@ -1,0 +1,59 @@
+# Progress
+
+## 2026-09-02
+
+- Started implementation from the user-supplied plan.
+- Created an isolated planning workspace for the 3.7.6 UI regression fixes.
+- Read the constitution, context index, and system overview; recorded the applicable versioning, i18n, verification, and documentation obligations.
+- Inspected repository status, spec lifecycle rules, release guidance, AI Workspace documentation, and all current references to the affected icons/version/dialog text.
+- Read the stale spec unit and the affected dialog/descriptor/icon implementation; identified the fixed root preferred width as the clipping cause.
+- Completed the discovery phase and selected a platform-aware preferred-size floor that preserves the existing Windows baseline.
+- A combined implementation patch made no changes because the terminal-rendered `INDEX.md` line did not match its actual Unicode bytes; switched to smaller patches with stable context.
+- Corrected the stale spec/plan/tasks and opened the unit in the context working set.
+- Updated descriptor icons, dialog sizing, both version declarations, release metadata, plugin description, help version headers, and AI Workspace steady-state documentation.
+- `git diff --check` passed. Confirmed no separate Run action exists in `AIWorkspacePanel`; one combined regex assertion needs a quoting-safe rerun.
+- XML/static assertions passed: version 3.7.6, three qualified icon references, zero legacy references, layout-derived preferred sizing, and unchanged `runConfigured(c)` delegation.
+- First build attempt was sandbox-blocked by the external Gradle cache; the approved retry exposed an environment issue: default Java is 1.7. Preparing a task-local JDK 17 retry.
+- With task-local JDK 17, `gradlew test buildPlugin` passed in 8s. Test XML reports 22 tests across 3 suites with zero failures, errors, or skips.
+- Fresh ZIP: 671,798 bytes, SHA-256 `A2DC13DE89AD123A3F8268558D9CD4CDE66861452C0A4162DB5D8A50A8890B17`. Inner inspection needs the actual JAR entry name.
+- Inspected the actual instrumented JAR: packaged version 3.7.6, three qualified icon references, zero legacy references, and required class/SVG resources present.
+- Compared the icon asset to packaged 3.7.3; both SVG hashes are identical.
+- Recorded fresh evidence in `.ai/runs/202609-ui-entrypoint-regressions-2.md`; left the unit in verification because manual Windows/macOS installation criteria were not executable here.
+- Final `git diff --check` passed. The artifact is newer than every packaged input and retains SHA-256 `A2DC13DE89AD123A3F8268558D9CD4CDE66861452C0A4162DB5D8A50A8890B17`.
+- Local implementation, automated verification, evidence, and docs backflow are complete; only installed-plugin platform acceptance and spec freeze remain.
+- User-provided installed-plugin screenshots failed icon acceptance: current Tool Window/actions show fallback icons, while the 3.7.3 screenshots show the intended yellow note icon.
+- Reopened implementation and verification; package-presence assertions are no longer accepted as icon-rendering evidence.
+- Inspected current icon source and Git history; confirmed 3.7.3 used the short field reference and identified the older icon-registration fix commit for deeper comparison.
+- Read commit `a7b4432` and 3.7.3 source: the original fix deliberately replaced direct SVG paths with short `MyIcons.PLUGIN` references backed by `icons.MyIcons`.
+- Official docs were unavailable due TLS receive errors; switched to the locally cached IntelliJ 2024.3 platform implementation.
+- Located the platform classes but broad bytecode filtering was too noisy to identify the resolver; switching to an empirical scan of bundled 2024.3 plugin descriptors.
+- Bundled descriptor scan confirmed the special `icons` package convention, but 3.7.5 already used the short form; ruled out Action presentation overrides and continued toward a direct resolver test.
+- Confirmed the special-package mapping with real bundled class entries and narrowed the remaining search to the platform's symbolic field resolver.
+- Located the exact `CoreIconManager.getIcon` API and prepared a direct resolver comparison for short field, qualified field, and resource path candidates.
+- Decompiled the resolver and proved the short and qualified field strings compute the same class name on IntelliJ 2024.3; moved to actual loading/raster comparison.
+- Inspected all four screenshots at original resolution; identified oversized 40x40 rendering/clipping as the concrete visual failure signature.
+- Replaced an unreliable interactive JShell attempt with a temporary standalone Java probe that will call the same IntelliJ 2024.3 icon service and rasterize each candidate.
+- The probe resolved every candidate to `CachedImageIcon`; only standalone scale initialization blocked dimension/raster output.
+- Re-ran with initialized scale and viewed all raster outputs: every candidate is the correct 16x16 yellow note. Shifted investigation to the plugin actually loaded by the user's IDE.
+- Inspected the live IDE installation and process: IDEA 2025.3.1.1 has been running since 11:21 and loaded the only installed artifact, `CodeReadingMarkNotePro-3.7.1.jar`; the reported screenshots did not load 3.7.6.
+- Confirmed no queued/reloaded 3.7.6 update in the plugin directories or log. Two follow-up read commands had PowerShell argument/precedence errors and will be rerun with corrected syntax.
+- Corrected the installed-JAR inspection and located the actual 2025.3 resolver classes; ruled out reverting to short descriptor names as a sufficient fix.
+- The first 2025.3 probe compile used project JDK 17 and failed on Java 21 platform bytecode; switching the diagnostic to IDEA's bundled JBR 21.
+- JBR 21 probe passed on IDEA 2025.3 and returned 16x16 for every candidate.
+- Replaced all three reflective descriptor icon references with `/META-INF/pluginIcon.svg` and updated the spec/plan acceptance language.
+- Static XML checks passed: version 3.7.6, three direct resource references, zero reflective references, and resource present.
+- Rebuild reached tests but `prepareSandbox` could not replace its instrumented JAR because another process holds the sandbox file open; investigating without terminating the user's IDE sessions.
+- Process scan found a probable Gradle `runIde` JBR 21 process; CIM details were access-denied, so JVM identification continues with `jps`.
+- Resumed after the user's screenshots confirmed the visible regression remained. The active 2024.3 sandbox JAR predates the direct-resource edit and is locked by the running IDE.
+- Added a task-local Gradle init script that redirects `intellij.sandboxDir` to an unused planning directory, allowing a fresh package build without terminating the user's IDE process.
+- Forced all `test buildPlugin` tasks to rerun in the alternate sandbox; the build passed with 22 tests and zero failures, errors, or skips.
+- Inspected the final inner JAR: version 3.7.6, three direct resource icon paths, zero reflective plugin-icon paths, required SVG/dialog class present. Final ZIP SHA-256 is `AF0BC9A31C8176DCF50B7A009CE22E54DAD2242D779D3D4AA5DF4632569D64CA`.
+- Ran IDEA 2025.3.1.1's icon resolver against the new sandbox JAR. `/META-INF/pluginIcon.svg` produced the intended 16x16 yellow-note raster.
+- Recorded fresh evidence in `.ai/runs/202609-ui-entrypoint-regressions-3.md`; automated packaging acceptance is complete, while restarted Windows/macOS UI acceptance remains open.
+- User restarted the default 2024.3 sandbox at 21:57 and the chevron regression remained. Verified the running process loaded a newly generated 3.7.6 JAR with three direct `/META-INF/pluginIcon.svg` references; corrected the earlier stale-JAR conclusion.
+- Compared `e6be7d3` and `1734c63` with 3.7.3. Neither changes the icon asset, icon holder, or affected entry classes; the fixed-width command dialog originates in `e6be7d3`, while `1734c63` is unrelated VCS work.
+- Added the dedicated runtime SVG and switched the descriptor and `MyIcons.PLUGIN` to `/icons/codeReadingMarkNote.svg`; reopened package and actual-sandbox acceptance.
+- Forced all tests and packaging tasks to rerun with the dedicated runtime resource. Build passed in 57s; 22 tests passed with zero failures, errors, or skips.
+- Inspected the final ZIP and alternate sandbox JAR: version 3.7.6, exactly three dedicated runtime paths, both runtime and Marketplace SVGs present, and no affected runtime reference to the Marketplace path or reflective field.
+- Rendered the packaged runtime SVG with IDEA 2025.3.1.1: it is a 16x16 yellow note and matches the earlier expected raster hash.
+- Recorded the result in `.ai/runs/202609-ui-entrypoint-regressions-4.md`; real 2024.3 visual acceptance remains pending after the current default sandbox is restarted.

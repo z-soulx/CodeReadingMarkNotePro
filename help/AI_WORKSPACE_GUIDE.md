@@ -1,6 +1,6 @@
 # AI Workspace Guide / AI 工作空间使用指南
 
-> Code Reading Mark Note Pro v3.7.5+
+> Code Reading Mark Note Pro v3.7.6+
 
 ## Workspace Git and Version
 
@@ -10,7 +10,7 @@ The runtime docs root is `.ai/docs`; if you later want the notes tree elsewhere,
 
 ### Custom Commands / 自定义命令
 
-Use **Manage Custom Commands** (the only command entry point in the toolbar) to see the saved command list. The first time `.ai/` exists and `.ai/workspace-commands.json` is missing, the plugin writes two ordinary commands: **Launch Cursor for this project** and **Open selected Markdown in Typora**. You can edit or delete them; an existing JSON file (including an empty `commands` list) is never re-seeded. **Add** and **Edit** both open the same editor form with fields for id, display name, executable, arguments, project-relative working directory, enabled state, execution mode, and where `$FilePath$` comes from. Click **Save Command** to write immediately (no OK/Cancel footer and no extra confirmation). Close the window with the title-bar close button or Esc. Select a command and click **Run**: both modes send the command to IDEA Terminal (PowerShell on Windows). **IDEA Terminal** focuses the tab; **Silent Terminal** starts the same shell without stealing focus. Shell built-ins such as `cd ai3` work in either mode. Each command is stored in `.ai/workspace-commands.json`, which is included when you commit the `.ai` repository and can therefore be synchronized with the workspace Git repository.
+Use **Manage Custom Commands** (the only command entry point in the toolbar) to see the saved command list. The first time `.ai/` exists and `.ai/workspace-commands.json` is missing, the plugin writes two ordinary commands: **Launch Cursor for this project** and **Open selected Markdown in Typora**. You can edit or delete them; an existing JSON file (including an empty `commands` list) is never re-seeded. **Add** and **Edit** both open the same editor form with fields for id, display name, executable, arguments, project-relative working directory, enabled state, execution mode, and where `$FilePath$` comes from. Click **Save Command** to write immediately (no OK/Cancel footer and no extra confirmation). Close the window with the title-bar close button or Esc. Select a command and click **Run**: both modes send the command to IDEA Terminal (PowerShell on Windows). **IDEA Terminal** focuses the tab; **Silent Terminal** starts the same shell without stealing focus. Add, Save, Delete, and Run remain on one fully visible action row across supported desktop platforms and display scaling. Shell built-ins such as `cd ai3` work in either mode. Each command is stored in `.ai/workspace-commands.json`, which is included when you commit the `.ai` repository and can therefore be synchronized with the workspace Git repository.
 
 When the executable is `wt` or `wt.exe` on Windows, the configured working directory is passed explicitly with Windows Terminal's `-d` option so the new tab opens in that directory.
 

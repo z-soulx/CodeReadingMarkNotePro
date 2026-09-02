@@ -1,0 +1,8 @@
+allprojects {
+    plugins.withId('org.jetbrains.intellij') {
+        intellij {
+            sandboxDir.set(new File(rootProject.projectDir,
+                    '.planning/2026-09-02-ui-entrypoint-regressions/build-sandbox').absolutePath)
+        }
+    }
+}

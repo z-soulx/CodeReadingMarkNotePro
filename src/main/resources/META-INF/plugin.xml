@@ -5,7 +5,7 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.7.5</version>
+    <version>3.7.6</version>
     <!-- 版本兼容性：最低支持2024.3，无上限 -->
     <idea-version since-build="243"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -25,7 +25,7 @@
         <projectConfigurable parentId="tools" instance="jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncConfigurable"
                              id="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfigurable"
                              displayName="Code Reading Note Sync"/>
-        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
+        <toolWindow icon="/icons/codeReadingMarkNote.svg" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
         <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
         <!-- ProjectActivity: sync conflict check after project open -->
         <postStartupActivity implementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStartupActivity"/>
@@ -39,7 +39,7 @@
     <actions>
         <!-- Editor context menu action: Add to Topic (Alt+M) -->
         <action
-                icon="MyIcons.PLUGIN"
+                icon="/icons/codeReadingMarkNote.svg"
                 id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction"
                 class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction">
             <keyboard-shortcut keymap="$default" first-keystroke="alt M"/>
@@ -48,7 +48,7 @@
 
         <!-- Navigate to note at current line (Alt+G) -->
         <action
-                icon="MyIcons.PLUGIN"
+                icon="/icons/codeReadingMarkNote.svg"
                 id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.NavigateToNoteAction"
                 class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.NavigateToNoteAction"
                 text="Navigate to Note"
