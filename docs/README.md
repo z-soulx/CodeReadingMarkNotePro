@@ -11,6 +11,8 @@
 
 GitHub 已有文件更新和错误诊断见 [GitHub 同步边界](domain/sync/github.md)；issue #15 修复验收记录位于 `.ai/specs/202609-issue-15-existing-remote-push/`。
 
+发布时 JDK 选择及可选签名排障见 [发布指南](runbooks/release.md)；变更记录位于 `.ai/specs/202609-optional-publish-signing/`。
+
 ## 目录地图
 
 | 目录 | 内容 | 什么时候读 |

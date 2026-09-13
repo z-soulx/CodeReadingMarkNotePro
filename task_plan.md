@@ -8,7 +8,10 @@ Implement the supplied multi-project workspace plan with independent compatible 
 - [complete] 4. Automated tests and Gradle test/build
 - [complete] 5. Version 3.8.0, bilingual UI, Chinese docs/help
 ## Next Step
-Deliver the verified 3.7.7 ZIP and report pending installed-plugin and live-repository acceptance.
+Provide corrected JDK 17 publication command; prerequisite verification is complete.
+## Publish prerequisites
+- [complete] Correct optional signer dependency and document JDK 17 invocation
+- [complete] Verify unsigned/signed task graphs and unsigned build; record evidence
 ## Issue #15 and version 3.7.7
 - [complete] Read issue and reproduce the reported behavior with a local HTTP server
 - [complete] Implement fix and align release metadata/docs to 3.7.7
@@ -22,6 +25,8 @@ Deliver the verified 3.7.7 ZIP and report pending installed-plugin and live-repo
 - [complete] Write a separate spec, implementation plan and acceptance tasks; update indexes.
 - [complete] Review design consistency and prepare recommended interaction and automation explanation.
 ## Errors Encountered
+- Signer dependency also propagated through cliPath convention; removed that provider when unsigned after initial dry-run still included downloadZipSigner.
+- PowerShell split unquoted -P file arguments at .pem; quoted complete arguments and signed dry-run passed. Partial signing configuration intentionally fails validation.
 - Public GitHub read via Invoke-RestMethod failed during TLS receive; curl Schannel in sandbox failed with SEC_E_NO_CREDENTIALS. Retrying authorized read with normal network permissions.
 - ZIP verification initially expected an uninstrumented JAR filename; inspected entries and verified the actual instrumented plugin JAR.
 - Save verification caught empty JDOM Text vs self-closing element digest mismatch; canonicalization now ignores empty text. Storage pretty formatting now explicitly preserves note whitespace.

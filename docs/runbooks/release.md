@@ -29,8 +29,14 @@
 5. **一键发布到 JetBrains Marketplace**（无需打开网页上传 zip/gzip）：
 
    ```powershell
+   $env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'
+   .\gradlew.bat --version
    .\gradlew.bat publishPlugin
    ```
+
+   `--version` 中 JVM 应为 17。Gradle 启动先读取 `JAVA_HOME`，构建脚本中的 Java 17
+   toolchain 不能修正启动阶段的 Java 7；上述设置仅影响当前 PowerShell 会话。
+   IDEA 内构建则需将 Settings → Build Tools → Gradle → Gradle JVM 设为 JDK 17。
 
    一次性准备（只需做一次）：
 
@@ -67,6 +73,13 @@
 
    证书生成见 [Plugin Signing](https://plugins.jetbrains.com/docs/intellij/plugin-signing.html)。
    配置后 `publishPlugin` 会先跑 `signPlugin` 再上传。
+
+   未配置签名材料时，发布流程跳过签名，也不下载 ZIP Signer；这避免了可选签名步骤
+   因 `Cannot resolve the latest Marketplace ZIP Signer CLI version` 阻塞未签名发布。
+   仅配置证书或私钥会明确报错，不会静默按未签名发布。若已配置完整签名材料而遇到
+   此错误，需检查 ZIP Signer 下载所需的网络/代理访问；不要通过跳过签名任务发布。
+
+   发布前可运行 `.\gradlew.bat publishPlugin --dry-run` 检查任务图，不会上传。
 
    发到非默认通道（如 EAP）时加参数：`.\gradlew.bat publishPlugin -PpublishChannel=eap`
 

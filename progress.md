@@ -1,4 +1,7 @@
 # Progress
+## 2026-09-13 — publishing prerequisites
+- Confirmed JAVA_HOME points at Java 7; JDK 17 exists. Fixed unconditional explicit and implicit ZIP Signer dependencies for unsigned publishing in build.gradle; partial signing materials now fail clearly.
+- With JDK 17, unsigned publishPlugin --dry-run excludes downloadZipSigner; signed dry-run with quoted placeholder paths includes it. signPlugin verifyPlugin passed with signing skipped and no signer download. Partial configuration was rejected as expected. Existing optional Terminal config-file and Gradle deprecation warnings remain. Updated release guide; actual Marketplace upload and certificate signing were not executed.
 ## 2026-09-13 — issue #15 / 3.7.7
 - Final test/build passed: 70 tests, zero failures/errors/skips. Verified packaged descriptor version 3.7.7 and issue-fix/workspace classes. ZIP: 783369 bytes; SHA256 D7155138D74C5A44269AC6029C31D49336EFEAC702E5C6BFF3995F787F7CA946. Current EN/ZH sync keys match (65); final evidence in .ai/runs/202609-issue-15-existing-remote-push-1.md. Live reporter repository, Windows/macOS installed-plugin and real multi-window acceptance remain unexecuted; no publication or remote write performed.
 - Read public issue and attached screenshot; no comments present. Windows sandbox TLS initialization failed, authorized elevated curl read succeeded. User requires release version 3.7.7 including existing workspace work.

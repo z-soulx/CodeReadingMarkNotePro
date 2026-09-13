@@ -108,6 +108,14 @@ publishPlugin {
 signPlugin {
     def chainFile = findProperty("certificateChainFile")
     def keyFile = findProperty("privateKeyFile")
+    def chain = System.getenv("CERTIFICATE_CHAIN")
+    def key = System.getenv("PRIVATE_KEY")
+    if ((chainFile && !keyFile) || (keyFile && !chainFile)) {
+        throw new GradleException("Set both certificateChainFile and privateKeyFile / 请同时配置证书链和私钥文件")
+    }
+    if (!chainFile && !keyFile && ((chain && !key) || (key && !chain))) {
+        throw new GradleException("Set both CERTIFICATE_CHAIN and PRIVATE_KEY / 请同时配置证书链和私钥环境变量")
+    }
     if (chainFile && keyFile) {
         certificateChainFile.set(file(chainFile.toString()))
         privateKeyFile.set(file(keyFile.toString()))
@@ -116,8 +124,6 @@ signPlugin {
             password.set(pass.toString())
         }
     } else {
-        def chain = System.getenv("CERTIFICATE_CHAIN")
-        def key = System.getenv("PRIVATE_KEY")
         if (chain && key) {
             certificateChain.set(chain)
             privateKey.set(key)
@@ -125,6 +131,12 @@ signPlugin {
             if (pass) {
                 password.set(pass)
             }
+        } else {
+            // IntelliJ Gradle 1.17 adds this dependency even when signing is skipped.
+            // Remove only this edge; explicit signer download/verification stays available.
+            setDependsOn(getDependsOn().findAll { it != 'downloadZipSigner' })
+            // The CLI convention also carries an implicit dependency on the download task.
+            cliPath.set(providers.provider { null })
         }
     }
 }
