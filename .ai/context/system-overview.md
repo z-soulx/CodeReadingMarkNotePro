@@ -7,7 +7,7 @@ decisions and their rationale live in `.ai/adr/`.
 
 - IntelliJ IDEA plugin `soulx.CodeReadingMarkNotePro`: code reading notes and bookmarks.
   Pro adds group management, GitHub sync, multi-language UI, AI config workspace.
-- Java 17 + Gradle + IntelliJ Platform 2024.3+. Focused unit tests live under `src/test` (workspace Semver and command construction). UI/sync verification still uses `gradlew build` plus spec acceptance.
+- Java 17 + Gradle + IntelliJ Platform 2024.3+. Tests under `src/test` cover workspace Semver/commands, nested notes discovery/ownership, compatible XML/conflicts, model operations and shared-window coordination. UI/sync verification still uses `gradlew build` plus installed-plugin acceptance.
 
 ## Domain Model
 
@@ -25,11 +25,17 @@ notes in a recoverable trash bin.
 
 ## Components
 
+Workspace notes (3.7.7): `notesworkspace.WorkspaceNotesService` discovers nested `.idea` projects;
+`WorkspaceNotesCoordinator` shares data per normalized root across open windows; `WorkspaceXmlStore`
+stores child XML with conflict detection and atomic replacement. `NoteProjectContext` carries runtime
+ownership. Root `CodeReadingNoteService` state remains root-only; 3.7.7 routes notes sync explicitly to each project's collection. Recovery snapshots live under
+the IDEA configuration directory's `CodeReadingNote/workspace-recovery/`.
+
 | Layer | Key Classes | Responsibility |
 |-------|------------|----------------|
 | Service | `CodeReadingNoteService` | State management, persistence via `PersistentStateComponent` |
 | Domain | `Topic`, `TopicLine`, `TopicList`, `TrashedLine` | Business entities and operations |
-| Sync | `SyncProvider`, `SyncService`, `GitHubSyncProvider`, `AutoSyncScheduler`, `SyncConflictDetector` | Remote sync with conflict detection, debounced auto push |
+| Sync | `WorkspaceNotesSyncCoordinator`, `NotesSyncBinding`, `NotesSyncDecision`, `NotesSyncSchedule`, `GitHubNotesRemote`; root `SyncService` facade | Per-project manual/bidirectional notes sync, baseline comparison, conditional SHA writes; AI uses existing provider channel |
 | AI Config | `AIConfigService`, `AIConfigRegistry`, `AIConfigSyncAdapter`, `AIConfigAutoSyncScheduler`, `AIConfigMergeAnalyzer` | AI config discovery, tracking, independent sync, three-way merge |
 | AI Workspace | `AIWorkspaceService`, `AIWorkspaceGitService`, `AIWorkspaceVcsSupport`, `AIWorkspaceChangeListService`, `AIWorkspaceVersionService`, `AIWorkspaceCommandService` | `.ai/docs` knowledge workspace, opt-in `.ai` Git, parent `/.ai/` ignore and untrack, IDEA Directory Mapping + `.ai` changelist + native Commit UI, Semver VERSION, Terminal or silent-unfocused Terminal commands with IDEA file macros |
 | UI | `ManagementPanel`, `TopicDetailPanel`, `AIWorkspacePanel`, `PushReportDialog` | ToolWindow panels (tabs: tree / search / AI workspace) |
@@ -43,6 +49,8 @@ notes in a recoverable trash bin.
 | `CodeReadingNote.xml` | Topics, Lines, Groups | Synced to remote |
 | `aiConfigRegistry.xml` | AI config tracked state, custom paths, ignore patterns, push hashes, tracked empty dirs | Project-level |
 | `syncStatus.xml` | Sync timestamps, MD5 cache | Local only |
+| `.idea/notesSyncBinding.xml` | Remote identity, policy, check interval; no token | Each note project |
+| IDEA config `CodeReadingNote/notes-sync/` | Partitioned notes baselines, pause, apply journals and backups | Local only, application-coordinated |
 | `codeReadingNoteSync.xml` | Token, repo URL | Application-level |
 | `ai-config-registry.json` (remote) | Cross-platform workspace metadata (tracked entries, custom paths, ignore patterns, file hashes, empty dirs) | Synced |
 | `aiWorkspace.xml` | Runtime docs root (defaults to `.ai/docs`) | Project-level local |
@@ -53,16 +61,15 @@ notes in a recoverable trash bin.
 
 IntelliJ `MessageBus`: `TopicListNotifier` (topic list changes), `TopicNotifier` (single
 topic changes, `lineNoteChanged`), `AIConfigNotifier` (AI config registry/file changes),
-`SyncStatusNotifier` (sync status changes).
+`SyncStatusNotifier` (legacy root/AI status changes), `NotesSyncNotifier` (notes sync status with project ownership).
 
 ## Known Documentation Gaps
 
 The following were never covered by the old `.ai/ARCHITECTURE.md`. Their current
 descriptions are based on a source skim (2026-08-29), not line-by-line verification:
 
-- `AutoSyncScheduler` (notes, 3s debounce) and `AIConfigAutoSyncScheduler` (5s debounce)
+- `AIConfigAutoSyncScheduler` (5s debounce); notes scheduling was documented from the 3.7.7 implementation
   - see `docs/scenario/auto-sync.md`
-- `SyncConflictDetector` (remote-newer detection) - see `docs/domain/sync/README.md`
 - `AIConfigMergeAnalyzer` (three-way merge categorization) - see `docs/domain/ai-config/README.md`
 
 Deep-dives live in `docs/`: use `.ai/context/INDEX.md` to route.

@@ -148,7 +148,7 @@ public class ManagementPanel extends JPanel
     // 更新搜索面板的数据源
     private void updateSearchData() {
         if (searchPanel != null && service != null) {
-            searchPanel.setTopics(service.getTopicList().getTopics());
+            searchPanel.setTopics(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).allTopics());
         }
     }
     
@@ -172,8 +172,9 @@ public class ManagementPanel extends JPanel
     }
     
     private void setupEventHandlers() {
+        project.getMessageBus().connect(project).subscribe(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesNotifier.TOPIC, source -> updateSearchData());
         MessageBus messageBus = project.getMessageBus();
-        messageBus.connect().subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier()
+        messageBus.connect(project).subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier()
         {
             @Override
             public void topicAdded(Topic topic)
@@ -192,14 +193,14 @@ public class ManagementPanel extends JPanel
             }
 
             @Override
-            public void topicsLoaded() {
+            public void topicsLoaded(TopicList source) {
                 topicTreePanel.loadTopics();
                 updateSearchData(); // 更新搜索数据
             }
         });
         
         // Listen for topic changes to refresh the tree
-        messageBus.connect().subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
+        messageBus.connect(project).subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
             @Override
             public void lineAdded(Topic topic, TopicLine line) {
                 topicTreePanel.refreshTopic(topic);
@@ -241,7 +242,12 @@ public class ManagementPanel extends JPanel
     private JComponent actionToolBar()
     {
         DefaultActionGroup actions = new DefaultActionGroup();
-        actions.add(new TopicAddAction());
+        actions.add(new AnAction(() -> CodeReadingNoteBundle.message("workspace.refresh"), AllIcons.Actions.Refresh) {
+            @Override public void actionPerformed(@org.jetbrains.annotations.NotNull AnActionEvent event) {
+                jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).refresh();
+            }
+        });
+        actions.add(new TopicAddAction(topicTreePanel::getSelectedProjectList));
         actions.add(new TopicRenameAction((v) -> getSelectedTopic()));
         actions.add(new TopicRemoveAction(project, (v) -> getSelectedTopic()));
         
@@ -261,13 +267,14 @@ public class ManagementPanel extends JPanel
         actions.add(new FixRemarkAction(project));
         actions.add(new FixTopicRemarkAction(project,(v) -> getSelectedTopic()));
         actions.addSeparator();
-        actions.add(new ExportAction());
-        actions.add(new ImportAction());
+        actions.add(new ExportAction(topicTreePanel::getSelectedProjectList));
+        actions.add(new ImportAction(topicTreePanel::getSelectedProjectList));
         
         // Sync actions
         actions.addSeparator();
-        actions.add(new SyncPushAction());
-        actions.add(new SyncPullAction());
+        actions.add(new SyncPushAction(topicTreePanel::getSelectedProjectList));
+        actions.add(new SyncPullAction(topicTreePanel::getSelectedProjectList));
+        actions.add(new WorkspaceSyncAction());
 
         ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar(AppConstants.appName, actions, true);
         
@@ -309,7 +316,7 @@ public class ManagementPanel extends JPanel
 
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         rightPanel.setOpaque(false);
-        SyncStatusLabel syncStatusLabel = new SyncStatusLabel(project);
+        var syncStatusLabel = new jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceSyncStatusLabel(project);
         rightPanel.add(syncStatusLabel);
         rightPanel.add(helpComponent);
 

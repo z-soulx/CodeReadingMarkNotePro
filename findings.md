@@ -1,9 +1,10 @@
 # Findings
-
-- `AIWorkspaceCommandService.load()` currently returns an empty list when `.ai/workspace-commands.json` is missing; it never writes defaults.
-- `upsert()` / `delete()` persist whatever `load()` returns. Seeding only when the file is absent means deleting commands (including emptying `commands: []`) sticks.
-- Existing projects that already have the JSON must not get a forced merge of `launch-cursor-project` / `open-selected-md-in-typora`.
-- Seeded `displayName`/`name` must come from bundles (constitution: no hardcoded UI strings). IDs stay as given.
-- `validate()` accepts portable names `cursor` / `typora` and `$FilePath$`. Do not create `.ai/` just to seed; only seed when that directory already exists.
-- Startup already runs when `.ai/` exists (`AIWorkspaceVcsStartupActivity`); that is the right place to write the file without waiting for the command dialog.
-- Help currently documents Typora as id `open-selected-md`; the built-in id is `open-selected-md-in-typora`.
+- Issue #15 (public read): existing remote XML cannot be updated, deletion makes push succeed. Screenshot is HTTP 422 with truncated literal escapes. Legacy getFileSha reads default branch, returns null on arbitrary errors, while PUT uses configured branch. formatApiError uses a regex that truncates escaped quotes. New notes transport already has explicit ref/conditional SHA, but groups all 422 as conflict; improve distinctions and validate nonempty SHA. Screenshot alone does not establish the reporter's precise branch/configuration.
+- Implementation verification: IntelliJ 2024.3 exposes StoreUtil.saveSettings(ComponentManager, boolean). Root sync uses platform save then verifies actual disk XML; child sync uses the shared serial XML writer. Project.getState alone is not used as persistence confirmation. New GitHub reads explicitly include branch ref (legacy contents reads did not).
+- Source-verified sync follow-up: SyncService exports root topics without trash, rejects empty topics, and merges by name/time. GitHub notes path is basePath/projectIdentifier/CodeReadingNote.xml; identifier comes from IDEA project name. Provider accepts an explicit identifier, but fetches the latest SHA inside push instead of enforcing an observed baseline. The .md5 sidecar is a cache, not a safe conflict oracle. SyncStatusService persists only time/MD5; pause is runtime. Workspace coordinator has revisions and durable saves but needs explicit snapshot/save-completion APIs for sync.
+- Follow-up request is a sync design: manually select child projects and keep them synchronized while only the parent workspace stays open. Existing 3.8.0 scope remains local-only; proposed behavior belongs in a new spec, not current-system docs.
+- Root getTopicList/getState must stay root-only for sync.
+- Models need runtime ownership; list events need context.
+- Import setters emit events; loading must suppress changes.
+- Compilation passed after correcting Disposable imports. Root serialization remains root-only. Added scoped native bookmark groups and runtime marker IDs; XML UIDs remain legacy-compatible.
+- Shared-window/detail updates preserve focused editor documents when text is already current. VFS subscription uses the application bus, with project disposal ownership. Scanner and serial saves use separate queues. Recovery lives in IDEA config to avoid recreating deleted project directories.

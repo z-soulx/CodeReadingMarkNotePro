@@ -7,6 +7,10 @@
 > 想知道某个设计为什么这样定？看 `.ai/adr/`。
 > 快速路由见 `.ai/context/INDEX.md`。
 
+工作空间按项目推拉及自动双向同步：见 [同步域](domain/sync/README.md) 和 [用户帮助](../help/WORKSPACE_NOTES_GUIDE.md)。变更验收记录见 `.ai/specs/202609-workspace-project-notes-sync/`。
+
+GitHub 已有文件更新和错误诊断见 [GitHub 同步边界](domain/sync/github.md)；issue #15 修复验收记录位于 `.ai/specs/202609-issue-15-existing-remote-push/`。
+
 ## 目录地图
 
 | 目录 | 内容 | 什么时候读 |
@@ -24,6 +28,7 @@
 ## 阅读路线
 
 - **新人路线**：`shared/glossary.md` -> `architecture/overview.md` -> 任一 domain 页
+- **多项目笔记**：`domain/notes/README.md` 的工作空间章节 -> `integration/intellij-platform.md`；用户操作见 `../help/WORKSPACE_NOTES_GUIDE.md`
 - **改同步**：`domain/sync/README.md` -> `scenario/push-pull-ai-configs.md` -> `integration/github-api.md`
 - **排查同步问题**：`domain/sync/github.md` -> `integration/github-api.md`
 

@@ -1,7 +1,7 @@
 # 集成边界：GitHub API
 
-插件作为 GitHub REST API 的客户端。所有调用经由 `GitHubSyncProvider`
-（策略模式唯一实现，见 `.ai/adr/0001`）。
+插件作为 GitHub REST API 的客户端。AI 配置及旧接口使用 `GitHubSyncProvider`
+（策略模式实现，见 `.ai/adr/0001`）；工作空间笔记使用独立的条件写入接口 `GitHubNotesRemote`。
 
 ## 认证与配置
 
@@ -29,6 +29,8 @@
 ## 调用规约
 
 - 非阻塞：全部走 pooled 线程，不上 EDT
+- 读取文件内容及 SHA 必须带配置分支 ref，与 PUT 分支一致；不能把 SHA 读取失败当成文件不存在
+- JSON 错误使用结构化解析，完整解码换行/引号并清除凭据；422 的版本缺失和普通校验失败分别提示
 - 路径含非 ASCII 时按路径段 URL 编码
 - 推送最小化：组合哈希短路 + 逐文件 MD5 增量（`.ai/adr/0003`）
 - 删除显式化：manifest 差分驱动 DELETE 调用

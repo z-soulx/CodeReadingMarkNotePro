@@ -178,17 +178,19 @@ public class TopicTreeTransferHandler extends TransferHandler {
                 // 2. BETWEEN Topics (childIndex >= 0, parent is root node)
                 if (targetComponent instanceof TopicTreeNode) {
                     TopicTreeNode targetNode = (TopicTreeNode) targetComponent;
-                    return targetNode.getNodeType() == TopicTreeNode.NodeType.TOPIC;
+                    return (targetNode.getNodeType() == TopicTreeNode.NodeType.TOPIC || targetNode.getNodeType() == TopicTreeNode.NodeType.PROJECT && childIndex >= 0)
+                            && targetNode.getProjectList().context().equals(treeData.getTopic().context());
                 } else {
                     // Dropping between items at root level (target is root node)
                     // childIndex >= 0 means inserting between children
-                    return childIndex >= 0;
+                    return childIndex >= 0 && treeData.getTopic().context().equals(service.getTopicList().context());
                 }
             } else if (treeData.getType() == TreeNodeTransferable.Type.TOPIC_LINE) {
                 // TopicLine can be dropped on GROUP or UNGROUPED_LINES_FOLDER
                 if (targetComponent instanceof TopicTreeNode) {
                     TopicTreeNode targetNode = (TopicTreeNode) targetComponent;
                     TopicTreeNode.NodeType targetType = targetNode.getNodeType();
+                    if (targetNode.getProjectList() == null || treeData.getTopicLines().stream().anyMatch(line -> !line.topic().context().equals(targetNode.getProjectList().context()))) return false;
                     return targetType == TopicTreeNode.NodeType.GROUP || 
                            targetType == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER;
                 }
@@ -245,6 +247,7 @@ public class TopicTreeTransferHandler extends TransferHandler {
                 // Handle both: dropping ON a topic or BETWEEN topics
                 if (targetComponent instanceof TopicTreeNode) {
                     TopicTreeNode targetNode = (TopicTreeNode) targetComponent;
+                    if (targetNode.getNodeType() == TopicTreeNode.NodeType.PROJECT) return handleTopicDropBetween(transferable.getTopic(), childIndex);
                     return handleTopicDropOnTopic(transferable.getTopic(), targetNode);
                 } else {
                     // Dropping between topics at root level
@@ -288,11 +291,11 @@ public class TopicTreeTransferHandler extends TransferHandler {
         }
         
         // Also check by name in case objects are different instances
-        if (draggedTopic.name().equals(targetTopic.name())) {
+        if (!draggedTopic.context().equals(targetTopic.context())) {
             return false;
         }
         
-        TopicList topicList = service.getTopicList();
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().listFor(draggedTopic);
         ArrayList<Topic> topics = topicList.getTopics();
         
         int fromIndex = topics.indexOf(draggedTopic);
@@ -320,7 +323,7 @@ public class TopicTreeTransferHandler extends TransferHandler {
             return false;
         }
         
-        TopicList topicList = service.getTopicList();
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().listFor(draggedTopic);
         ArrayList<Topic> topics = topicList.getTopics();
         
         int fromIndex = topics.indexOf(draggedTopic);
@@ -441,9 +444,7 @@ public class TopicTreeTransferHandler extends TransferHandler {
             
             for (TopicLine line : lines) {
                 // Only move if the line belongs to the same topic
-                if (line.topic() == topic) {
-                    topic.moveLineToGroup(line, targetGroup);
-                }
+                topic.moveLineHere(line, targetGroup);
             }
             
             // Refresh the tree
@@ -463,9 +464,7 @@ public class TopicTreeTransferHandler extends TransferHandler {
             
             for (TopicLine line : lines) {
                 // Only move if the line belongs to the same topic
-                if (line.topic() == topic) {
-                    topic.moveLineToUngrouped(line);
-                }
+                topic.moveLineHere(line, null);
             }
             
             // Refresh the tree

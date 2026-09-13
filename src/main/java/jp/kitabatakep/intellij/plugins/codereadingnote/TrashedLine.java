@@ -7,6 +7,7 @@ import java.util.Date;
  * Stores the original topic name and deletion date for potential restoration.
  */
 public class TrashedLine {
+    ElementTemplate xmlTemplate = new ElementTemplate();
     private final TopicLine line;
     private final String originalTopicName;
     private final Date trashedAt;

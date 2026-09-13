@@ -39,6 +39,10 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     Project project;
     TopicList topicList;
     private final Alarm remarkRefreshAlarm;
+    private boolean skipInitialLoad;
+    private Element failedState;
+    private volatile boolean rootDataModified;
+    public void workspaceDataModified() { onDataModified(); }
 
     String lastExportDir = "";
     String lastImportDir = "";
@@ -106,6 +110,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
      * 职责：协调各个处理步骤
      */
     private void onDataModified() {
+        rootDataModified = true;
         try {
 
             
@@ -123,7 +128,8 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     public CodeReadingNoteService(@NotNull Project project)
     {
         this.project = project;
-        topicList = new TopicList(project);
+        topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().attachRoot(project);
+        skipInitialLoad = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().wasLoaded(topicList);
         remarkRefreshAlarm = new Alarm(Alarm.ThreadToUse.SWING_THREAD, project);
         starConfit(project);
         addMyListener(project);
@@ -139,7 +145,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
      * This helps when switching branches or when files are created.
      */
     private void addVfsListener(Project project) {
-        MessageBusConnection connection = project.getMessageBus().connect();
+        MessageBusConnection connection = project.getMessageBus().connect(project);
         connection.subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
             @Override
             public void after(@NotNull List<? extends VFileEvent> events) {
@@ -175,7 +181,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     private void notifyTopicsNeedRefresh() {
         MessageBus messageBus = project.getMessageBus();
         TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
-        publisher.topicsLoaded(); // Reuse existing event to trigger UI refresh
+        publisher.topicsLoaded(topicList);
     }
     
     /**
@@ -193,16 +199,25 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
 
     private void addMyListener(Project project) {
         MessageBus messageBus = project.getMessageBus();
-        messageBus.connect().subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
+        messageBus.connect(project).subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
             @Override
             public void lineRemoved(Topic _topic, TopicLine _topicLine) {
+                if (_topic.context().isLoading()) return;
+                BookmarkUtils.removeMachBookmark(_topicLine, project);
+                if (!topicList.context().equals(_topic.context())) return;
                     EditorUtils.removeLineCodeRemark(project, _topicLine);
-                    topicList.moveToTrash(_topicLine, _topic.name());
+
                     onDataModified();
             }
 
             @Override
             public void lineAdded(Topic _topic, TopicLine _topicLine) {
+                if (_topic.context().isLoading()) return;
+                if (!topicList.context().equals(_topic.context())) {
+                    if (_topicLine.isValid()) BookmarkUtils.addBookmark(project, _topicLine);
+                    return;
+                }
+                if (!_topicLine.isValid()) { onDataModified(); return; }
                     // 统一处理数据修改
                     onDataModified();
                     // Check if TopicLine already has a UUID
@@ -234,6 +249,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             
             @Override
             public void lineNoteChanged(Topic topic, TopicLine topicLine) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 remarkRefreshAlarm.cancelAllRequests();
                 remarkRefreshAlarm.addRequest(() -> {
                     if (project.isDisposed()) return;
@@ -245,67 +261,77 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
             
             @Override
             public void lineUpdated(Topic topic, TopicLine topicLine, int oldLineNum, int newLineNum) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 onDataModified();
             }
             
             @Override
             public void groupAdded(Topic topic, TopicGroup group) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // 统一处理数据修改
                 onDataModified();
             }
             
             @Override
             public void groupRemoved(Topic topic, TopicGroup group) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // 统一处理数据修改
                 onDataModified();
             }
             
             @Override
             public void groupRenamed(Topic topic, TopicGroup group) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // 统一处理数据修改
                 onDataModified();
             }
             
             @Override
             public void linesReordered(Topic topic) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // TopicLine 顺序变化
                 onDataModified();
             }
             
             @Override
             public void groupsReordered(Topic topic) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // TopicGroup 顺序变化
                 onDataModified();
             }
         });
         
         // 订阅TopicList级别的通知
-        messageBus.connect().subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier() {
+        messageBus.connect(project).subscribe(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC, new TopicListNotifier() {
             @Override
             public void topicAdded(Topic topic) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // 统一处理数据修改
                 onDataModified();
             }
             
             @Override
             public void topicRemoved(Topic topic) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // 统一处理数据修改
                 onDataModified();
             }
             
             @Override
-            public void topicsLoaded() {
+            public void topicsLoaded(TopicList source) {
                 // Data loading should not trigger auto-sync
             }
             
             @Override
             public void topicUpdated(Topic topic) {
+                if (!topicList.context().equals(topic.context()) || topic.context().isLoading()) return;
                 // Topic 名称或备注修改
                 onDataModified();
             }
             
             @Override
-            public void topicsReordered() {
+            public void topicsReordered(TopicList source) {
+                if (source != topicList) return;
                 // Topic 顺序变化
                 onDataModified();
             }
@@ -332,15 +358,21 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     @Override
     public Element getState()
     {
+        if (failedState != null) return failedState.clone();
+        if (jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().persistencePaused(topicList)) return null;
         Element container = new Element(AppConstants.appName);
-        container.addContent(TopicListExporter.export(getTopicList().iterator(), getTopicList().getTrashedLines()));
+        container.addContent(TopicListExporter.export(getTopicList()));
+        jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().rootSerialized(topicList, container.getChild("topics"));
         Element state = new Element("state");
         state.setAttribute("lastExportDir", lastExportDir());
         state.setAttribute("lastImportDir", lastImportDir());
         container.addContent(state);
 
         // Trigger auto-sync when state is saved (only if not paused and not calculating)
-        triggerAutoSyncOnStateSave();
+        if (rootDataModified && !isCalculatingState.get()) {
+            rootDataModified = false;
+            triggerAutoSyncOnStateSave();
+        }
         
         return container;
     }
@@ -350,6 +382,9 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
      */
     @NotNull
     public Element getStateWithoutTrigger() {
+        if (jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().persistencePaused(topicList)) {
+            throw new IllegalStateException(CodeReadingNoteBundle.message("workspace.conflict", topicList.context().root()));
+        }
         isCalculatingState.set(true);
         try {
             return getState();
@@ -390,14 +425,30 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     @Override
     public void loadState(@NotNull Element element)
     {
-        try {
-            topicList.setTopics(TopicListImporter.importElement(project, element.getChild("topics")));
-        } catch (TopicListImporter.FormatException e) {
-            topicList.setTopics(new ArrayList<>());
+        if (skipInitialLoad) {
+            skipInitialLoad = false;
+            Element preferences = element.getChild("state");
+            if (preferences != null) {
+                lastExportDir = preferences.getAttributeValue("lastExportDir");
+                lastImportDir = preferences.getAttributeValue("lastImportDir");
+            }
+            return;
         }
-
-        topicList.setTrashedLines(TopicListImporter.importTrashedLines(project, element.getChild("topics")));
-
+        try {
+            ArrayList<Topic> topics = TopicListImporter.importElement(project, topicList.context(), element.getChild("topics"));
+            ArrayList<TrashedLine> trash = TopicListImporter.importTrashedLines(project, topicList.context(), element.getChild("topics"));
+            topicList.setTopics(topics);
+            topicList.setTrashedLines(trash);
+            topicList.setXmlTemplate(element.getChild("topics"));
+            failedState = null;
+            jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().rootLoaded(topicList);
+        } catch (Exception error) {
+            failedState = element.clone();
+            jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().rootFailed(topicList);
+            jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.report(project,
+                    topicList.context().root(), "workspace.load.failed", error);
+            return;
+        }
         Element stateElement = element.getChild("state");
         if (stateElement != null) {
             lastExportDir = stateElement.getAttributeValue("lastExportDir");
@@ -419,9 +470,9 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     public String lastImportDir() { return lastImportDir != null ? lastImportDir : ""; }
     public void setLastImportDir(String lastImportDir) { this.lastImportDir = lastImportDir; }
     public List<CodeRemark> list(Project project, @NotNull VirtualFile file) {
-        Stream<CodeRemark> sorted = topicList.getTopics().stream()
+        Stream<CodeRemark> sorted = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).allTopics().stream()
             .flatMap(topic -> topic.getLines().stream())
-            .filter(topicLine -> topicLine.file() != null)  // 过滤掉file为null的TopicLine
+            .filter(topicLine -> file.equals(topicLine.file()))  // 过滤掉file为null的TopicLine
             .map(topicLine -> {
                 CodeRemark codeRemark = new CodeRemark();
                 codeRemark.setFileName(topicLine.file().getName());
@@ -438,7 +489,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     }
 
     public List<TopicLine> listSource(Project project, @NotNull VirtualFile file) {
-        return topicList.getTopics().stream()
+        return jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).allTopics().stream()
             .flatMap(topic -> topic.getLines().stream())
             .filter(topicLine -> topicLine.file() != null && topicLine.file().equals(file))
             .collect(Collectors.toList());

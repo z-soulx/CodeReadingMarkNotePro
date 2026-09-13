@@ -1,8 +1,22 @@
 # Progress
-
-## 2026-08-30
-
-- User asked to ship Cursor + Typora as first-run built-in commands that users can delete.
-- Seed rule: write only when `.ai/workspace-commands.json` does not exist; never re-inject into an existing file.
-- Implemented `ensureSeeded()` on load, startup, skeleton create, and Git init. Display names from bundles.
-- `JAVA_HOME=C:\Program Files\Java\jdk-17 .\gradlew.bat test` passed. Unit `202608-ai-builtin-commands` frozen.
+## 2026-09-13 — issue #15 / 3.7.7
+- Final test/build passed: 70 tests, zero failures/errors/skips. Verified packaged descriptor version 3.7.7 and issue-fix/workspace classes. ZIP: 783369 bytes; SHA256 D7155138D74C5A44269AC6029C31D49336EFEAC702E5C6BFF3995F787F7CA946. Current EN/ZH sync keys match (65); final evidence in .ai/runs/202609-issue-15-existing-remote-push-1.md. Live reporter repository, Windows/macOS installed-plugin and real multi-window acceptance remain unexecuted; no publication or remote write performed.
+- Read public issue and attached screenshot; no comments present. Windows sandbox TLS initialization failed, authorized elevated curl read succeeded. User requires release version 3.7.7 including existing workspace work.
+- Fixed legacy branch-scoped SHA/content/checksum reads, fail-closed SHA errors, structured JSON error decoding/redaction, and distinct 422 states in the workspace transport. Local HTTP regression confirms consecutive updates without DELETE. Initial test run passed; current version/docs consolidated to 3.7.7, final build pending.
+## 2026-09-13 — workspace sync implementation
+- User authorized implementation of the design. Re-read constraints, working set and source; preserving existing 3.8.0 workspace changes. No remote operations or publishing authorized by implementation work.
+- Added per-project binding/state XML, content baseline classification, SHA-conditional GitHub notes transport, shared sync coordinator, manual target actions, overview/settings/conflict UI, automatic polling and legacy scheduler delegation. Initial compile passed. Added protocol, storage and baseline tests; test execution in progress.
+- Final revision includes explicit preservation of unknown local XML extensions, verified save barriers, binding generation checks, shared rate-limit wait, fair per-project automatic scheduling and runtime language notifications. Updated Chinese domain/scenario docs, bilingual help and 3.9.0 release metadata.
+- Final gradlew test build succeeded: 63 tests, zero failures/errors/skipped. 62 new notes.sync keys match EN/ZH without duplicates; diff whitespace check passed. ZIP version/classes verified inside instrumented JAR. Artifact: build/distributions/CodeReadingMarkNotePro-3.9.0.zip (779995 bytes), SHA256 BC9AA7D7CEDC63B4FCA3390BEC1767B48F6B29AF60DC6BE6009F78794676088C.
+- Not run: installed-plugin UI / real GitHub transfer / real two-window root persistence acceptance, macOS installation or Plugin Verifier version matrix. No commit, remote push/pull, publishing or live IDE installation performed.
+## 2026-09-13 — workspace sync design
+- Restored previous implementation state and planning files; loaded repository constraints and sync documentation. Design only; existing 3.8.0 changes remain intact.
+- Verified source contracts; created 202609-workspace-project-notes-sync spec/plan/tasks and updated INDEX/docs routing. Design covers explicit targeting, stable bindings, safe bidirectional polling, baseline/SHA races, complete payloads, persistence and multi-window lifecycle.
+- Reviewed acceptance/design consistency and file existence; git diff --check passed (existing LF/CRLF conversion warnings only). No production code or version changes, no Gradle tests/build or remote sync executed for this documentation-only follow-up.
+## 2026-09-13
+- Read repository constraints and routed notes/sync/platform/release docs.
+- Initial git tree clean. Inspected service, models, importer and UI call sites.
+- Implemented runtime ownership, coordinator, discovery/storage, project tree and action routing. First compilation found Disposable package imports; fixed. Gradle requires cache write escalation. PowerShell brace expansion unsupported; use explicit paths.
+- Expanded suite: 38/39 passed. The cross-project rejection test needs a language service application fixture; added an isolated application proxy. Reviewed reload/edit race and added revision checks, root sync mutation gating and durable recovery outside deleted project directories.
+- All 39 tests and Gradle build passed. Added 3.8.0 help/change notes/domain documentation. Final audit separates scanning from the serial writer and addresses close/reload conflicts; final rebuild still pending.
+- Final revision: 42/42 tests passed, Gradle test/build succeeded, 16 workspace translation keys verified, diff whitespace check clean. 3.8.0 ZIP generated. Spec remains in verification pending installed-plugin/manual checks; evidence in .ai/runs/202609-multi-project-notes-workspace-1.md.

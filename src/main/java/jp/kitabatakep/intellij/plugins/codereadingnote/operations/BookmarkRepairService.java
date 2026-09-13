@@ -49,7 +49,7 @@ public final class BookmarkRepairService {
             return result;
         }
         
-        for (Topic topic : topicList.getTopics()) {
+        for (Topic topic : jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).allTopics()) {
             for (TopicLine line : topic.getLines()) {
                 BookmarkStatus status = checkBookmarkStatus(line);
                 
@@ -201,14 +201,10 @@ public final class BookmarkRepairService {
                 return false;
             }
             
-            String uuid = java.util.UUID.randomUUID().toString();
-            Bookmark bookmark = BookmarkUtils.addBookmark(
-                project, 
-                line.file(), 
-                line.line(), 
-                line.note(), 
-                uuid
-            );
+            String previousUid = line.getBookmarkUid();
+            String uuid = previousUid == null || previousUid.isEmpty() ? java.util.UUID.randomUUID().toString() : previousUid;
+            line.setBookmarkUid(uuid);
+            Bookmark bookmark = BookmarkUtils.addBookmark(project, line);
             
             if (bookmark != null) {
                 line.setBookmarkUid(uuid);

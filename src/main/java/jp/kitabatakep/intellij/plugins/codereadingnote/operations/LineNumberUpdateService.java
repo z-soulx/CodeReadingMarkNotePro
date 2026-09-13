@@ -89,13 +89,7 @@ public final class LineNumberUpdateService {
             
             // 4. Create new bookmark at new line number
             if (shouldUpdateBookmark) {
-                com.intellij.ide.bookmark.Bookmark newBookmark = BookmarkUtils.addBookmark(
-                    project, 
-                    line.file(), 
-                    newLineNum, 
-                    line.note(), 
-                    uuid
-                );
+                com.intellij.ide.bookmark.Bookmark newBookmark = BookmarkUtils.addBookmark(project, line);
                 
                 if (newBookmark == null) {
                     LOG.warn("Failed to recreate bookmark at new line: " + newLineNum);

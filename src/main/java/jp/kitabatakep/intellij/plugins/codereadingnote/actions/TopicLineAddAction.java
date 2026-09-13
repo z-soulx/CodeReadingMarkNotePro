@@ -50,7 +50,6 @@ public class TopicLineAddAction extends CommonAnAction {
         } else {
             CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
             event.getPresentation().setEnabled(
-                    service.getTopicList().iterator().hasNext() &&
                             (CommonDataKeys.EDITOR.getData(dataContext) != null ||
                                     CommonDataKeys.VIRTUAL_FILE.getData(dataContext) != null));
         }
@@ -71,9 +70,19 @@ public class TopicLineAddAction extends CommonAnAction {
 
         VirtualFile file = event.getData(PlatformDataKeys.VIRTUAL_FILE);
         Editor editor = event.getData(PlatformDataKeys.EDITOR);
-        int line = editor.getCaretModel().getLogicalPosition().line;
+        if (file == null || file.isDirectory()) return;
+        int line = editor == null ? 0 : editor.getCaretModel().getLogicalPosition().line;
 
-        TopicList topicList = service.getTopicList();
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).isReady()) return;
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).forFile(file);
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(topicList)) return;
+        if (topicList.getTopics().isEmpty()) {
+            String name = com.intellij.openapi.ui.Messages.showInputDialog(project,
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("workspace.first.topic", topicList.context().root()),
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.topic.title"), null);
+            if (name == null || name.isBlank()) return;
+            topicList.addTopic(name.trim());
+        }
         Iterator<Topic> iterator = topicList.iterator();
         ArrayList<Topic> topics = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -132,7 +141,16 @@ public class TopicLineAddAction extends CommonAnAction {
         Editor editor = event.getData(PlatformDataKeys.EDITOR);
         CaretModel caretModel = editor.getCaretModel();
         int line = caretModel.getLogicalPosition().line;
-        TopicList topicList = service.getTopicList();
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).isReady()) return;
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).forFile(file);
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(topicList)) return;
+        if (topicList.getTopics().isEmpty()) {
+            String name = com.intellij.openapi.ui.Messages.showInputDialog(project,
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("workspace.first.topic", topicList.context().root()),
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.topic.title"), null);
+            if (name == null || name.isBlank()) return;
+            topicList.addTopic(name.trim());
+        }
         Iterator<Topic> iterator = topicList.iterator();
         ArrayList<Topic> topics = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -234,9 +252,19 @@ public class TopicLineAddAction extends CommonAnAction {
 
         VirtualFile file = event.getData(PlatformDataKeys.VIRTUAL_FILE);
         Editor editor = event.getData(PlatformDataKeys.EDITOR);
-        int line = editor.getCaretModel().getLogicalPosition().line;
+        if (file == null || file.isDirectory()) return;
+        int line = editor == null ? 0 : editor.getCaretModel().getLogicalPosition().line;
 
-        TopicList topicList = service.getTopicList();
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).isReady()) return;
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).forFile(file);
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(topicList)) return;
+        if (topicList.getTopics().isEmpty()) {
+            String name = com.intellij.openapi.ui.Messages.showInputDialog(project,
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("workspace.first.topic", topicList.context().root()),
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.topic.title"), null);
+            if (name == null || name.isBlank()) return;
+            topicList.addTopic(name.trim());
+        }
         Iterator<Topic> iterator = topicList.iterator();
         ArrayList<Topic> topics = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -412,7 +440,7 @@ public class TopicLineAddAction extends CommonAnAction {
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
                 SwingUtilities.invokeLater(() -> {
                     dialog.pack();
-                    dialog.setLocationRelativeTo(editor.getComponent());
+                    dialog.setLocationRelativeTo(editor == null ? null : editor.getComponent());
                     dialog.setVisible(true);
                 });
         });

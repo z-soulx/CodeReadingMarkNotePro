@@ -27,10 +27,20 @@ public class TopicLine implements Navigatable
     
     // 新增：分组引用
     private TopicGroup group;
+    ElementTemplate xmlTemplate = new ElementTemplate();
+    public void rebind(Project project) { this.project = project; }
+    public void attachTopic(Topic target) {
+        if (!topic.context().equals(target.context())) throw new IllegalArgumentException(CodeReadingNoteBundle.message("workspace.move.same.project"));
+        this.topic = target;
+    }
+    public String runtimeId() {
+        return topic.context().id() + "\u0000" + (bookmarkUid == null || bookmarkUid.isEmpty()
+                ? url + ":" + line + ":" + topic.name() : bookmarkUid);
+    }
 
     public static TopicLine createByAction(Project project, Topic topic, VirtualFile file, int line, String note)
     {
-        VirtualFile projectBase = LocalFileSystem.getInstance().findFileByPath(project.getBasePath());
+        VirtualFile projectBase = LocalFileSystem.getInstance().findFileByPath(topic.context().root().toString());
         boolean inProject = VfsUtilCore.isAncestor(projectBase, file, true);
 
         return new TopicLine(project, topic, file, line, note, inProject,
@@ -40,9 +50,9 @@ public class TopicLine implements Navigatable
     public static TopicLine createByImport(Project project, Topic topic, String url, int line, String note, boolean inProject, String relativePath, String bookmarkUid)
     {
         VirtualFile file;
-        String projectBase = project.getBasePath();
+        String projectBase = topic.context().root().toString();
         if (inProject) {
-            file = LocalFileSystem.getInstance().findFileByPath(projectBase + File.separator + relativePath);
+            file = LocalFileSystem.getInstance().findFileByPath(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NotePaths.resolve(topic.context().root(), relativePath).toString());
         } else {
             file = VirtualFileManager.getInstance().findFileByUrl(url);
         }
@@ -59,8 +69,9 @@ public class TopicLine implements Navigatable
         this.inProject = inProject;
         this.relativePath = relativePath;
         this.url = url;
+        this.bookmarkUid = java.util.UUID.randomUUID().toString();
     }
-    private TopicLine(Project project, Topic topic, VirtualFile file, int line, String note, boolean inProject, String relativePath, String url,String bookmarkUid)
+    TopicLine(Project project, Topic topic, VirtualFile file, int line, String note, boolean inProject, String relativePath, String url,String bookmarkUid)
     {
         this.project = project;
         this.topic = topic;
@@ -90,7 +101,7 @@ public class TopicLine implements Navigatable
         this.bookmarkUid = bookmarkUid;
     }
 
-    public void modifyLine(int newLine) {  line = newLine; }
+    public void modifyLine(int newLine) { if (line != newLine) { line = newLine; topic.touch(); } }
 
     public String relativePath() { return relativePath; }
 
@@ -163,14 +174,14 @@ public class TopicLine implements Navigatable
         
         // Try to re-lookup the file
         VirtualFile newFile = null;
-        String projectBase = project.getBasePath();
+        String projectBase = topic.context().root().toString();
         
         if (inProject && relativePath != null && projectBase != null) {
             // For in-project files, use relative path
-            newFile = LocalFileSystem.getInstance().findFileByPath(projectBase + File.separator + relativePath);
+            newFile = LocalFileSystem.getInstance().findFileByPath(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NotePaths.resolve(topic.context().root(), relativePath).toString());
         }
         
-        if (newFile == null && url != null) {
+        if (!inProject && newFile == null && url != null) {
             // Fallback to URL lookup
             newFile = VirtualFileManager.getInstance().findFileByUrl(url);
         }
@@ -221,12 +232,16 @@ public class TopicLine implements Navigatable
 
     @Override
     public void navigate(boolean requestFocus) {
+        navigate(project, requestFocus);
+    }
+
+    public void navigate(Project window, boolean requestFocus) {
         // Auto-refresh before navigation
         if (!isValid()) {
             refreshFile();
         }
         if (isValid() && openFileDescriptor().canNavigate()) {
-            openFileDescriptor().navigate(requestFocus);
+            new OpenFileDescriptor(window, file, line, -1, true).navigate(requestFocus);
         }
     }
 }

@@ -7,7 +7,7 @@
 
 | 通道 | 载荷 | 入口 | 自动调度 |
 |------|------|------|---------|
-| 笔记同步 | `CodeReadingNote.xml` 单文件 | `SyncService.push()/pull()` | `AutoSyncScheduler`（3 秒防抖） |
+| 笔记同步 | 各项目完整笔记 XML（含回收站） | `WorkspaceNotesSyncCoordinator`；`SyncService` 为根门面 | 应用级每项目队列，3 秒防抖及周期检查 |
 | AI 配置同步 | `ai-configs/` 目录 + 元数据 | `AIConfigSyncAdapter.pushFiles()/pullFiles()` | `AIConfigAutoSyncScheduler`（5 秒防抖） |
 
 通道独立的取舍见 `.ai/adr/0002`；Provider 层的策略模式见 `.ai/adr/0001`。
@@ -32,17 +32,24 @@ AI 配置拉取时，`ai-config-registry.json` 元数据分两阶段应用（`.a
 
 ## 冲突检测与合并
 
-- **笔记通道**：`SyncConflictDetector` 检查远端是否比本地新。本地时间取「上次同步时间
-  与最新 Topic 更新时间的较大者」（`getEffectiveLocalTimestamp`），与 Provider 返回的
-  远端最后修改时间比较，输出 `ConflictDetectionResult`。远端项目标识由项目名替换
-  Windows 非法字符（`\ / : * ? " < > |` -> `_`）生成
+- **笔记通道（3.7.7）**：`NotesSyncDecision` 比较上次同步内容基线、本地和远端的完整 XML 摘要。本地单变可推送、远端单变可拉取、双方不同变化暂停该项目。同名主题不做自动按名合并，设备时间不决定覆盖。远端目录由每项目显式绑定，旧项目名是首次绑定候选。
 - **AI 配置通道**：`AIConfigMergeAnalyzer` 做三方比对（本地 / 远端 / 基线=上次同步哈希），
   逐文件归类（如 `NEW_REMOTE` 远端新增、`DELETED_REMOTE` 远端已删等）并给出动作建议，
   交给 `AIConfigSyncConflictDialog` 由用户逐项决定。纯逻辑类，不依赖 IDE UI
 
-> 以上两段基于类源码粗读（2026-08-29），未逐行验证，细节以代码为准。
+> AI 配置段落仍基于既有源码粗读；笔记通道已按 3.7.7 实现回流。
 
 冲突期间自动推送会被暂停（pause 标志），避免覆盖未决差异。
+
+## 工作空间笔记同步（3.7.7）
+
+`sync/workspace/WorkspaceNotesSyncCoordinator` 在应用级串行调度所有可见项目，同一根目录在父窗口和独立子窗口间复用模型、绑定、基线及任务。手动入口冻结选中项目，批量面板逐项执行，一项失败不阻断其他项目；项目关闭、目录消失、配置或绑定代次变化会使旧任务失效。各项目数据保持独立，不混入父项目载荷。
+
+`NotesSyncBinding` 使用每项目 `.idea/notesSyncBinding.xml` 保存仓库、分支、目录标识、自动策略及检查间隔；`NotesSyncState` 将内容基线、远端 SHA、暂停状态及未完成拉取日志放在 IDEA 配置目录 `CodeReadingNote/notes-sync/`，按本地根与完整远端身份分区。Token 仍只取应用级配置。
+
+`WorkspaceNotesCoordinator` 在 EDT 获取不可变模型快照和 revision，子项目使用共享串行存储，根项目调用平台 `StoreUtil.saveSettings`；真实磁盘 XML 验证成功后才允许记录同步基线。拉取重新检查模型 revision、磁盘内容和项目可用性，完整解析后才应用；替换前备份至 `notes-sync/backups/`。上传期间新编辑仍是待同步数据。
+
+完整载荷包含回收站（空回收站显式写出）、排序和未知扩展字段。旧载荷缺失 trash 时保留本地回收站，保持内容基线差异；合法空集合可同步，损坏或缺失文件不能视为空。现有 `SyncConflictDetector` 等旧接口不再参与新入口的自动覆盖判断。
 
 ## 推送报告 UI
 

@@ -19,6 +19,9 @@ public class TopicAddAction extends CommonAnAction
         );
     }
 
+    private java.util.function.Supplier<jp.kitabatakep.intellij.plugins.codereadingnote.TopicList> selection;
+    public TopicAddAction(java.util.function.Supplier<jp.kitabatakep.intellij.plugins.codereadingnote.TopicList> selection) { this(); this.selection = selection; }
+
     @Override
     public void update(@NotNull AnActionEvent e) {
         e.getPresentation().setEnabled(e.getProject() != null);
@@ -27,6 +30,9 @@ public class TopicAddAction extends CommonAnAction
     @Override
     public void actionPerformed(@NotNull AnActionEvent e)
     {
+        jp.kitabatakep.intellij.plugins.codereadingnote.TopicList target = jp.kitabatakep.intellij.plugins.codereadingnote.ui.WorkspaceProjectChooser.choose(e.getProject(), selection);
+        if (target == null || !jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(target)) return;
+
         String newTopicName =  Messages.showInputDialog(
             CodeReadingNoteBundle.message("dialog.create.topic.message"),
             CodeReadingNoteBundle.message("dialog.create.topic.title"),
@@ -44,7 +50,7 @@ public class TopicAddAction extends CommonAnAction
 
         if (newTopicName != null) {
             CodeReadingNoteService service = CodeReadingNoteService.getInstance(e.getProject());
-            service.getTopicList().addTopic(newTopicName);
+            target.addTopic(newTopicName);
         }
     }
 }

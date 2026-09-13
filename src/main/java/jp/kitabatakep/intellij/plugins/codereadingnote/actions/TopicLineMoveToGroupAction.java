@@ -60,12 +60,13 @@ public class TopicLineMoveToGroupAction extends ActionGroup
     @NotNull
     @Override
     public AnAction[] getChildren(AnActionEvent e) {
-        if (e.getProject() == null) {
+        if (e == null || e.getProject() == null || topicLines.isEmpty()) {
             return AnAction.EMPTY_ARRAY;
         }
         
         CodeReadingNoteService service = CodeReadingNoteService.getInstance(e.getProject());
-        Iterator<Topic> iterator = service.getTopicList().iterator();
+        if (topicLines.stream().anyMatch(line -> !line.topic().context().equals(topicLines.get(0).topic().context()))) return AnAction.EMPTY_ARRAY;
+        Iterator<Topic> iterator = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().listFor(topicLines.get(0).topic()).iterator();
 
         ArrayList<AnAction> actions = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -134,18 +135,7 @@ public class TopicLineMoveToGroupAction extends ActionGroup
         @Override
         public void actionPerformed(@NotNull AnActionEvent e) {
             for (TopicLine line : topicLines) {
-                // 从原位置移除
-                line.topic().removeLine(line);
-                
-                // 创建新的 TopicLine 并添加到目标 Group
-                TopicLine newLine = TopicLine.createByAction(
-                    e.getProject(),
-                    targetTopic,
-                    line.file(),
-                    line.line(),
-                    line.note()
-                );
-                targetTopic.addLineToGroup(newLine, targetGroup.name());
+                targetTopic.moveLineHere(line, targetGroup);
             }
         }
     }
@@ -166,18 +156,7 @@ public class TopicLineMoveToGroupAction extends ActionGroup
         @Override
         public void actionPerformed(@NotNull AnActionEvent e) {
             for (TopicLine line : topicLines) {
-                // 从原位置移除
-                line.topic().removeLine(line);
-                
-                // 创建新的 TopicLine 并添加到 Ungrouped
-                TopicLine newLine = TopicLine.createByAction(
-                    e.getProject(),
-                    targetTopic,
-                    line.file(),
-                    line.line(),
-                    line.note()
-                );
-                targetTopic.addLine(newLine);
+                targetTopic.moveLineHere(line, null);
             }
         }
     }

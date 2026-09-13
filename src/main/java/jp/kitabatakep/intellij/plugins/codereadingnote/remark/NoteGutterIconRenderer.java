@@ -98,9 +98,9 @@ public class NoteGutterIconRenderer extends GutterIconRenderer {
     @Nullable
     private TopicLine findTopicLine() {
         CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
-        for (jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic : service.getTopicList().getTopics()) {
+        for (jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic : jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).allTopics()) {
             for (TopicLine tl : topic.getLines()) {
-                if (topicLineUid.equals(tl.getBookmarkUid())) {
+                if (topicLineUid.equals(tl.runtimeId())) {
                     return tl;
                 }
             }

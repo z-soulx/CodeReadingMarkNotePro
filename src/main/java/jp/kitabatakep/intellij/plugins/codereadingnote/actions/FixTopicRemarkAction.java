@@ -89,7 +89,7 @@ public class FixTopicRemarkAction extends CommonAnAction {
         List<LineFixResult> results = new ArrayList<>();
         
         for (TopicLine topicLine : topic.getLines()) {
-            Bookmark bookmark = bookmarkMap.get(topicLine.getBookmarkUid());
+            Bookmark bookmark = bookmarkMap.get(topicLine.runtimeId());
             
             Integer bookmarkLine = null;
             if (bookmark != null) {

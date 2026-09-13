@@ -38,6 +38,9 @@ public class ImportAction extends CommonAnAction
         );
     }
 
+    private java.util.function.Supplier<jp.kitabatakep.intellij.plugins.codereadingnote.TopicList> selection;
+    public ImportAction(java.util.function.Supplier<jp.kitabatakep.intellij.plugins.codereadingnote.TopicList> selection) { this(); this.selection = selection; }
+
     @Override
     public void update(@NotNull AnActionEvent e) {
         e.getPresentation().setEnabled(e.getProject() != null);
@@ -46,6 +49,9 @@ public class ImportAction extends CommonAnAction
     @Override
     public void actionPerformed(@NotNull AnActionEvent e)
     {
+        jp.kitabatakep.intellij.plugins.codereadingnote.TopicList target = jp.kitabatakep.intellij.plugins.codereadingnote.ui.WorkspaceProjectChooser.choose(e.getProject(), selection);
+        if (target == null || !jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(target)) return;
+
         Project project = e.getProject();
         CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
 
@@ -75,6 +81,7 @@ public class ImportAction extends CommonAnAction
 
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             DocumentBuilder builder2 = factory.newDocumentBuilder();
             org.w3c.dom.Document document1 = builder2.parse(new File(files[0].getPath()));
             DOMBuilder domBuilder = new DOMBuilder();
@@ -100,11 +107,15 @@ public class ImportAction extends CommonAnAction
         }
 
         try {
-            service.getTopicList().setTopics(TopicListImporter.importElement(project, document.getRootElement()));
+            var topics = TopicListImporter.importElement(project, target.context(), document.getRootElement());
+            var trash = TopicListImporter.importTrashedLines(project, target.context(), document.getRootElement());
+            target.setTopics(topics);
+            target.setTrashedLines(trash);
+            target.context().changed();
             MessageBus messageBus = project.getMessageBus();
             TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
-            publisher.topicsLoaded();
-        } catch (TopicListImporter.FormatException e2) {
+            publisher.topicsLoaded(target);
+        } catch (TopicListImporter.FormatException | IllegalArgumentException e2) {
             Messages.showErrorDialog(
                 project,
                 jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("message.import.failed.format"),

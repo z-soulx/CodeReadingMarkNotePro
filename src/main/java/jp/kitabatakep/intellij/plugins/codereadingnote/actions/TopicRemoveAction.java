@@ -50,7 +50,7 @@ public class TopicRemoveAction extends CommonAnAction
         );
 
         if (confirmationResult == Messages.YES) {
-            service.getTopicList().removeTopic(topic);
+            jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().listFor(topic).removeTopic(topic);
         }
     }
 }

@@ -21,6 +21,9 @@ public class TopicGroup implements Comparable<TopicGroup> {
     private boolean expanded = false; // 默认收缩状态，用户可以手动展开需要的分组
     private Topic parentTopic;
     private Project project;
+    ElementTemplate xmlTemplate = new ElementTemplate();
+    public void rebind(Project project) { this.project = project; }
+    void restoreMetadata(String note, Date updatedAt) { this.note = note; this.updatedAt = updatedAt; }
 
     public TopicGroup(Project project, Topic parentTopic, String name, Date createdAt) {
         this.project = project;
@@ -82,7 +85,9 @@ public class TopicGroup implements Comparable<TopicGroup> {
     }
 
     public void setExpanded(boolean expanded) {
+        if (this.expanded == expanded) return;
         this.expanded = expanded;
+        parentTopic.context().changed();
     }
 
     public Topic getParentTopic() {
@@ -100,6 +105,7 @@ public class TopicGroup implements Comparable<TopicGroup> {
     }
 
     public void addLine(TopicLine line) {
+        line.attachTopic(parentTopic);
         lines.add(line);
         // 设置TopicLine的分组引用
         line.setGroup(this);

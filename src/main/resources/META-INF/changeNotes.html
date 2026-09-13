@@ -1,5 +1,16 @@
 <html>
 <body>
+<h1>3.7.7</h1>
+<ul>
+    <li><b>Bug Fix (#15):</b> Update existing GitHub notes using the configured branch and its file SHA. Failed version reads stop the upload; error messages preserve escaped quotes and show actionable guidance. / <b>修复（#15）：</b>使用配置分支及对应文件 SHA 更新已有 GitHub 笔记，版本读取失败时停止上传；错误信息完整显示转义引号与具体处理建议，无需删除远端文件。</li>
+    <li><b>Feature:</b> Push or pull any notes project from its parent workspace. Select projects in the sync overview to manage bindings, policies, and individual results. / <b>新功能：</b>在父工作空间直接推拉任一项目笔记，通过同步总览选择项目，管理远端绑定、自动策略和逐项目结果。</li>
+    <li><b>Automatic sync:</b> Choose manual, auto push, or safe bidirectional sync per project. Background checks fetch remote-only changes without opening child projects separately. / <b>自动同步：</b>各项目可选择仅手动、自动推送或安全双向；后台检查可自动拉取远端单边更新，无需独立打开子项目。</li>
+    <li><b>Data protection:</b> Content baselines and conditional remote writes detect concurrent edits. Conflicts pause only the affected project, with comparison and backups before replacement. Sync includes trash and empty collections. / <b>数据保护：</b>内容基线及远端条件写入检测并发修改，冲突仅暂停对应项目，支持对比和替换前备份；同步包含回收站和空集合。</li>
+
+    <li><b>Feature:</b> Open a parent directory to discover and edit notes from nested projects, with separate project trees, trash, search results, navigation, and gutter editing. / <b>新功能：</b>打开父目录即可自动发现和编辑各层子项目笔记，支持独立项目树、回收站、跨项目搜索、导航及行标记编辑。</li>
+    <li><b>Data protection:</b> Each project keeps its compatible notes file. External edit conflicts offer disk reload or backup before saving local changes; unresolved local changes are retained for recovery. / <b>数据保护：</b>各项目保留兼容的独立笔记文件；外部修改冲突支持重新加载磁盘或备份后保存，未解决的本地修改保留供恢复。</li>
+    <li><b>Improvement:</b> Moves preserve note identity and missing-file paths within their project. Child edits stay outside root GitHub sync. / <b>改进：</b>同项目移动保留笔记标识和暂时缺失的文件路径，子项目编辑不会进入根项目 GitHub 同步。</li>
+</ul>
 <h1>3.7.6</h1>
 <ul>
     <li><b>Bug Fix:</b> Restored the plugin icon in the Tool Window stripe and in the Add to Topic and Navigate to Note editor actions. / <b>Bug 修复：</b>恢复 Tool Window 边栏以及“添加到主题”和“导航到笔记”编辑器操作中的插件图标。</li>

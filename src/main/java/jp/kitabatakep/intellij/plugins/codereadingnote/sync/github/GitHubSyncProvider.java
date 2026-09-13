@@ -27,7 +27,9 @@ import java.util.regex.Pattern;
  */
 public class GitHubSyncProvider extends AbstractSyncProvider {
     
-    private static final String GITHUB_API_BASE = "https://api.github.com";
+    private final String apiBase;
+    public GitHubSyncProvider() { this("https://api.github.com"); }
+    GitHubSyncProvider(String apiBase) { this.apiBase = apiBase; }
     private static final int TIMEOUT = 30000; // 30秒超时
     
     @Override
@@ -47,7 +49,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
         
         try {
             // 测试连接GitHub API
-            String apiUrl = String.format("%s/repos/%s", GITHUB_API_BASE, ghConfig.getRepository());
+            String apiUrl = String.format("%s/repos/%s", apiBase, ghConfig.getRepository());
             HttpURLConnection conn = createConnection(apiUrl, "GET", ghConfig.getToken());
             
             int responseCode = conn.getResponseCode();
@@ -111,7 +113,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
             return result;
             
         } catch (Exception e) {
-            LOG.error("Push to GitHub failed", e);
+            LOG.warn("Push to GitHub failed", e);
             return SyncResult.failure(formatError("Push", e), e);
         }
     }
@@ -175,32 +177,35 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
     /**
      * 获取文件的SHA值（用于更新文件）
      */
-    private String getFileSha(@NotNull GitHubSyncConfig config, @NotNull String filePath) {
+    private String getFileSha(@NotNull GitHubSyncConfig config, @NotNull String filePath) throws IOException {
+        HttpURLConnection conn = createConnection(buildReadApiUrl(config, filePath), "GET", config.getToken());
         try {
-            String apiUrl = buildApiUrl(config, filePath);
-            HttpURLConnection conn = createConnection(apiUrl, "GET", config.getToken());
-            
             int responseCode = conn.getResponseCode();
             if (responseCode == 200) {
                 String response = readResponse(conn);
-                conn.disconnect();
-                
-                // 从JSON响应中提取SHA
-                Pattern pattern = Pattern.compile("\"sha\"\\s*:\\s*\"([^\"]+)\"");
-                Matcher matcher = pattern.matcher(response);
-                if (matcher.find()) {
-                    return matcher.group(1);
+                try {
+                    var value = com.google.gson.JsonParser.parseString(response).getAsJsonObject().get("sha");
+                    if (value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString() && !value.getAsString().isBlank()) return value.getAsString();
+                } catch (RuntimeException malformed) {
+                    throw new IOException(CodeReadingNoteBundle.message("notes.sync.status.sha"));
                 }
+                throw new IOException(CodeReadingNoteBundle.message("notes.sync.status.sha"));
             } else if (responseCode == 404) {
-                // 文件不存在，返回null
-                conn.disconnect();
+                requireBranch(config);
                 return null;
             }
-            conn.disconnect();
-        } catch (Exception e) {
-            LOG.debug("Failed to get file SHA", e);
-        }
-        return null;
+            throw new IOException(readError(conn, config.getToken()));
+        } finally { conn.disconnect(); }
+    }
+    private String buildReadApiUrl(GitHubSyncConfig config, String filePath) {
+        return buildApiUrl(config, filePath) + "?ref=" + URLEncoder.encode(config.getBranch(), StandardCharsets.UTF_8).replace("+", "%20");
+    }
+    private void requireBranch(GitHubSyncConfig config) throws IOException {
+        String url = apiBase + "/repos/" + config.getRepository() + "/branches/"
+                + URLEncoder.encode(config.getBranch(), StandardCharsets.UTF_8).replace("+", "%20");
+        HttpURLConnection conn = createConnection(url, "GET", config.getToken());
+        try { if (conn.getResponseCode() != 200) throw new IOException(readError(conn, config.getToken())); }
+        finally { conn.disconnect(); }
     }
     
     /**
@@ -215,36 +220,30 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
      * Returns raw file content bytes, preserving binary fidelity.
      */
     private byte[] getFileContentBytes(@NotNull GitHubSyncConfig config, @NotNull String filePath) throws IOException {
-        String apiUrl = buildApiUrl(config, filePath);
+        String apiUrl = buildReadApiUrl(config, filePath);
         HttpURLConnection conn = createConnection(apiUrl, "GET", config.getToken());
-
-        int responseCode = conn.getResponseCode();
-        if (responseCode == 200) {
-            String response = readResponse(conn);
-            conn.disconnect();
-
-            Pattern pattern = Pattern.compile("\"content\"\\s*:\\s*\"([^\"]+)\"");
-            Matcher matcher = pattern.matcher(response);
-            if (matcher.find()) {
-                String base64Content = matcher.group(1).replace("\\n", "");
-                return Base64.getDecoder().decode(base64Content);
+        try {
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                String response = readResponse(conn);
+                try {
+                    var json = com.google.gson.JsonParser.parseString(response).getAsJsonObject();
+                    return Base64.getMimeDecoder().decode(json.get("content").getAsString());
+                } catch (RuntimeException malformed) { throw new IOException(CodeReadingNoteBundle.message("notes.sync.status.invalid.remote")); }
+            } else if (responseCode == 404) {
+                return null;
             }
-        } else if (responseCode == 404) {
-            conn.disconnect();
-            return null;
-        }
-
-        String error = readError(conn);
-        conn.disconnect();
-        throw new IOException("Failed to get file: " + error);
+            throw new IOException(readError(conn, config.getToken()));
+        } finally { conn.disconnect(); }
     }
     
     /**
      * 获取文件最后修改时间戳
      */
     private long getFileTimestamp(@NotNull GitHubSyncConfig config, @NotNull String filePath) throws IOException {
-        String commitsUrl = String.format("%s/repos/%s/commits?path=%s&page=1&per_page=1", 
-            GITHUB_API_BASE, config.getRepository(), URLEncoder.encode(filePath, StandardCharsets.UTF_8));
+        String commitsUrl = String.format("%s/repos/%s/commits?path=%s&sha=%s&page=1&per_page=1",
+            apiBase, config.getRepository(), URLEncoder.encode(filePath, StandardCharsets.UTF_8),
+            URLEncoder.encode(config.getBranch(), StandardCharsets.UTF_8));
         
         HttpURLConnection conn = createConnection(commitsUrl, "GET", config.getToken());
         
@@ -298,7 +297,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
                 conn.disconnect();
                 return SyncResult.success(sha == null ? "File created successfully" : "File updated successfully");
             } else {
-                String error = readError(conn);
+                String error = readError(conn, config.getToken());
                 conn.disconnect();
                 return SyncResult.failure(error);
             }
@@ -324,7 +323,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
                     .replace("+", "%20"));
         }
         return String.format("%s/repos/%s/contents/%s",
-            GITHUB_API_BASE, config.getRepository(), encodedPath);
+            apiBase, config.getRepository(), encodedPath);
     }
     
     /**
@@ -379,12 +378,12 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
      * GitHub API errors may be JSON ({"message":"..."}) or HTML error pages.
      */
     @NotNull
-    private String readError(@NotNull HttpURLConnection conn) {
+    private String readError(@NotNull HttpURLConnection conn, String credential) {
         int httpCode;
         try {
             httpCode = conn.getResponseCode();
         } catch (Exception e) {
-            return "Connection error";
+            return CodeReadingNoteBundle.message("notes.sync.status.network");
         }
 
         String rawBody = "";
@@ -405,70 +404,9 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
             LOG.debug("Failed to read error stream", e);
         }
 
-        return formatApiError(httpCode, rawBody);
+        return GitHubApiError.format(httpCode, rawBody, credential);
     }
 
-    /**
-     * Converts a raw HTTP error into a clean, actionable message.
-     * Tries JSON "message" field first, strips HTML if needed, and
-     * provides guidance based on the HTTP status code.
-     */
-    @NotNull
-    private String formatApiError(int httpCode, @NotNull String rawBody) {
-        // Try to extract JSON "message" field (GitHub API standard error format)
-        if (rawBody.startsWith("{")) {
-            Pattern msgPattern = Pattern.compile("\"message\"\\s*:\\s*\"([^\"]+)\"");
-            Matcher matcher = msgPattern.matcher(rawBody);
-            if (matcher.find()) {
-                return "[GitHub API " + httpCode + "] " + matcher.group(1);
-            }
-        }
-
-        // If body is HTML, extract just the <title> text and decode HTML entities
-        if (rawBody.contains("<html") || rawBody.contains("<HTML") || rawBody.contains("<!DOCTYPE")) {
-            Pattern titlePattern = Pattern.compile("<title>([^<]+)</title>", Pattern.CASE_INSENSITIVE);
-            Matcher matcher = titlePattern.matcher(rawBody);
-            String summary = matcher.find() ? decodeHtmlEntities(matcher.group(1).trim()) : "GitHub returned an HTML error page";
-            return "[GitHub API " + httpCode + "] " + summary + describeHttpAction(httpCode);
-        }
-
-        // Plain text or empty
-        if (!rawBody.isEmpty() && rawBody.length() < 200) {
-            return "[GitHub API " + httpCode + "] " + rawBody;
-        }
-
-        return "[GitHub API " + httpCode + "]" + describeHttpAction(httpCode);
-    }
-
-    @NotNull
-    private static String describeHttpAction(int httpCode) {
-        switch (httpCode) {
-            case 400: return " — Bad request. File path may contain invalid characters or be too long.";
-            case 401: return " — Authentication failed. Check your access token.";
-            case 403: return " — Permission denied. Token may lack write access to this repository.";
-            case 404: return " — Resource not found. Check repository name and branch.";
-            case 409: return " — Conflict. The file may have been modified concurrently.";
-            case 422: return " — Validation failed. The file content or commit message may be invalid.";
-            case 429: return " — Rate limited. Please wait a moment and retry.";
-            default:
-                if (httpCode >= 500) return " — GitHub server error. Please retry later.";
-                return "";
-        }
-    }
-
-    @NotNull
-    private static String decodeHtmlEntities(@NotNull String html) {
-        return html
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&middot;", "\u00B7")
-            .replace("&mdash;", "\u2014")
-            .replace("&ndash;", "\u2013")
-            .replace("&#39;", "'");
-    }
-    
     /**
      * 转义JSON字符串
      */
@@ -754,7 +692,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
                 conn.disconnect();
                 return SyncResult.success("File pushed successfully");
             } else {
-                String error = readError(conn);
+                String error = readError(conn, config.getToken());
                 conn.disconnect();
                 return SyncResult.failure(error);
             }
@@ -791,7 +729,7 @@ public class GitHubSyncProvider extends AbstractSyncProvider {
                 conn.disconnect();
                 return SyncResult.success("File pushed successfully");
             } else {
-                String error = readError(conn);
+                String error = readError(conn, config.getToken());
                 conn.disconnect();
                 return SyncResult.failure(error);
             }

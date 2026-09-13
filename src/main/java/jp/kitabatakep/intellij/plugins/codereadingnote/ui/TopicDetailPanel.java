@@ -94,43 +94,9 @@ class TopicDetailPanel extends JPanel {
 		contentPane.setSecondComponent(topicLinePane);
 		add(contentPane);
 
-		MessageBus messageBus = project.getMessageBus();
-		messageBus.connect().subscribe(TopicNotifier.TOPIC_NOTIFIER_TOPIC, new TopicNotifier() {
-			@Override
-			public void lineRemoved(Topic _topic, TopicLine _topicLine) {
-				if (_topic == topic) {
-					topicLineListModel.removeElement(_topicLine);
-					BookmarkUtils.removeMachBookmark(_topicLine,project);
-					// Mobile monitoring that does not rely on Panel
-					//移动不依赖Panel的监听
-//					EditorUtils.removeLineCodeRemark(project,_topicLine);
-				}
-			}
-
-		@Override
-		public void lineAdded(Topic _topic, TopicLine _topicLine) {
-			if (_topic == topic) {
-				// Bookmark creation is now handled by CodeReadingNoteService.lineAdded()
-				// Don't create duplicate bookmarks here!
-				// Just update the UI
-				topicLineListModel.addElement(_topicLine);
-					// Mobile monitoring that does not rely on Panel
-					//移动不依赖Panel的监听
-//					EditorUtils.addLineCodeRemark(project, _topicLine);
-				}
-			}
-			
-		@Override
-		public void lineUpdated(Topic _topic, TopicLine _topicLine, int oldLineNum, int newLineNum) {
-			if (_topic == topic) {
-				// Refresh list to show updated line number
-				int index = topicLineListModel.indexOf(_topicLine);
-				if (index >= 0) {
-					topicLineListModel.set(index, _topicLine);
-				}
-			}
-		}
-		});
+        project.getMessageBus().connect(project).subscribe(
+                jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesNotifier.TOPIC,
+                this::refreshFromWorkspace);
 	}
 
 
@@ -183,7 +149,7 @@ class TopicDetailPanel extends JPanel {
 				TopicLine topicLine = topicLineListModel.get(index);
 
 				if (e.getClickCount() >= 2) {
-					topicLine.navigate(true);
+					topicLine.navigate(project, true);
 				}
 
 				if (SwingUtilities.isRightMouseButton(e)) {
@@ -293,7 +259,43 @@ class TopicDetailPanel extends JPanel {
 		return toolbarPanel;
 	}
 
-	void clear() {
+    private TopicLine directLine;
+
+    private void refreshFromWorkspace(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext source) {
+        if (topic == null || !topic.context().equals(source)) return;
+        String note = directLine != null ? directLine.note() : currentGroup != null ? currentGroup.note() : topic.note();
+        // The editor that originated the change already has this text; do not reset its caret or document.
+        if (!noteArea.getDocument().getText().equals(note)) {
+            noteArea.setDocument(EditorFactory.getInstance().createDocument(note));
+            if (directLine != null) noteArea.getDocument().addDocumentListener(new TopicLineNoteAreaListener(directLine));
+            else if (currentGroup != null) noteArea.getDocument().addDocumentListener(new GroupNoteAreaListener(currentGroup));
+            else noteArea.getDocument().addDocumentListener(new NoteAreaListener(this));
+        }
+        java.util.List<TopicLine> desired = new java.util.ArrayList<>();
+        if (directLine != null) {
+            if (topic.getLines().contains(directLine)) desired.add(directLine);
+        } else if (currentGroup != null) desired.addAll(currentGroup.getLines());
+        else if (isUngroupedView) desired.addAll(topic.getUngroupedLines());
+        else {
+            for (TopicGroup group : topic.getGroups()) desired.addAll(group.getLines());
+            desired.addAll(topic.getUngroupedLines());
+        }
+        boolean changed = desired.size() != topicLineListModel.size();
+        if (!changed) for (int i = 0; i < desired.size(); i++) if (desired.get(i) != topicLineListModel.get(i)) { changed = true; break; }
+        if (changed) {
+            TopicLine selection = topicLineList.getSelectedValue();
+            selectedTopicLine = null;
+            topicLineListModel.clear();
+            for (TopicLine line : desired) topicLineListModel.addElement(line);
+            if (selection != null && desired.contains(selection)) topicLineList.setSelectedValue(selection, true);
+        }
+        topicLineList.repaint();
+        topicLineDetailPanel.refreshFromModel();
+    }
+
+    void clear() {
+        topic = null;
+        directLine = null;
 		noteArea.setDocument(EditorFactory.getInstance().createDocument(""));
 		noteArea.setEnabled(false);
 		topicLineListModel.clear();
@@ -302,6 +304,7 @@ class TopicDetailPanel extends JPanel {
 	}
 
 	void setTopic(Topic topic) {
+        directLine = null;
 		this.topic = topic;
 		this.currentGroup = null; // Topic 视图，不属于任何 Group
 		this.isUngroupedView = false;
@@ -434,6 +437,7 @@ class TopicDetailPanel extends JPanel {
 	 * Set the detail panel to display a subgroup
 	 */
     public void setGroup(TopicGroup group) {
+        directLine = null;
 		this.topic = group.getParentTopic();
 		this.currentGroup = group; // 记录当前 Group
 		this.isUngroupedView = false;
@@ -464,6 +468,7 @@ class TopicDetailPanel extends JPanel {
 	 * Set the detail panel to display ungrouped lines of a topic
 	 */
 	public void setUngroupedLines(Topic topic) {
+        directLine = null;
 		this.topic = topic;
 		this.currentGroup = null; // Ungrouped 视图，标记为 null 表示未分组
 		this.isUngroupedView = true; // 标记为 Ungrouped 视图
@@ -490,6 +495,9 @@ class TopicDetailPanel extends JPanel {
 		topicLineListModel.setDragEnabled(true);
 	}
 	public void setTopicLine(TopicLine topicLine) {
+        directLine = topicLine;
+        currentGroup = null;
+        isUngroupedView = false;
 		this.topic = topicLine.topic();
 		this.selectedTopicLine = topicLine;
 		

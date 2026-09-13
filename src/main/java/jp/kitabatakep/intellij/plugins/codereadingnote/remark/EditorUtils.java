@@ -41,6 +41,13 @@ import jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine;
 import org.jetbrains.annotations.NotNull;
 
 public class EditorUtils {
+    public static void clearNoteMarks(Editor editor) {
+        for (RangeHighlighter highlighter : editor.getMarkupModel().getAllHighlighters()) {
+            if (highlighter.getGutterIconRenderer() instanceof NoteGutterIconRenderer) editor.getMarkupModel().removeHighlighter(highlighter);
+        }
+        editor.getInlayModel().getAfterLineEndElementsInRange(0, editor.getDocument().getTextLength(),
+                CodeRemarkEditorInlineInlayRenderer.class).forEach(Disposer::dispose);
+    }
 
     public static VirtualFile getVirtualFile(@NotNull final Editor editor) {
         if (editor instanceof EditorEx)
@@ -53,7 +60,7 @@ public class EditorUtils {
         FileEditorManager instance = FileEditorManager.getInstance(project);
         Editor editor = getEditor(instance, _topicLine.file());
         if (editor != null) {
-            String uid = _topicLine.getBookmarkUid();
+            String uid = _topicLine.runtimeId();
             String noteText = StringUtils.spNote(_topicLine.note());
             EditorUtils.addAfterLineCodeRemark(editor, _topicLine.line(), noteText, uid);
             EditorUtils.addGutterIcon(editor, project, _topicLine.line(), uid, noteText);
@@ -66,7 +73,7 @@ public class EditorUtils {
         Editor editor = getEditor(instance, _topicLine.file());
         if (editor != null) {
             EditorUtils.clearAfterLineEndCodeRemark(editor, _topicLine.line());
-            EditorUtils.removeGutterIcon(editor, _topicLine.getBookmarkUid());
+            EditorUtils.removeGutterIcon(editor, _topicLine.runtimeId());
         }
     }
     public static Editor getEditor(@NotNull final FileEditorManager source, @NotNull final VirtualFile file) {
@@ -164,7 +171,7 @@ public class EditorUtils {
         Editor editor = getEditor(instance, topicLine.file());
         if (editor != null) {
             addGutterIcon(editor, project, topicLine.line(),
-                    topicLine.getBookmarkUid(), StringUtils.spNote(topicLine.note()));
+                    topicLine.runtimeId(), StringUtils.spNote(topicLine.note()));
         }
     }
 
@@ -173,7 +180,7 @@ public class EditorUtils {
         FileEditorManager instance = FileEditorManager.getInstance(project);
         Editor editor = getEditor(instance, topicLine.file());
         if (editor != null) {
-            removeGutterIcon(editor, topicLine.getBookmarkUid());
+            removeGutterIcon(editor, topicLine.runtimeId());
         }
     }
 }

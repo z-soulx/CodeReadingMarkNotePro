@@ -25,6 +25,8 @@ Code Reading Mark Note Pro 帮助你在阅读源码时创建笔记和书签，�
 
 ## Guides / 详细指南
 
+- **[Workspace Notes / 多项目工作空间笔记](WORKSPACE_NOTES_GUIDE.md)** — Automatically discover nested note projects, edit locally, and resolve disk conflicts / 自动发现子项目笔记、本地编辑及磁盘冲突处理
+
 - **[Usage Tutorial / 完整使用教程](USAGE_TUTORIAL.md)** — All features, shortcuts, workflows, and FAQ / 所有功能、快捷键、工作流程和常见问题
 - **[Sync Guide / 同步功能指南](SYNC_GUIDE.md)** — GitHub sync setup, push/pull, merge strategies, remote repo structure / GitHub 同步配置、推送拉取、合并策略、远程仓库结构
 - **[AI Workspace Guide / AI 工作空间指南](AI_WORKSPACE_GUIDE.md)** — AI config management, `.ai` Git/version, custom Terminal commands, file tree, sync / AI 配置管理、`.ai` Git/版本、自定义 Terminal 命令、文件树、同步

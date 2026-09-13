@@ -32,6 +32,12 @@ criteria is a sign it belongs in `docs/` instead.
 
 ## Current Working Set
 
+`202609-issue-15-existing-remote-push` - verification: 70 tests and test/build passed; 3.7.7 ZIP verified; real reporter repository and installed-plugin acceptance pending.
+
+`202609-workspace-project-notes-sync` - verification: incorporated into user-requested 3.7.7; prior build evidence retained; real GitHub/IDEA multi-window and installed-plugin acceptance pending.
+
+`202609-multi-project-notes-workspace` - verification: incorporated into user-requested 3.7.7; prior build evidence retained; Windows/macOS installed-plugin and real multi-window acceptance pending.
+
 `202609-ui-entrypoint-regressions` - verification: 3.7.6 built; Windows/macOS installed-plugin checks pending.
 
 When a spec is opened, list it here with a one-line status; remove the line when the

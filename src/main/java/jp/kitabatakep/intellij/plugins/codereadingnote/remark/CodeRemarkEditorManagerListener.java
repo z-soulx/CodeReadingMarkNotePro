@@ -51,7 +51,7 @@ public class CodeRemarkEditorManagerListener implements FileEditorManagerListene
 
         for (TopicLine topicLine : topicLines) {
             String noteText = StringUtils.spNote(topicLine.note());
-            String uid = topicLine.getBookmarkUid();
+            String uid = topicLine.runtimeId();
             EditorUtils.addAfterLineCodeRemark(editor, topicLine.line(), noteText, uid);
             EditorUtils.addGutterIcon(editor, project, topicLine.line(), uid, noteText);
         }

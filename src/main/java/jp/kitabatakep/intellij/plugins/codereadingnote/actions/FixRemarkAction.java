@@ -83,10 +83,10 @@ public class FixRemarkAction extends CommonAnAction {
         List<LineFixResult> results = new ArrayList<>();
         
         // 遍历所有 Topic 的所有 TopicLine
-        service.getTopicList().getTopics().stream()
+        jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).allTopics().stream()
                 .flatMap(topic -> topic.getLines().stream())
                 .forEach(topicLine -> {
-                    Bookmark bookmark = bookmarkMap.get(topicLine.getBookmarkUid());
+                    Bookmark bookmark = bookmarkMap.get(topicLine.runtimeId());
                     
                     Integer bookmarkLine = null;
                     if (bookmark != null) {

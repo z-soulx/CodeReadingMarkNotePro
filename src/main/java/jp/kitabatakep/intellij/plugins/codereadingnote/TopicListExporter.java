@@ -9,6 +9,15 @@ import java.util.ArrayList;
 
 public class TopicListExporter
 {
+    /** Complete sync/local payload, including explicit empty trash and unknown list extensions. */
+    public static Element export(TopicList list) {
+        Element result = list.xmlTemplate();
+        result.removeChildren("topic"); result.removeChildren("trash");
+        Element known = export(list.iterator(), list.getTrashedLines());
+        for (Element child : known.getChildren()) result.addContent(child.clone());
+        if (result.getChild("trash") == null) result.addContent(new Element("trash"));
+        return result;
+    }
     public static Element export(Iterator<Topic> iterator) {
         return export(iterator, new ArrayList<>());
     }
@@ -18,7 +27,7 @@ public class TopicListExporter
         Element topicsElement = new Element("topics");
         while (iterator.hasNext()) {
             Topic topic = iterator.next();
-            Element topicElement = new Element("topic");
+            Element topicElement = topic.xmlTemplate.create("topic", "name", "note", "updatedAt", "hasGroups", "groups", "ungroupedLines", "topicLines");
             topicElement.addContent(new Element("name").addContent(topic.name()));
             topicElement.addContent(new Element("note").addContent(topic.note()));
             topicElement.addContent(
@@ -33,9 +42,9 @@ public class TopicListExporter
 
             if (!topic.getGroups().isEmpty()) {
                 // Export groups
-                Element groupsElement = new Element("groups");
+                Element groupsElement = topic.xmlTemplate.child("groups", "group");
                 for (TopicGroup group : topic.getGroups()) {
-                    Element groupElement = new Element("group");
+                    Element groupElement = group.xmlTemplate.create("group", "name", "note", "expanded", "createdAt", "updatedAt", "topicLines");
                     groupElement.addContent(new Element("name").addContent(group.name()));
                     groupElement.addContent(new Element("note").addContent(group.note()));
                     groupElement.addContent(new Element("expanded").addContent(String.valueOf(group.isExpanded())));
@@ -49,7 +58,7 @@ public class TopicListExporter
                     );
                     
                     // Export lines in group
-                    Element groupLinesElement = new Element("topicLines");
+                    Element groupLinesElement = group.xmlTemplate.child("topicLines", "topicLine");
                     Iterator<TopicLine> groupLinesIterator = group.linesIterator();
                     while (groupLinesIterator.hasNext()) {
                         TopicLine topicLine = groupLinesIterator.next();
@@ -63,7 +72,7 @@ public class TopicListExporter
                 
                 // Export ungrouped lines
                 if (!topic.getUngroupedLines().isEmpty()) {
-                    Element ungroupedLinesElement = new Element("ungroupedLines");
+                    Element ungroupedLinesElement = topic.xmlTemplate.child("ungroupedLines", "topicLine");
                     for (TopicLine topicLine : topic.getUngroupedLines()) {
                         Element topicLineElement = createTopicLineElement(topicLine);
                         ungroupedLinesElement.addContent(topicLineElement);
@@ -72,7 +81,7 @@ public class TopicListExporter
                 }
             } else {
                 // Legacy mode - export lines directly
-                Element topicLinesElement = new Element("topicLines");
+                Element topicLinesElement = topic.xmlTemplate.child("topicLines", "topicLine");
                 Iterator<TopicLine> linesIterator = topic.linesIterator();
                 while (linesIterator.hasNext()) {
                     TopicLine topicLine = linesIterator.next();
@@ -86,7 +95,7 @@ public class TopicListExporter
         if (trashedLines != null && !trashedLines.isEmpty()) {
             Element trashElement = new Element("trash");
             for (TrashedLine tl : trashedLines) {
-                Element entry = new Element("trashedLine");
+                Element entry = tl.xmlTemplate.create("trashedLine", "originalTopic", "trashedAt", "topicLine");
                 entry.addContent(new Element("originalTopic").addContent(tl.getOriginalTopicName()));
                 entry.addContent(new Element("trashedAt").addContent(
                         new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(tl.getTrashedAt())));
@@ -100,12 +109,12 @@ public class TopicListExporter
     }
     
     private static Element createTopicLineElement(TopicLine topicLine) {
-        Element topicLineElement = new Element("topicLine");
+        Element topicLineElement = topicLine.xmlTemplate.create("topicLine", "line", "inProject", "url", "note", "bookmarkUid", "relativePath");
         topicLineElement.addContent(new Element("line").addContent(String.valueOf(topicLine.line())));
         topicLineElement.addContent(new Element("inProject").addContent(String.valueOf(topicLine.inProject())));
         topicLineElement.addContent(new Element("url").addContent(topicLine.url()));
         topicLineElement.addContent(new Element("note").addContent(topicLine.note()));
-        topicLineElement.addContent(new Element("bookmarkUid").addContent(topicLine.getBookmarkUid()));
+        topicLineElement.addContent(new Element("bookmarkUid").addContent(topicLine.getBookmarkUid() == null ? "" : topicLine.getBookmarkUid()));
         topicLineElement.addContent(
             new Element("relativePath").addContent(topicLine.inProject() ? topicLine.relativePath() : "")
         );

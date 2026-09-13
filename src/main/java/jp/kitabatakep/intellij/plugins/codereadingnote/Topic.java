@@ -18,6 +18,23 @@ public class Topic implements Comparable<Topic>
     private String note;
     private Date updatedAt;
     private Project project;
+    private jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context;
+    ElementTemplate xmlTemplate = new ElementTemplate();
+    TopicList ownerList;
+
+    public jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context() { return context; }
+    public Topic(Project project, jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context,
+                 String name, Date updatedAt, int order) {
+        this(project, name, updatedAt, order);
+        this.context = context;
+    }
+    void adoptContext(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context) { this.context = context; }
+    public void rebind(Project project) {
+        this.project = project;
+        for (TopicLine line : getLines()) line.rebind(project);
+        for (TopicGroup group : groups) group.rebind(project);
+    }
+    void restoreMetadata(String note, Date updatedAt) { this.note = note; this.updatedAt = updatedAt; }
     
     // 用户定义的排序顺序（用于手动排序）
     private int order = 0;
@@ -34,6 +51,7 @@ public class Topic implements Comparable<Topic>
 
     public Topic(Project project, String name, Date updatedAt) {
         this.project = project;
+        this.context = new jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext(java.nio.file.Path.of(project.getBasePath()));
         this.name = name;
         this.updatedAt = updatedAt;
         this.order = 0; // 默认顺序
@@ -41,6 +59,7 @@ public class Topic implements Comparable<Topic>
     
     public Topic(Project project, String name, Date updatedAt, int order) {
         this.project = project;
+        this.context = new jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext(java.nio.file.Path.of(project.getBasePath()));
         this.name = name;
         this.updatedAt = updatedAt;
         this.order = order;
@@ -80,6 +99,7 @@ public class Topic implements Comparable<Topic>
     public void touch()
     {
         updatedAt = new Date();
+        context.changed();
     }
 
     public int getOrder() {
@@ -111,6 +131,8 @@ public class Topic implements Comparable<Topic>
 
     public void addLine(TopicLine line)
     {
+        line.attachTopic(this);
+        if (line.getBookmarkUid() == null || line.getBookmarkUid().isEmpty()) line.setBookmarkUid(java.util.UUID.randomUUID().toString());
         // 默认添加到ungroupedLines（保持历史兼容）
         if (!ungroupedLines.contains(line)) {
             ungroupedLines.add(line);
@@ -122,6 +144,7 @@ public class Topic implements Comparable<Topic>
 
         line.setGroup(null); // 确保没有分组引用
         updatedAt = new Date();
+        context.changed();
 
         MessageBus messageBus = project.getMessageBus();
         TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
@@ -130,6 +153,7 @@ public class Topic implements Comparable<Topic>
 
     public void removeLine(TopicLine line)
     {
+        if (!getLines().contains(line)) return;
         // 从ungroupedLines中移除
         ungroupedLines.remove(line);
         lines.remove(line); // 保持废弃字段同步
@@ -140,10 +164,31 @@ public class Topic implements Comparable<Topic>
         }
         
         updatedAt = new Date();
+        if (ownerList != null) ownerList.moveToTrash(line, name());
+        context.changed();
 
         MessageBus messageBus = project.getMessageBus();
         TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
         publisher.lineRemoved(this, line);
+    }
+
+    /** Move retains the original object, UID, unresolved path and extension XML; no trash entry. */
+    public void moveLineHere(TopicLine line, TopicGroup targetGroup) {
+        if (!context.equals(line.topic().context()) || targetGroup != null && targetGroup.getParentTopic() != this) {
+            throw new IllegalArgumentException(CodeReadingNoteBundle.message("workspace.move.same.project"));
+        }
+        Topic source = line.topic();
+        source.ungroupedLines.remove(line);
+        source.lines.remove(line);
+        if (line.getGroup() != null) line.getGroup().removeLine(line);
+        source.touch();
+        line.attachTopic(this);
+        if (targetGroup == null) addLine(line);
+        else {
+            targetGroup.addLine(line);
+            touch();
+            project.getMessageBus().syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC).linesReordered(this);
+        }
     }
 
     public Iterator<TopicLine> linesIterator()
@@ -278,6 +323,9 @@ public class Topic implements Comparable<Topic>
     }
     
     public void moveLineToGroup(TopicLine line, TopicGroup targetGroup) {
+        if (targetGroup.getParentTopic() != this || !context.equals(line.topic().context())) {
+            throw new IllegalArgumentException(CodeReadingNoteBundle.message("workspace.move.same.project"));
+        }
         // 从当前位置移除
         ungroupedLines.remove(line);
         lines.remove(line); // 保持废弃字段同步
@@ -316,11 +364,13 @@ public class Topic implements Comparable<Topic>
     }
     
     public void addLineToGroup(TopicLine line, String groupName) {
+        boolean newLine = !getLines().contains(line);
         TopicGroup group = findGroupByName(groupName);
         if (group == null) {
             group = addGroup(groupName);
         }
         moveLineToGroup(line, group);
+        if (newLine) project.getMessageBus().syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC).lineAdded(this, line);
     }
     
     /**
@@ -394,31 +444,9 @@ public class Topic implements Comparable<Topic>
      * @param newIndex New position
      */
     public void reorderLine(@NotNull TopicLine line, int newIndex) {
-        int oldIndex = lines.indexOf(line);
-        if (oldIndex == -1) {
-            LOG.warn("Line not found in topic: " + line.url());
-            return;
-        }
-        
-        if (oldIndex == newIndex) {
-            return; // No change needed
-        }
-        
-        // Remove from old position
-        lines.remove(oldIndex);
-        
-        // Insert at new position
-        int actualIndex = newIndex;
-        if (actualIndex > lines.size()) {
-            actualIndex = lines.size();
-        }
-        lines.add(actualIndex, line);
-        
-        touch();
-        
-        // Publish reorder event
-        MessageBus messageBus = project.getMessageBus();
-        TopicNotifier publisher = messageBus.syncPublisher(TopicNotifier.TOPIC_NOTIFIER_TOPIC);
-        publisher.linesReordered(this);
+        java.util.List<TopicLine> container = line.hasGroup() ? line.getGroup().getLines() : ungroupedLines;
+        if (line.topic() != this || !container.contains(line)) return;
+        int target = Math.max(0, Math.min(newIndex, container.size() - 1));
+        changeLineOrder(line, target);
     }
 }
