@@ -1,5 +1,10 @@
 <html>
 <body>
+<h1>3.7.8</h1>
+<ul>
+    <li><b>Bug Fix:</b> Workspace projects reached through macOS/Linux symbolic links or Windows junctions are now discovered and routed correctly. Multiple aliases to the same directory share one project state. / <b>问题修复：</b>现在可以正确发现并路由通过 macOS/Linux 符号链接或 Windows 目录联接访问的工作区项目；指向同一目录的多个别名共享同一份项目状态。</li>
+    <li><b>Improvement:</b> Child directories appear as notes projects only when <code>.idea/CodeReadingNote.xml</code> exists, keeping projects without plugin note data out of the workspace. / <b>改进：</b>子目录仅在存在 <code>.idea/CodeReadingNote.xml</code> 时才显示为笔记项目，避免没有插件标签数据的项目出现在工作区中。</li>
+</ul>
 <h1>3.7.7</h1>
 <ul>
     <li><b>Bug Fix (#15):</b> Update existing GitHub notes using the configured branch and its file SHA. Failed version reads stop the upload; error messages preserve escaped quotes and show actionable guidance. / <b>修复（#15）：</b>使用配置分支及对应文件 SHA 更新已有 GitHub 笔记，版本读取失败时停止上传；错误信息完整显示转义引号与具体处理建议，无需删除远端文件。</li>

@@ -158,7 +158,7 @@ public final class WorkspaceNotesCoordinator implements Disposable {
         if (failure[0] != null) throw failure[0];
     }
     private Entry entry(Project project, Path root) {
-        return entries.computeIfAbsent(root.toAbsolutePath().normalize(), key -> {
+        return entries.computeIfAbsent(WorkspaceDiscovery.identity(root), key -> {
             Entry entry = new Entry(project, key);
             entry.context.onChange(() -> modified(entry));
             return entry;

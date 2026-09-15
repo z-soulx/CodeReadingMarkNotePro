@@ -1,8 +1,8 @@
 # 多项目工作空间笔记 / Workspace Notes
 
-在 IDEA 中打开包含多个项目的父目录。插件会自动发现各层含 `.idea` 的子目录，加载它们的主题、分组、笔记和回收站，无需逐个打开或导入。
+在 IDEA 中打开包含多个项目的父目录。插件会自动发现各层实际存在 `.idea/CodeReadingNote.xml` 的子目录，加载它们的主题、分组、笔记和回收站，无需逐个打开或导入。只有 `.idea` 而没有插件笔记文件的目录不会显示为笔记子项目。
 
-Open the parent directory in IDEA. The plugin discovers nested directories containing `.idea` and loads their topics, groups, notes, and trash without opening additional IDE projects.
+Open the parent directory in IDEA. The plugin discovers nested directories that already contain `.idea/CodeReadingNote.xml` and loads their topics, groups, notes, and trash without opening additional IDE projects. A directory with only `.idea` is not shown as a note project.
 
 ```text
 工作空间 / Workspace
@@ -14,9 +14,9 @@ Open the parent directory in IDEA. The plugin discovers nested directories conta
    └─ Topics → Groups → Notes
 ```
 
-同名主题属于各自项目；同名目录通过相对路径区分。没有子项目时保持单项目视图。含 `.idea` 但没有笔记文件的子项目显示为空，第一次添加主题或笔记时才保存文件。
+同名主题属于各自项目；同名目录通过相对路径区分。没有笔记子项目时保持单项目视图。子项目需先实际存在插件笔记文件才会被发现。
 
-Identical topic names stay separate. Relative project paths distinguish directories with the same name. With no nested projects, the original single-project view remains. Empty projects appear immediately and receive a notes file on the first edit.
+Identical topic names stay separate. Relative project paths distinguish directories with the same name. With no discovered note projects, the original single-project view remains. A child project appears only after its plugin notes file exists.
 
 ## 日常操作 / Everyday use
 
@@ -28,9 +28,9 @@ Identical topic names stay separate. Relative project paths distinguish director
 
 Select a project or one of its notes before creating topics, importing, or exporting. `Alt+M` uses the nearest project root for the code file. Search spans all note projects and shows each result's source. Tree navigation and gutter editing use the current IDEA window. Trash and moves stay within their owning project. Use **Refresh Workspace** to rescan after directory or file changes.
 
-扫描跳过 `.git`、`.idea` 内部、`node_modules`、`build`、`target`、`out`、`.gradle`，不跟随目录符号链接或 Windows junction。
+扫描跳过 `.git`、`.idea` 内部、`node_modules`、`build`、`target`、`out`、`.gradle`。直接链接到含 `.idea/CodeReadingNote.xml` 项目根的 macOS/Linux 符号链接和 Windows junction 会显示为独立项目；普通链接目录不会递归扫描。同一真实项目存在多个 link 时只加载一次，并使用排序靠前的 workspace 相对名称显示。
 
-Discovery skips those generated/internal directories and does not follow directory symlinks or Windows junctions.
+Discovery skips those generated/internal directories. A macOS/Linux symlink or Windows junction that points directly to a project root containing `.idea/CodeReadingNote.xml` appears as a note project; ordinary linked directories are not scanned recursively. Multiple links to the same real project load it only once, using the first workspace-relative name in sorted order.
 
 ## 保存与冲突 / Saving and conflicts
 

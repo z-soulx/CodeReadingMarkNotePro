@@ -3,7 +3,6 @@ package jp.kitabatakep.intellij.plugins.codereadingnote;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
-import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.pom.Navigatable;
@@ -40,11 +39,12 @@ public class TopicLine implements Navigatable
 
     public static TopicLine createByAction(Project project, Topic topic, VirtualFile file, int line, String note)
     {
-        VirtualFile projectBase = LocalFileSystem.getInstance().findFileByPath(topic.context().root().toString());
-        boolean inProject = VfsUtilCore.isAncestor(projectBase, file, true);
+        String relativePath = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NotePaths.relative(
+                topic.context().root(), java.nio.file.Path.of(file.getPath()));
+        boolean inProject = relativePath != null;
 
         return new TopicLine(project, topic, file, line, note, inProject,
-            VfsUtilCore.getRelativePath(file, projectBase), file.getUrl());
+            relativePath, file.getUrl());
     }
 
     public static TopicLine createByImport(Project project, Topic topic, String url, int line, String note, boolean inProject, String relativePath, String bookmarkUid)

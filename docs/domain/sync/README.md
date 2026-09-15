@@ -49,6 +49,8 @@ AI 配置拉取时，`ai-config-registry.json` 元数据分两阶段应用（`.a
 
 `WorkspaceNotesCoordinator` 在 EDT 获取不可变模型快照和 revision，子项目使用共享串行存储，根项目调用平台 `StoreUtil.saveSettings`；真实磁盘 XML 验证成功后才允许记录同步基线。拉取重新检查模型 revision、磁盘内容和项目可用性，完整解析后才应用；替换前备份至 `notes-sync/backups/`。上传期间新编辑仍是待同步数据。
 
+工作空间内只有实际存在 `.idea/CodeReadingNote.xml` 的子项目参与列表与同步；仅有 `.idea` 的目录不是插件笔记项目。直接链接到这类项目根的 macOS/Linux 符号链接和 Windows junction 可参与同步。界面使用 `aa1` 这类逻辑入口名称，模型、绑定、基线和任务锁使用真实目录身份，因此同一项目的多个 alias 或独立打开窗口不会产生重复同步链；普通目录链接不递归扫描。
+
 完整载荷包含回收站（空回收站显式写出）、排序和未知扩展字段。旧载荷缺失 trash 时保留本地回收站，保持内容基线差异；合法空集合可同步，损坏或缺失文件不能视为空。现有 `SyncConflictDetector` 等旧接口不再参与新入口的自动覆盖判断。
 
 ## 推送报告 UI

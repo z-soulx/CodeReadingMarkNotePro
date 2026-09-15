@@ -28,7 +28,7 @@ public class BookmarkUtils {
     }
 
     public static String groupName(Project project, jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context) {
-        return context.root().equals(java.nio.file.Path.of(project.getBasePath()).toAbsolutePath().normalize())
+        return context.root().equals(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceDiscovery.identity(java.nio.file.Path.of(project.getBasePath())))
                 ? AppConstants.appName : AppConstants.appName + " [" + context.id() + "]";
     }
 
@@ -45,7 +45,7 @@ public class BookmarkUtils {
 
     /** Remove only this workspace's owned links, including edits made through another open window. */
     public static void pruneWorkspaceBookmarks(Project project, jp.kitabatakep.intellij.plugins.codereadingnote.TopicList list) {
-        if (list.context().root().equals(java.nio.file.Path.of(project.getBasePath()).toAbsolutePath().normalize())) return;
+        if (list.context().root().equals(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceDiscovery.identity(java.nio.file.Path.of(project.getBasePath())))) return;
         BookmarkGroup group = BookmarksManager.getInstance(project).getGroup(groupName(project, list.context()));
         if (group == null) return;
         for (Bookmark bookmark : new java.util.ArrayList<>(group.getBookmarks())) {

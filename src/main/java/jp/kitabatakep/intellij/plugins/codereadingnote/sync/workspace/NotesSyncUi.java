@@ -83,10 +83,11 @@ public final class NotesSyncUi {
             super(project); this.project = project; this.list = list; this.config = config; this.after = after;
             setTitle(m("settings.for", name(project, list)));
             remote.setEditable(true);
-            String candidate = old == null ? NotesSyncBinding.legacyId(list.context().root().getFileName().toString()) : old.remoteId();
-            if (old == null && list.context().root().equals(java.nio.file.Path.of(project.getBasePath()).toAbsolutePath().normalize())) candidate = NotesSyncBinding.legacyId(project.getName());
+            String localName = java.nio.file.Path.of(name(project, list)).getFileName().toString();
+            String candidate = old == null ? NotesSyncBinding.legacyId(localName) : old.remoteId();
+            if (old == null && list.context().root().equals(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceDiscovery.identity(java.nio.file.Path.of(project.getBasePath())))) candidate = NotesSyncBinding.legacyId(project.getName());
             remote.addItem(candidate); remote.setSelectedItem(candidate);
-            boolean root = list.context().root().equals(java.nio.file.Path.of(project.getBasePath()).toAbsolutePath().normalize());
+            boolean root = list.context().root().equals(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceDiscovery.identity(java.nio.file.Path.of(project.getBasePath())));
             policy.setSelectedItem(old != null ? old.policy() : root && config.isAutoSync() ? NotesSyncBinding.Policy.PUSH : NotesSyncBinding.Policy.MANUAL);
             if (suggested != null) policy.setSelectedItem(suggested);
             interval.setValue(old == null ? 5 : old.intervalMinutes());

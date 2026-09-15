@@ -9,17 +9,24 @@ import static org.junit.Assert.*;
 
 public class WorkspaceDiscoveryTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
-    @Test public void recursiveProjectsIncludeEmptyAndNestedButExcludeBuildTrees() throws Exception {
+    @Test public void recursiveProjectsRequireNotesDataAndExcludeBuildTrees() throws Exception {
         Path root = temporary.getRoot().toPath();
-        for (String path : List.of("a", "a/nested", "other/a", "empty")) Files.createDirectories(root.resolve(path + "/.idea"));
+        for (String path : List.of("a", "a/nested", "other/a")) createNotesProject(root.resolve(path));
+        Files.createDirectories(root.resolve("empty/.idea"));
         for (String excluded : List.of(".git", ".idea", "node_modules", "build", "target", "out", ".gradle")) {
-            Files.createDirectories(root.resolve(excluded + "/hidden/.idea"));
+            createNotesProject(root.resolve(excluded + "/hidden"));
         }
         List<Path> found = WorkspaceDiscovery.discover(root, (path, error) -> fail(path + ": " + error));
-        assertEquals(5, found.size());
+        assertEquals(4, found.size());
         assertTrue(found.contains(root.resolve("a/nested")));
         assertTrue(found.contains(root.resolve("other/a")));
+        assertFalse(found.contains(root.resolve("empty")));
         assertFalse(Files.exists(root.resolve("empty/.idea/CodeReadingNote.xml")));
+        Path notes = root.resolve("empty/.idea/CodeReadingNote.xml");
+        Files.writeString(notes, "<topics/>");
+        assertTrue(WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())).contains(root.resolve("empty")));
+        Files.delete(notes);
+        assertFalse(WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())).contains(root.resolve("empty")));
     }
     @Test public void closestRootOwnsFilesWithIdenticalRelativeNames() {
         Path root = temporary.getRoot().toPath();
@@ -55,19 +62,50 @@ public class WorkspaceDiscoveryTest {
         assertEquals(0, changes[0]);
         context.changed(); assertEquals(1, changes[0]);
     }
-    @Test public void linksAreNotFollowed() throws Exception {
+    @Test public void linkedProjectRootsAreDiscoveredButLinkedContainersAreNotTraversed() throws Exception {
         Path root = temporary.newFolder("workspace").toPath();
-        Path external = temporary.newFolder("external").toPath();
-        Files.createDirectories(external.resolve(".idea"));
-        Path link = root.resolve("linked");
+        Path project = temporary.newFolder("project").toPath();
+        Path container = temporary.newFolder("container").toPath();
+        Path emptyProject = temporary.newFolder("empty-project").toPath();
+        createNotesProject(project);
+        createNotesProject(container.resolve("nested"));
+        Files.createDirectories(emptyProject.resolve(".idea"));
+        Path projectLink = createDirectoryLink(root.resolve("linked-project"), project);
+        Path containerLink = createDirectoryLink(root.resolve("linked-container"), container);
+        Path emptyLink = createDirectoryLink(root.resolve("linked-empty"), emptyProject);
+        try {
+            assertTrue(WorkspaceDiscovery.isLink(projectLink));
+            assertEquals(List.of(root, projectLink), WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())));
+        } finally { Files.delete(projectLink); Files.delete(containerLink); Files.delete(emptyLink); }
+    }
+    @Test public void duplicateAliasesShareOneRealProjectIdentityAndOwnCanonicalFiles() throws Exception {
+        Path root = temporary.newFolder("aliases").toPath();
+        Path project = temporary.newFolder("shared-project").toPath();
+        createNotesProject(project);
+        Path source = Files.createDirectories(project.resolve("src")).resolve("Main.java");
+        Files.createFile(source);
+        Path first = createDirectoryLink(root.resolve("aa1"), project);
+        Path second = createDirectoryLink(root.resolve("aa2"), project);
+        try {
+            assertEquals(List.of(root, first), WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())));
+            assertEquals(project.toRealPath(), new NoteProjectContext(first).root());
+            assertEquals(new NoteProjectContext(first), new NoteProjectContext(second));
+            assertEquals(project.toRealPath(), WorkspaceDiscovery.owner(first.resolve("src/Main.java"), List.of(root, project.toRealPath()), root));
+            assertEquals(project.toRealPath(), WorkspaceDiscovery.owner(source, List.of(root, project.toRealPath()), root));
+            assertEquals("src/Main.java", NotePaths.relative(project.toRealPath(), first.resolve("src/Main.java")));
+        } finally { Files.delete(first); Files.delete(second); }
+    }
+    private Path createDirectoryLink(Path link, Path target) throws Exception {
         if (System.getProperty("os.name").startsWith("Windows")) {
-            Process process = new ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), external.toString()).redirectErrorStream(true).start();
+            Process process = new ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), target.toString()).redirectErrorStream(true).start();
             String output = new String(process.getInputStream().readAllBytes());
             assertEquals(output, 0, process.waitFor());
-        } else Files.createSymbolicLink(link, external);
-        try {
-            assertTrue(WorkspaceDiscovery.isLink(link));
-            assertEquals(List.of(root), WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())));
-        } finally { Files.delete(link); }
+        } else Files.createSymbolicLink(link, target);
+        return link;
+    }
+    private Path createNotesProject(Path root) throws Exception {
+        Path notes = Files.createDirectories(root.resolve(".idea")).resolve("CodeReadingNote.xml");
+        Files.writeString(notes, "<topics/>");
+        return root;
     }
 }

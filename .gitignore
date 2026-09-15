@@ -9,6 +9,5 @@
 !gradle-wrapper.jar
 
 /build
-
-# .ai is an independent Git workspace; never track it in the plugin repository.
-/.ai/
+.ai/runs
+/.ai/token.txt

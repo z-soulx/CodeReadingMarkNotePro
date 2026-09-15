@@ -21,9 +21,12 @@ dispose 时反注册，避免泄漏（constitution 红线）。
 
 ## 项目打开
 
-`WorkspaceNotesStartupActivity` 启动工作空间笔记发现；WorkspaceNotesService 注册递归 VFS
+`WorkspaceNotesStartupActivity` 启动工作空间笔记发现；WorkspaceNotesService 只把实际存在
+`.idea/CodeReadingNote.xml` 的子目录视为笔记项目，并注册递归 VFS
 watch root，监听目录/文件变化并防抖扫描。订阅和 watch 随服务关闭释放。应用级协调者复用
 已打开 Project 的笔记服务，子目录不会创建额外 Project；关闭窗口处理快照和待保存队列。
+链接项目同时监听 workspace 内逻辑入口与真实目标路径；VFS 返回任一形式都按真实项目身份路由，
+而 UI 保留逻辑入口的相对名称。
 
 `SyncStartupActivity` 实现 `ProjectActivity`（不再使用已过时的 `StartupActivity`），
 注册在 `com.intellij.postStartupActivity`。3.7.7 将窗口注册到应用级 `WorkspaceNotesSyncCoordinator`，该服务根据各项目绑定和自动策略后台检查。根项目同步使用 `StoreUtil.saveSettings` 后验证磁盘；子项目同步使用共享串行 XML 存储，两者都以实际保存结果为准。

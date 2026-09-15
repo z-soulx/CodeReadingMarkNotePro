@@ -34,7 +34,7 @@ criteria is a sign it belongs in `docs/` instead.
 
 `202609-issue-15-existing-remote-push` - verification: 70 tests and test/build passed; 3.7.7 ZIP verified; real reporter repository and installed-plugin acceptance pending.
 
-`202609-workspace-project-notes-sync` - verification: incorporated into user-requested 3.7.7; prior build evidence retained; real GitHub/IDEA multi-window and installed-plugin acceptance pending.
+`202609-workspace-project-notes-sync` - verification: 71 tests/build passed, including notes-file eligibility and linked-project routing; real GitHub/IDEA multi-window and macOS installed-plugin acceptance pending.
 
 `202609-multi-project-notes-workspace` - verification: incorporated into user-requested 3.7.7; prior build evidence retained; Windows/macOS installed-plugin and real multi-window acceptance pending.
 

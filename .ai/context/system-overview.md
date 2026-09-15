@@ -25,8 +25,10 @@ notes in a recoverable trash bin.
 
 ## Components
 
-Workspace notes (3.7.7): `notesworkspace.WorkspaceNotesService` discovers nested `.idea` projects;
-`WorkspaceNotesCoordinator` shares data per normalized root across open windows; `WorkspaceXmlStore`
+Workspace notes (3.7.7): `notesworkspace.WorkspaceNotesService` discovers nested projects with an
+existing `.idea/CodeReadingNote.xml` and
+direct linked project roots while retaining workspace-relative aliases; `WorkspaceNotesCoordinator`
+shares data per real filesystem root across aliases and open windows; `WorkspaceXmlStore`
 stores child XML with conflict detection and atomic replacement. `NoteProjectContext` carries runtime
 ownership. Root `CodeReadingNoteService` state remains root-only; 3.7.7 routes notes sync explicitly to each project's collection. Recovery snapshots live under
 the IDEA configuration directory's `CodeReadingNote/workspace-recovery/`.

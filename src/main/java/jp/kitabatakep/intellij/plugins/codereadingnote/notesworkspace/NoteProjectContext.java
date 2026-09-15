@@ -9,7 +9,7 @@ public final class NoteProjectContext {
     private Runnable onChange = () -> {};
     private final ThreadLocal<Integer> loading = ThreadLocal.withInitial(() -> 0);
 
-    public NoteProjectContext(Path root) { this.root = root.toAbsolutePath().normalize(); }
+    public NoteProjectContext(Path root) { this.root = WorkspaceDiscovery.identity(root); }
     public Path root() { return root; }
     public Path storage() { return root.resolve(".idea/CodeReadingNote.xml"); }
     public String id() { return root.toString(); }
