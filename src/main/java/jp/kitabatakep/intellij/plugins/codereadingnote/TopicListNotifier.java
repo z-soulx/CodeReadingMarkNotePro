@@ -7,7 +7,7 @@ public interface TopicListNotifier
 
      void topicAdded(Topic topic);
      void topicRemoved(Topic topic);
-     void topicsLoaded();
+     void topicsLoaded(TopicList source);
      
      /**
       * Called when a topic is renamed or note is updated
@@ -17,5 +17,6 @@ public interface TopicListNotifier
      /**
       * Called when topics are reordered (e.g., via drag and drop)
       */
-     default void topicsReordered() {}
+     default void topicsReordered(TopicList source) {}
+     default void trashChanged(TopicList source) { topicsLoaded(source); }
 }

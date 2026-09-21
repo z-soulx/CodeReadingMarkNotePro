@@ -54,7 +54,7 @@ public class SearchPanel extends JPanel {
     /**
      * Topic 搜索结果项
      */
-    public static class TopicSearchResultItem implements UnifiedSearchResultItem {
+    public class TopicSearchResultItem implements UnifiedSearchResultItem {
         private final SearchService.SearchResult result;
         
         public TopicSearchResultItem(SearchService.SearchResult result) {
@@ -73,12 +73,15 @@ public class SearchPanel extends JPanel {
             
             StringBuilder sb = new StringBuilder();
             sb.append("<html>");
-            sb.append("<span style='color:#6897BB;'>[Topic: ").append(topic.name()).append("]</span>");
+            var workspace = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project);
+            if (workspace.isWorkspace()) sb.append(com.intellij.openapi.util.text.StringUtil.escapeXmlEntities(
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("workspace.source", workspace.displayName(topic.context())))).append(" ▸ ");
+            sb.append("<span style='color:#6897BB;'>[").append(com.intellij.openapi.util.text.StringUtil.escapeXmlEntities(topic.name())).append("]</span>");
             
             if (group != null) {
                 sb.append(" <span style='color:#9876AA;'>▸ [").append(group.name()).append("]</span>");
             } else {
-                sb.append(" <span style='color:#808080;'>▸ [Ungrouped]</span>");
+                sb.append(" <span style='color:#808080;'>▸ [").append(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("tree.ungrouped.lines")).append("]</span>");
             }
             
             sb.append(" ▸ ");
@@ -105,7 +108,7 @@ public class SearchPanel extends JPanel {
         public void navigate() {
             TopicLine line = result.getTopicLine();
             if (line != null && line.canNavigate()) {
-                line.navigate(true);
+                line.navigate(project, true);
             }
         }
         

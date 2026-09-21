@@ -65,6 +65,10 @@ public class TopicLineDetailPanel extends JPanel
         noteArea.setEnabled(false);
     }
 
+    public void refreshFromModel() {
+        if (topicLine != null && !noteArea.getDocument().getText().equals(topicLine.note())) setTopicLine(topicLine);
+    }
+
     public void setTopicLine(TopicLine topicLine)
     {
         this.topicLine = topicLine;

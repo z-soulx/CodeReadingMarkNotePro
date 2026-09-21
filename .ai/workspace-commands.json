@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "commands": [
+    {
+      "id": "launch-cursor-project",
+      "displayName": "Launch Cursor for this project",
+      "name": "Launch Cursor for this project",
+      "executable": "cursor",
+      "args": ["."],
+      "workingDirectory": "",
+      "enabled": true,
+      "openTerminal": false,
+      "executionMode": "silent",
+      "confirmEachTime": false
+    },
+    {
+      "id": "open-selected-md-in-typora",
+      "displayName": "Open selected Markdown in Typora",
+      "name": "Open selected Markdown in Typora",
+      "executable": "typora",
+      "args": ["$FilePath$"],
+      "workingDirectory": "",
+      "enabled": true,
+      "openTerminal": false,
+      "executionMode": "silent",
+      "fileSource": "project",
+      "confirmEachTime": false
+    }
+  ]
+}

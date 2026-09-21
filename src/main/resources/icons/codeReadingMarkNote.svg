@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <style>
+      .note { fill: #ffee4d; }
+      .outline { fill: #4d4d4d; }
+      .line { fill: none; stroke-linecap: round; }
+      .line, .tab { stroke: #4d4d4d; stroke-miterlimit: 10; stroke-width: 0.67px; }
+      .tab { fill: #aaf985; }
+    </style>
+  </defs>
+  <rect class="note" x="4.13" y="6.6" width="32.97" height="27.16" rx="1.29"/>
+  <path class="outline" d="M35.81,6.93a1,1,0,0,1,1,1V32.47a1,1,0,0,1-1,1H5.42a1,1,0,0,1-1-1V7.88a1,1,0,0,1,1-1H35.81m0-.66H5.42A1.61,1.61,0,0,0,3.81,7.88V32.47a1.61,1.61,0,0,0,1.61,1.61H35.81a1.62,1.62,0,0,0,1.62-1.61V7.88a1.62,1.62,0,0,0-1.62-1.61Z"/>
+  <line class="line" x1="12.02" y1="16.91" x2="30.82" y2="16.91"/>
+  <line class="line" x1="12.02" y1="21.05" x2="25.76" y2="21.05"/>
+  <line class="line" x1="12.02" y1="25.19" x2="28.65" y2="25.19"/>
+  <line class="line" x1="12.02" y1="29.34" x2="21.42" y2="29.34"/>
+  <rect class="tab" x="1.43" y="13.14" width="5.49" height="1.89" rx="0.81"/>
+  <rect class="tab" x="1.43" y="19.87" width="5.49" height="1.89" rx="0.81"/>
+  <rect class="tab" x="1.43" y="26.59" width="5.49" height="1.89" rx="0.81"/>
+</svg>

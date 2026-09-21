@@ -20,6 +20,8 @@ import java.util.Locale;
     storages = @Storage("codeReadingNoteLanguage.xml")
 )
 public class LanguageSettings implements PersistentStateComponent<LanguageSettings.State> {
+    public static final com.intellij.util.messages.Topic<Runnable> LANGUAGE_CHANGED =
+            com.intellij.util.messages.Topic.create("CodeReadingNote language changed", Runnable.class);
     
     /**
      * 持久化状态类
@@ -72,6 +74,9 @@ public class LanguageSettings implements PersistentStateComponent<LanguageSettin
     public void setSelectedLanguage(PluginLanguage language) {
         if (language != null) {
             myState.selectedLanguage = language.name();
+            var application = ApplicationManager.getApplication();
+            if (application != null && application.getMessageBus() != null) application.invokeLater(
+                    () -> application.getMessageBus().syncPublisher(LANGUAGE_CHANGED).run());
         }
     }
     

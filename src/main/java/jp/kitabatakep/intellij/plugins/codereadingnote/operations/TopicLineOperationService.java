@@ -56,20 +56,12 @@ public final class TopicLineOperationService {
             LOG.info(String.format("Moving %d lines from '%s' to '%s'", 
                 lines.size(), sourceTopic.name(), targetTopic.name()));
             
-            // Remove from source topic
-            if (!sourceTopic.equals(targetTopic)) {
-                for (TopicLine line : lines) {
-                    sourceTopic.removeLine(line);
-                }
-            } else {
-                for (TopicLine line : lines) {
-                    sourceTopic.getLines().remove(line);
-                }
+            if (lines.stream().anyMatch(line -> !line.topic().context().equals(targetTopic.context()))) return false;
+            for (TopicLine line : lines) targetTopic.moveLineHere(line, null);
+            if (insertIndex >= 0) {
+                int index = Math.min(insertIndex, targetTopic.getUngroupedLines().size() - lines.size());
+                for (TopicLine line : lines) targetTopic.changeLineOrder(line, index++);
             }
-            
-            // Add to target topic
-            targetTopic.insertLines(lines, insertIndex);
-            
             // Update bookmark groups
             updateBookmarkGroups(lines, targetTopic);
             
@@ -94,33 +86,8 @@ public final class TopicLineOperationService {
             String targetGroupName = targetGroup != null ? targetGroup.name() : "Ungrouped";
             LOG.info(String.format("Moving %d lines to group '%s'", lines.size(), targetGroupName));
             
-            for (TopicLine line : lines) {
-                // 1. Remove from source group or ungrouped
-                TopicGroup sourceGroup = line.getGroup();
-                if (sourceGroup != null) {
-                    sourceGroup.getLines().remove(line);
-                    LOG.info("Removed line from source group: " + sourceGroup.name());
-                } else {
-                    topic.getUngroupedLines().remove(line);
-                    LOG.info("Removed line from ungrouped");
-                }
-                
-                // 2. Add to target group or ungrouped
-                if (targetGroup != null) {
-                    if (!topic.getGroups().contains(targetGroup)) {
-                        topic.getGroups().add(targetGroup);
-                    }
-                    targetGroup.getLines().add(line);
-                    LOG.info("Added line to target group: " + targetGroup.name());
-                } else {
-                    topic.getUngroupedLines().add(line);
-                    LOG.info("Added line to ungrouped");
-                }
-                
-                // 3. Update line's group reference
-                line.setGroup(targetGroup);
-            }
-            
+            if (lines.stream().anyMatch(line -> !line.topic().context().equals(topic.context()))) return false;
+            for (TopicLine line : lines) topic.moveLineHere(line, targetGroup);
             topic.touch();
             notifyGroupChanged(lines, targetGroup);
             
@@ -184,7 +151,7 @@ public final class TopicLineOperationService {
             if (!StringUtil.isEmpty(uuid)) {
                 BookmarkUtils.updateBookmarkDescription(
                     project, 
-                    uuid, 
+                    line,
                     String.format("[%s] %s", targetTopic.name(), 
                         StringUtil.notNullize(line.note()))
                 );

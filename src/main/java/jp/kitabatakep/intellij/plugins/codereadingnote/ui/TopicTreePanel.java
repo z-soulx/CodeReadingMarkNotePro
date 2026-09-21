@@ -4,1054 +4,248 @@ import com.intellij.openapi.project.Project;
 import com.intellij.ui.TreeSpeedSearch;
 import com.intellij.ui.components.JBScrollPane;
 import jp.kitabatakep.intellij.plugins.codereadingnote.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.*;
 import jp.kitabatakep.intellij.plugins.codereadingnote.ui.dnd.TopicTreeTransferHandler;
 
 import javax.swing.*;
 import javax.swing.event.TreeExpansionEvent;
 import javax.swing.event.TreeExpansionListener;
 import javax.swing.tree.*;
-import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.Enumeration;
+import java.awt.BorderLayout;
+import java.awt.event.*;
+import java.util.*;
+import java.util.function.Predicate;
 
-/**
- * Tree panel for displaying topics with subgroups in a hierarchical structure
- */
+/** One hierarchy for root and nested projects; selection keys always include project identity. */
 public class TopicTreePanel extends JPanel {
-    
-    private Project project;
-    private CodeReadingNoteService service;
-    
-    private JTree topicTree;
-    private DefaultTreeModel treeModel;
-    private DefaultMutableTreeNode rootNode;
-    
+    private final Project project;
+    private final WorkspaceNotesService workspace;
+    private final DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode();
+    private final DefaultTreeModel treeModel = new DefaultTreeModel(rootNode);
+    private final JTree topicTree = new JTree(treeModel);
     private TopicTreeNode selectedNode;
     private TopicTreeSelectionListener selectionListener;
-    
+    private boolean refreshQueued;
+    private boolean rebuilding;
+
     public interface TopicTreeSelectionListener {
         void onTopicSelected(Topic topic);
         void onGroupSelected(TopicGroup group);
         void onTopicLineSelected(TopicLine topicLine);
-        void onUngroupedLinesSelected(Topic topic); // 新增：处理点击Ungrouped Lines文件夹
+        void onUngroupedLinesSelected(Topic topic);
         void onSelectionCleared();
     }
-    
     public TopicTreePanel(Project project) {
         super(new BorderLayout());
         this.project = project;
-        this.service = CodeReadingNoteService.getInstance(project);
-        
-        initTree();
-        setupEventHandlers();
-        loadTopics();
-        
-        add(new JBScrollPane(topicTree), BorderLayout.CENTER);
-    }
-    
-    public void setSelectionListener(TopicTreeSelectionListener listener) {
-        this.selectionListener = listener;
-    }
-    
-    private void initTree() {
-        rootNode = new DefaultMutableTreeNode("Topics");
-        treeModel = new DefaultTreeModel(rootNode);
-        topicTree = new JTree(treeModel);
-        
-        // Configure tree
+        workspace = WorkspaceNotesService.getInstance(project);
         topicTree.setRootVisible(false);
         topicTree.setShowsRootHandles(true);
         topicTree.setCellRenderer(new TopicTreeCellRenderer());
-        topicTree.getSelectionModel().setSelectionMode(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION); // Support multi-selection
-        
-        // Enable drag and drop
-        try {
-            topicTree.setDragEnabled(true);
-            topicTree.setDropMode(DropMode.ON_OR_INSERT);
-            topicTree.setTransferHandler(new TopicTreeTransferHandler(service, this::loadTopics));
-        } catch (Exception e) {
-            // Log error but don't break tree initialization
-            com.intellij.openapi.diagnostic.Logger.getInstance(TopicTreePanel.class)
-                .warn("Failed to enable drag and drop", e);
-        }
-        
-        // Enable speed search (uses TopicTreeNode.toString() which returns getDisplayName())
+        topicTree.getSelectionModel().setSelectionMode(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION);
+        topicTree.setDragEnabled(true);
+        topicTree.setDropMode(DropMode.ON_OR_INSERT);
+        topicTree.setTransferHandler(new TopicTreeTransferHandler(CodeReadingNoteService.getInstance(project), this::loadTopics));
         TreeSpeedSearch.installOn(topicTree);
-    }
-    
-    private void setupEventHandlers() {
-        // Setup MessageBus listener for topic/line changes - refresh tree on any change
-        com.intellij.util.messages.MessageBusConnection connection = 
-            project.getMessageBus().connect();
-        connection.subscribe(jp.kitabatakep.intellij.plugins.codereadingnote.TopicNotifier.TOPIC_NOTIFIER_TOPIC, 
-            new jp.kitabatakep.intellij.plugins.codereadingnote.TopicNotifier() {
-                @Override
-                public void lineAdded(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
-                                     jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine line) {
-                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
-                }
-                
-                @Override
-                public void lineRemoved(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
-                                       jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine line) {
-                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
-                }
-                
-                @Override
-                public void lineUpdated(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic,
-                                       jp.kitabatakep.intellij.plugins.codereadingnote.TopicLine line,
-                                       int oldLineNum, int newLineNum) {
-                    // Refresh tree to show updated line number
-                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
-                }
-                
-                @Override
-                public void groupAdded(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
-                                      jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup group) {
-                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
-                }
-                
-                @Override
-                public void groupRemoved(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
-                                        jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup group) {
-                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
-                }
-                
-                @Override
-                public void groupRenamed(jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic, 
-                                        jp.kitabatakep.intellij.plugins.codereadingnote.TopicGroup group) {
-                    javax.swing.SwingUtilities.invokeLater(() -> loadTopics());
-                }
-            });
-        
-        // Selection listener
-        topicTree.addTreeSelectionListener(e -> {
-            TreePath selectedPath = topicTree.getSelectionPath();
-            if (selectedPath != null && selectedPath.getLastPathComponent() instanceof TopicTreeNode) {
-                TopicTreeNode node = (TopicTreeNode) selectedPath.getLastPathComponent();
-                selectedNode = node;
-                notifySelection(node);
-            } else {
-                selectedNode = null;
-                if (selectionListener != null) {
-                    selectionListener.onSelectionCleared();
-                }
-            }
+        topicTree.addTreeSelectionListener(event -> {
+            if (rebuilding) return;
+            selectedNode = topicTree.getLastSelectedPathComponent() instanceof TopicTreeNode node ? node : null;
+            notifySelection();
         });
-        
         topicTree.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    TreePath path = topicTree.getPathForLocation(e.getX(), e.getY());
-                    if (path != null && path.getLastPathComponent() instanceof TopicTreeNode) {
-                        TopicTreeNode node = (TopicTreeNode) path.getLastPathComponent();
-                        if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
-                            TopicLine line = node.getTopicLine();
-                            if (line != null && line.canNavigate()) {
-                                line.navigate(true);
-                            }
-                        }
-                    }
-                }
+            @Override public void mouseClicked(MouseEvent event) {
+                if (event.getClickCount() == 2) navigateSelected();
             }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (e.isPopupTrigger()) showTrashContextMenu(e);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) showTrashContextMenu(e);
-            }
+            @Override public void mousePressed(MouseEvent event) { if (event.isPopupTrigger()) trashMenu(event); }
+            @Override public void mouseReleased(MouseEvent event) { if (event.isPopupTrigger()) trashMenu(event); }
         });
-        
-        // Keyboard listener
         topicTree.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    if (selectedNode != null && selectedNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
-                        TopicLine line = selectedNode.getTopicLine();
-                        if (line != null && line.canNavigate()) {
-                            line.navigate(true);
-                        }
-                    }
-                } else if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-                    // Toggle expansion
-                    if (selectedNode != null && selectedNode.canHaveChildren()) {
-                        TreePath path = topicTree.getSelectionPath();
-                        if (topicTree.isExpanded(path)) {
-                            topicTree.collapsePath(path);
-                        } else {
-                            topicTree.expandPath(path);
-                        }
-                    }
+            @Override public void keyPressed(KeyEvent event) {
+                if (event.getKeyCode() == KeyEvent.VK_ENTER) navigateSelected();
+                if (event.getKeyCode() == KeyEvent.VK_SPACE && selectedNode != null && selectedNode.canHaveChildren()) {
+                    TreePath path = new TreePath(selectedNode.getPath());
+                    if (topicTree.isExpanded(path)) topicTree.collapsePath(path); else topicTree.expandPath(path);
                 }
             }
         });
-        
-        // Tree expansion listener to update node states
         topicTree.addTreeExpansionListener(new TreeExpansionListener() {
-            @Override
-            public void treeExpanded(TreeExpansionEvent event) {
-                Object lastComponent = event.getPath().getLastPathComponent();
-                if (lastComponent instanceof TopicTreeNode) {
-                    ((TopicTreeNode) lastComponent).setExpanded(true);
-                }
-            }
-            
-            @Override
-            public void treeCollapsed(TreeExpansionEvent event) {
-                Object lastComponent = event.getPath().getLastPathComponent();
-                if (lastComponent instanceof TopicTreeNode) {
-                    ((TopicTreeNode) lastComponent).setExpanded(false);
-                }
-            }
+            @Override public void treeExpanded(TreeExpansionEvent event) { expansion(event, true); }
+            @Override public void treeCollapsed(TreeExpansionEvent event) { expansion(event, false); }
         });
+        project.getMessageBus().connect(project).subscribe(WorkspaceNotesNotifier.TOPIC, source -> loadTopics());
+        project.getMessageBus().connect(project).subscribe(jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.NotesSyncNotifier.TOPIC, source -> topicTree.repaint());
+        add(new JBScrollPane(topicTree), BorderLayout.CENTER);
+        loadTopics();
     }
-    
-    private void notifySelection(TopicTreeNode node) {
+    public void setSelectionListener(TopicTreeSelectionListener listener) { selectionListener = listener; }
+    private void expansion(TreeExpansionEvent event, boolean expanded) {
+        if (!rebuilding && event.getPath().getLastPathComponent() instanceof TopicTreeNode node) node.setExpanded(expanded);
+    }
+    private void navigateSelected() {
+        TopicLine line = getSelectedTopicLine();
+        if (line != null) line.navigate(project, true);
+    }
+    private void notifySelection() {
         if (selectionListener == null) return;
-        
-        switch (node.getNodeType()) {
-            case TOPIC:
-                selectionListener.onTopicSelected(node.getTopic());
-                break;
-            case GROUP: 
-                selectionListener.onGroupSelected(node.getGroup());
-                break;
-            case TOPIC_LINE:
-                selectionListener.onTopicLineSelected(node.getTopicLine());
-                break;
-            case UNGROUPED_LINES_FOLDER:
-                if (node.getParent() instanceof TopicTreeNode) {
-                    TopicTreeNode parentNode = (TopicTreeNode) node.getParent();
-                    if (parentNode.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
-                        selectionListener.onUngroupedLinesSelected(parentNode.getTopic());
-                    }
-                }
-                break;
-            case TRASH_BIN:
-            case TRASHED_LINE:
-            default:
-                selectionListener.onSelectionCleared();
-                break;
+        if (selectedNode == null) { selectionListener.onSelectionCleared(); return; }
+        switch (selectedNode.getNodeType()) {
+            case TOPIC -> selectionListener.onTopicSelected(selectedNode.getTopic());
+            case GROUP -> selectionListener.onGroupSelected(selectedNode.getGroup());
+            case TOPIC_LINE -> selectionListener.onTopicLineSelected(selectedNode.getTopicLine());
+            case UNGROUPED_LINES_FOLDER -> selectionListener.onUngroupedLinesSelected(selectedNode.getTopic());
+            default -> selectionListener.onSelectionCleared();
         }
     }
-    
     public void loadTopics() {
+        if (refreshQueued) return;
+        refreshQueued = true;
         SwingUtilities.invokeLater(() -> {
-            // 保存当前展开状态
-            java.util.Set<String> expandedTopics = new java.util.HashSet<>();
-            java.util.Set<String> expandedGroups = new java.util.HashSet<>();
-            boolean ungroupedExpanded = false;
-            String expandedUngroupedTopic = null;
-            saveExpansionState(expandedTopics, expandedGroups);
-            
-            // 保存当前选择状态
-            SelectionState selectionState = saveSelectionState();
-            
-            // 检查 Ungrouped 文件夹是否展开
-            for (int i = 0; i < rootNode.getChildCount(); i++) {
-                if (rootNode.getChildAt(i) instanceof TopicTreeNode) {
-                    TopicTreeNode topicNode = (TopicTreeNode) rootNode.getChildAt(i);
-                    if (topicNode.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
-                        Topic topic = topicNode.getTopic();
-                        for (int j = 0; j < topicNode.getChildCount(); j++) {
-                            if (topicNode.getChildAt(j) instanceof TopicTreeNode) {
-                                TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(j);
-                                if (childNode.getNodeType() == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER) {
-                                    TreePath path = new TreePath(childNode.getPath());
-                                    if (topicTree.isExpanded(path)) {
-                                        ungroupedExpanded = true;
-                                        expandedUngroupedTopic = topic.name();
-                                    }
-                                }
-                            }
+            refreshQueued = false;
+            if (project.isDisposed()) return;
+            Set<String> expanded = new HashSet<>();
+            Set<String> previous = new HashSet<>();
+            for (TopicTreeNode node : nodes()) {
+                previous.add(key(node));
+                if (topicTree.isExpanded(new TreePath(node.getPath()))) expanded.add(key(node));
+            }
+            String selection = selectedNode == null ? null : key(selectedNode);
+            Object selectedObject = selectedNode == null ? null : selectedNode.getUserObject();
+            rebuilding = true;
+            try {
+                rootNode.removeAllChildren();
+                rootNode.setUserObject(CodeReadingNoteBundle.message("workspace.title"));
+                topicTree.setRootVisible(workspace.isWorkspace());
+                for (TopicList list : workspace.projects()) {
+                    DefaultMutableTreeNode parent = rootNode;
+                    if (workspace.isWorkspace()) {
+                        parent = new TopicTreeNode(new TopicTreeNode.ProjectItem(list, workspace.displayName(list.context())), TopicTreeNode.NodeType.PROJECT);
+                        rootNode.add(parent);
+                    }
+                    for (Topic topic : list.getTopics()) {
+                        TopicTreeNode node = new TopicTreeNode(topic, TopicTreeNode.NodeType.TOPIC);
+                        parent.add(node);
+                        for (TopicGroup group : topic.getGroups()) {
+                            TopicTreeNode groupNode = new TopicTreeNode(group, TopicTreeNode.NodeType.GROUP);
+                            node.add(groupNode);
+                            addLines(groupNode, group.getLines());
+                        }
+                        if (!topic.getUngroupedLines().isEmpty()) {
+                            TopicTreeNode ungrouped = new TopicTreeNode(topic, TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER);
+                            node.add(ungrouped);
+                            addLines(ungrouped, topic.getUngroupedLines());
                         }
                     }
-                }
-            }
-            
-            rootNode.removeAllChildren();
-            
-            // 按 order 排序 topics
-            java.util.List<Topic> sortedTopics = new java.util.ArrayList<>(service.getTopicList().getTopics());
-            sortedTopics.sort(Topic::compareTo);
-            
-            for (Topic topic : sortedTopics) {
-                TopicTreeNode topicNode = new TopicTreeNode(topic, TopicTreeNode.NodeType.TOPIC);
-                rootNode.add(topicNode);
-                
-                // Check if topic has groups or ungrouped lines in group mode
-                boolean hasGroupsOrUngrouped = !topic.getGroups().isEmpty() || 
-                    (!topic.getUngroupedLines().isEmpty() && topic.getGroups() != null);
-                
-                if (hasGroupsOrUngrouped) {
-                    // Group mode: show all groups (even empty) and ungrouped folder
-                    for (TopicGroup group : topic.getGroups()) {
-                        TopicTreeNode groupNode = new TopicTreeNode(group, TopicTreeNode.NodeType.GROUP);
-                        topicNode.add(groupNode);
-                        
-                        // Add lines in group (even if empty, show the group)
-                        for (TopicLine line : group.getLines()) {
-                            TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
-                            groupNode.add(lineNode);
-                        }
-                    }
-                    
-                    // Add ungrouped lines folder if there are ungrouped lines
-                    if (!topic.getUngroupedLines().isEmpty()) {
-                        TopicTreeNode ungroupedNode = new TopicTreeNode("Ungrouped", TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER);
-                        topicNode.add(ungroupedNode);
-                        
-                        for (TopicLine line : topic.getUngroupedLines()) {
-                            TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
-                            ungroupedNode.add(lineNode);
-                        }
-                    }
-                } else {
-                    // Legacy mode - add lines directly under topic
-                    for (TopicLine line : topic.getLines()) {
-                        TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
-                        topicNode.add(lineNode);
+                    if (!list.getTrashedLines().isEmpty()) {
+                        TopicTreeNode trash = new TopicTreeNode(list, TopicTreeNode.NodeType.TRASH_BIN);
+                        parent.add(trash);
+                        for (TrashedLine line : list.getTrashedLines()) trash.add(new TopicTreeNode(line, TopicTreeNode.NodeType.TRASHED_LINE));
                     }
                 }
-            }
-            
-            java.util.ArrayList<TrashedLine> trashedLines = service.getTopicList().getTrashedLines();
-            if (!trashedLines.isEmpty()) {
-                TopicTreeNode trashNode = new TopicTreeNode(
-                        CodeReadingNoteBundle.message("trash.bin.name"),
-                        TopicTreeNode.NodeType.TRASH_BIN);
-                rootNode.add(trashNode);
-                for (TrashedLine tl : trashedLines) {
-                    TopicTreeNode tlNode = new TopicTreeNode(tl, TopicTreeNode.NodeType.TRASHED_LINE);
-                    trashNode.add(tlNode);
+                treeModel.reload();
+                topicTree.expandPath(new TreePath(rootNode.getPath()));
+                selectedNode = null;
+                for (TopicTreeNode node : nodes()) {
+                    String key = key(node);
+                    if (expanded.contains(key) || node.getNodeType() == TopicTreeNode.NodeType.PROJECT && !previous.contains(key)) {
+                        topicTree.expandPath(new TreePath(node.getPath()));
+                    }
+                    if (key.equals(selection)) {
+                        selectedNode = node;
+                        topicTree.setSelectionPath(new TreePath(node.getPath()));
+                    }
                 }
-            }
-            
-            treeModel.reload();
-            
-            // 恢复展开状态
-            restoreExpansionState(expandedTopics, expandedGroups, ungroupedExpanded, expandedUngroupedTopic);
-            
-            // 恢复选择状态
-            restoreSelectionState(selectionState);
+            } finally { rebuilding = false; }
+            if (selectedNode == null || selectedNode.getUserObject() != selectedObject) notifySelection();
         });
     }
-    
-    /**
-     * 保存当前树的展开状态
-     */
-    private void saveExpansionState(java.util.Set<String> expandedTopics, java.util.Set<String> expandedGroups) {
-        for (int i = 0; i < rootNode.getChildCount(); i++) {
-            if (rootNode.getChildAt(i) instanceof TopicTreeNode) {
-                TopicTreeNode topicNode = (TopicTreeNode) rootNode.getChildAt(i);
-                if (topicNode.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
-                    Topic topic = topicNode.getTopic();
-                    TreePath topicPath = new TreePath(topicNode.getPath());
-                    if (topicTree.isExpanded(topicPath)) {
-                        expandedTopics.add(topic.name());
-                        
-                        // 检查该 Topic 下的 Group 展开状态
-                        for (int j = 0; j < topicNode.getChildCount(); j++) {
-                            if (topicNode.getChildAt(j) instanceof TopicTreeNode) {
-                                TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(j);
-                                if (childNode.getNodeType() == TopicTreeNode.NodeType.GROUP) {
-                                    TopicGroup group = childNode.getGroup();
-                                    TreePath groupPath = new TreePath(childNode.getPath());
-                                    if (topicTree.isExpanded(groupPath)) {
-                                        expandedGroups.add(topic.name() + "::" + group.name());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    private void addLines(TopicTreeNode parent, java.util.List<TopicLine> lines) {
+        for (TopicLine line : lines) parent.add(new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE));
+    }
+    private java.util.List<TopicTreeNode> nodes() {
+        java.util.List<TopicTreeNode> result = new ArrayList<>();
+        Enumeration<TreeNode> all = rootNode.preorderEnumeration();
+        while (all.hasMoreElements()) if (all.nextElement() instanceof TopicTreeNode node) result.add(node);
+        return result;
+    }
+    private String key(TopicTreeNode node) {
+        TopicList list = node.getProjectList();
+        String owner = list == null ? "" : list.context().id();
+        Object value = node.getUserObject();
+        if (value instanceof Topic topic) return owner + ":" + node.getNodeType() + ":" + topic.name();
+        if (value instanceof TopicGroup group) return owner + ":group:" + group.getParentTopic().name() + ":" + group.name();
+        if (value instanceof TopicLine line) return line.runtimeId() + ":" + line.topic().name();
+        if (value instanceof TrashedLine trash) return trash.getLine().runtimeId() + ":trash:" + trash.getTrashedAt().getTime();
+        return owner + ":" + node.getNodeType();
+    }
+    public TopicList getSelectedProjectList() {
+        if (selectedNode != null) return selectedNode.getProjectList();
+        return workspace.isWorkspace() ? null : workspace.projects().get(0);
+    }
+    public TopicTreeNode getSelectedNode() { return selectedNode; }
+    public Topic getSelectedTopic() { return selectedNode == null ? null : selectedNode.getTopic(); }
+    public TopicGroup getSelectedGroup() { return selectedNode == null ? null : selectedNode.getGroup(); }
+    public TopicLine getSelectedTopicLine() { return selectedNode == null ? null : selectedNode.getTopicLine(); }
+    public void refreshTopic(Topic topic) { loadTopics(); }
+    public void collapseAllGroups() {
+        for (int row = topicTree.getRowCount() - 1; row >= 0; row--) {
+            TreePath path = topicTree.getPathForRow(row);
+            if (path.getLastPathComponent() instanceof TopicTreeNode node && node.getNodeType() != TopicTreeNode.NodeType.PROJECT) topicTree.collapsePath(path);
         }
     }
-    
-    /**
-     * 恢复树的展开状态
-     */
-    private void restoreExpansionState(java.util.Set<String> expandedTopics, java.util.Set<String> expandedGroups,
-                                       boolean ungroupedExpanded, String expandedUngroupedTopic) {
-        for (int i = 0; i < rootNode.getChildCount(); i++) {
-            if (rootNode.getChildAt(i) instanceof TopicTreeNode) {
-                TopicTreeNode topicNode = (TopicTreeNode) rootNode.getChildAt(i);
-                if (topicNode.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
-                    Topic topic = topicNode.getTopic();
-                    if (expandedTopics.contains(topic.name())) {
-                        TreePath topicPath = new TreePath(topicNode.getPath());
-                        topicTree.expandPath(topicPath);
-                        
-                        // 恢复 Group 展开状态
-                        for (int j = 0; j < topicNode.getChildCount(); j++) {
-                            if (topicNode.getChildAt(j) instanceof TopicTreeNode) {
-                                TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(j);
-                                if (childNode.getNodeType() == TopicTreeNode.NodeType.GROUP) {
-                                    TopicGroup group = childNode.getGroup();
-                                    if (expandedGroups.contains(topic.name() + "::" + group.name())) {
-                                        TreePath groupPath = new TreePath(childNode.getPath());
-                                        topicTree.expandPath(groupPath);
-                                    }
-                                } else if (childNode.getNodeType() == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER) {
-                                    if (ungroupedExpanded && topic.name().equals(expandedUngroupedTopic)) {
-                                        TreePath ungroupedPath = new TreePath(childNode.getPath());
-                                        topicTree.expandPath(ungroupedPath);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    public void expandAllGroups() { for (int row = 0; row < topicTree.getRowCount(); row++) topicTree.expandRow(row); }
+    public boolean areAllNodesCollapsed() {
+        return nodes().stream().filter(n -> n.canHaveChildren() && n.getNodeType() != TopicTreeNode.NodeType.PROJECT)
+                .noneMatch(n -> topicTree.isExpanded(new TreePath(n.getPath())));
     }
-    
-    /**
-     * 选择状态记录类
-     */
-    private static class SelectionState {
-        TopicTreeNode.NodeType nodeType;
-        String topicName;
-        String groupName;
-        String topicLineId; // 使用文件路径+行号作为标识
-        boolean isUngrouped;
+    public void selectTopic(Topic topic) { select(n -> n.getTopic() == topic && n.getNodeType() == TopicTreeNode.NodeType.TOPIC); }
+    public void selectTopicLine(TopicLine line) {
+        if (line != null) select(n -> n.getTopicLine() != null && (n.getTopicLine() == line
+                || n.getTopicLine().runtimeId().equals(line.runtimeId()) && n.getTopicLine().topic().name().equals(line.topic().name())));
     }
-    
-    /**
-     * 保存当前选择状态
-     */
-    private SelectionState saveSelectionState() {
-        SelectionState state = new SelectionState();
-        if (selectedNode != null) {
-            state.nodeType = selectedNode.getNodeType();
-            switch (selectedNode.getNodeType()) {
-                case TOPIC:
-                    state.topicName = selectedNode.getTopic().name();
-                    break;
-                case GROUP:
-                    TopicGroup group = selectedNode.getGroup();
-                    state.topicName = group.getParentTopic().name();
-                    state.groupName = group.name();
-                    break;
-                case TOPIC_LINE:
-                    TopicLine line = selectedNode.getTopicLine();
-                    state.topicName = line.topic().name();
-                    state.topicLineId = line.file().getPath() + ":" + line.line();
-                    if (line.hasGroup()) {
-                        state.groupName = line.getGroup().name();
-                    }
-                    break;
-                case UNGROUPED_LINES_FOLDER:
-                    if (selectedNode.getParent() instanceof TopicTreeNode) {
-                        TopicTreeNode parent = (TopicTreeNode) selectedNode.getParent();
-                        if (parent.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
-                            state.topicName = parent.getTopic().name();
-                            state.isUngrouped = true;
-                        }
-                    }
-                    break;
-            }
-        }
-        return state;
-    }
-    
-    /**
-     * 恢复选择状态
-     */
-    private void restoreSelectionState(SelectionState state) {
-        if (state == null || state.nodeType == null || state.topicName == null) {
-            return;
-        }
-        
-        for (int i = 0; i < rootNode.getChildCount(); i++) {
-            if (!(rootNode.getChildAt(i) instanceof TopicTreeNode)) continue;
-            TopicTreeNode topicNode = (TopicTreeNode) rootNode.getChildAt(i);
-            if (topicNode.getNodeType() != TopicTreeNode.NodeType.TOPIC) continue;
-            if (!topicNode.getTopic().name().equals(state.topicName)) continue;
-            
-            // 找到了目标 Topic
-            if (state.nodeType == TopicTreeNode.NodeType.TOPIC) {
-                selectNode(topicNode);
+    public void selectGroupLine(TopicGroup group, TopicLine line) { selectTopicLine(line); }
+    public void selectUngroupedLine(Topic topic, TopicLine line) { selectTopicLine(line); }
+    private void select(Predicate<TopicTreeNode> predicate) {
+        SwingUtilities.invokeLater(() -> {
+            if (project.isDisposed()) return;
+            for (TopicTreeNode node : nodes()) if (predicate.test(node)) {
+                TreePath path = new TreePath(node.getPath());
+                topicTree.setSelectionPath(path);
+                topicTree.scrollPathToVisible(path);
                 return;
             }
-            
-            // 在 Topic 下查找 Group 或 TopicLine
-            for (int j = 0; j < topicNode.getChildCount(); j++) {
-                if (!(topicNode.getChildAt(j) instanceof TopicTreeNode)) continue;
-                TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(j);
-                
-                if (state.nodeType == TopicTreeNode.NodeType.GROUP && 
-                    childNode.getNodeType() == TopicTreeNode.NodeType.GROUP &&
-                    childNode.getGroup().name().equals(state.groupName)) {
-                    selectNode(childNode);
-                    return;
-                }
-                
-                if (state.nodeType == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER && 
-                    childNode.getNodeType() == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER &&
-                    state.isUngrouped) {
-                    selectNode(childNode);
-                    return;
-                }
-                
-                // 在 Group 或 Ungrouped 下查找 TopicLine
-                if (state.nodeType == TopicTreeNode.NodeType.TOPIC_LINE) {
-                    for (int k = 0; k < childNode.getChildCount(); k++) {
-                        if (!(childNode.getChildAt(k) instanceof TopicTreeNode)) continue;
-                        TopicTreeNode lineNode = (TopicTreeNode) childNode.getChildAt(k);
-                        if (lineNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
-                            TopicLine line = lineNode.getTopicLine();
-                            String lineId = line.file().getPath() + ":" + line.line();
-                            if (lineId.equals(state.topicLineId)) {
-                                selectNode(lineNode);
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // 如果在分组下找不到 TopicLine，检查 Topic 直接子节点（Legacy 模式）
-            if (state.nodeType == TopicTreeNode.NodeType.TOPIC_LINE) {
-                for (int j = 0; j < topicNode.getChildCount(); j++) {
-                    if (!(topicNode.getChildAt(j) instanceof TopicTreeNode)) continue;
-                    TopicTreeNode lineNode = (TopicTreeNode) topicNode.getChildAt(j);
-                    if (lineNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
-                        TopicLine line = lineNode.getTopicLine();
-                        String lineId = line.file().getPath() + ":" + line.line();
-                        if (lineId.equals(state.topicLineId)) {
-                            selectNode(lineNode);
-                            return;
-                        }
-                    }
-                }
-            }
-        }
+        });
     }
-    
-    /**
-     * 选择指定节点
-     */
-    private void selectNode(TopicTreeNode node) {
-        TreePath path = new TreePath(node.getPath());
+    private void trashMenu(MouseEvent event) {
+        TreePath path = topicTree.getPathForLocation(event.getX(), event.getY());
+        if (path == null || !(path.getLastPathComponent() instanceof TopicTreeNode node)) return;
         topicTree.setSelectionPath(path);
-        topicTree.scrollPathToVisible(path);
-        selectedNode = node;
-    }
-    
-    public void refreshTopic(Topic topic) {
-        SwingUtilities.invokeLater(() -> {
-            TopicTreeNode topicNode = findTopicNode(topic);
-            if (topicNode != null) {
-                // 保存当前选择状态
-                SelectionState selectionState = saveSelectionState();
-                
-                // 保存该 Topic 下的展开状态
-                java.util.Set<String> expandedGroups = new java.util.HashSet<>();
-                boolean ungroupedExpanded = false;
-                boolean topicWasExpanded = topicTree.isExpanded(new TreePath(topicNode.getPath()));
-                
-                if (topicWasExpanded) {
-                    for (int j = 0; j < topicNode.getChildCount(); j++) {
-                        if (topicNode.getChildAt(j) instanceof TopicTreeNode) {
-                            TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(j);
-                            TreePath childPath = new TreePath(childNode.getPath());
-                            if (childNode.getNodeType() == TopicTreeNode.NodeType.GROUP) {
-                                TopicGroup group = childNode.getGroup();
-                                if (topicTree.isExpanded(childPath)) {
-                                    expandedGroups.add(group.name());
-                                }
-                            } else if (childNode.getNodeType() == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER) {
-                                if (topicTree.isExpanded(childPath)) {
-                                    ungroupedExpanded = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Remove and re-add children
-                topicNode.removeAllChildren();
-                
-                // Check if topic has groups or ungrouped lines in group mode
-                boolean hasGroupsOrUngrouped = !topic.getGroups().isEmpty() || 
-                    (!topic.getUngroupedLines().isEmpty() && topic.getGroups() != null);
-                
-                if (hasGroupsOrUngrouped) {
-                    // Group mode: show all groups (even empty) and ungrouped folder
-                    for (TopicGroup group : topic.getGroups()) {
-                        TopicTreeNode groupNode = new TopicTreeNode(group, TopicTreeNode.NodeType.GROUP);
-                        topicNode.add(groupNode);
-                        
-                        // Add lines in group (even if empty, show the group)
-                        for (TopicLine line : group.getLines()) {
-                            TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
-                            groupNode.add(lineNode);
-                        }
-                    }
-                    
-                    // Add ungrouped lines folder if there are ungrouped lines
-                    if (!topic.getUngroupedLines().isEmpty()) {
-                        TopicTreeNode ungroupedNode = new TopicTreeNode("Ungrouped", TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER);
-                        topicNode.add(ungroupedNode);
-                        
-                        for (TopicLine line : topic.getUngroupedLines()) {
-                            TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
-                            ungroupedNode.add(lineNode);
-                        }
-                    }
-                } else {
-                    // Legacy mode - add lines directly under topic
-                    for (TopicLine line : topic.getLines()) {
-                        TopicTreeNode lineNode = new TopicTreeNode(line, TopicTreeNode.NodeType.TOPIC_LINE);
-                        topicNode.add(lineNode);
-                    }
-                }
-                
-                treeModel.nodeStructureChanged(topicNode);
-                
-                // 恢复展开状态
-                if (topicWasExpanded) {
-                    topicTree.expandPath(new TreePath(topicNode.getPath()));
-                    
-                    // 恢复 Group 和 Ungrouped 展开状态
-                    for (int j = 0; j < topicNode.getChildCount(); j++) {
-                        if (topicNode.getChildAt(j) instanceof TopicTreeNode) {
-                            TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(j);
-                            if (childNode.getNodeType() == TopicTreeNode.NodeType.GROUP) {
-                                TopicGroup group = childNode.getGroup();
-                                if (expandedGroups.contains(group.name())) {
-                                    topicTree.expandPath(new TreePath(childNode.getPath()));
-                                }
-                            } else if (childNode.getNodeType() == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER) {
-                                if (ungroupedExpanded) {
-                                    topicTree.expandPath(new TreePath(childNode.getPath()));
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // 恢复选择状态
-                restoreSelectionState(selectionState);
-            }
-        });
-    }
-    
-    private TopicTreeNode findTopicNode(Topic topic) {
-        Enumeration<TreeNode> children = rootNode.children();
-        while (children.hasMoreElements()) {
-            TreeNode child = children.nextElement();
-            if (child instanceof TopicTreeNode) {
-                TopicTreeNode node = (TopicTreeNode) child;
-                if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC && node.getTopic() == topic) {
-                    return node;
-                }
-            }
-        }
-        return null;
-    }
-    
-    private void expandAllTopics() {
-        Enumeration<TreeNode> children = rootNode.children();
-        while (children.hasMoreElements()) {
-            TreeNode child = children.nextElement();
-            if (child instanceof TopicTreeNode) {
-                expandNode((TopicTreeNode) child);
-            }
-        }
-    }
-    
-    private void expandNode(TopicTreeNode node) {
-        TreePath path = new TreePath(treeModel.getPathToRoot(node));
-        topicTree.expandPath(path);
-        
-        // Expand subgroups if they were previously expanded
-        if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
-            Enumeration<TreeNode> children = node.children();
-            while (children.hasMoreElements()) {
-                TreeNode child = children.nextElement();
-                if (child instanceof TopicTreeNode) {
-                    TopicTreeNode childNode = (TopicTreeNode) child;
-                    if (childNode.isExpanded()) {
-                        TreePath childPath = new TreePath(treeModel.getPathToRoot(childNode));
-                        topicTree.expandPath(childPath);
-                    }
-                }
-            }
-        }
-    }
-    
-    public TopicTreeNode getSelectedNode() {
-        return selectedNode;
-    }
-    
-    public Topic getSelectedTopic() {
-        if (selectedNode != null && selectedNode.getNodeType() == TopicTreeNode.NodeType.TOPIC) {
-            return selectedNode.getTopic();
-        }
-        return null;
-    }
-    
-    /**
-     * Collapse all groups in all topics, and also collapse topics and ungrouped folders
-     * 收缩所有Topic、所有Group和所有Ungrouped文件夹
-     */
-    public void collapseAllGroups() {
-        SwingUtilities.invokeLater(() -> {
-            // 遍历所有节点，收缩TOPIC、GROUP和UNGROUPED_LINES_FOLDER类型的节点
-            collapseAllNodes(rootNode);
-            topicTree.updateUI();
-        });
-    }
-    
-    /**
-     * Expand all groups in all topics, and also expand topics and ungrouped folders
-     * 展开所有Topic、所有Group和所有Ungrouped文件夹
-     */
-    public void expandAllGroups() {
-        SwingUtilities.invokeLater(() -> {
-            // 遍历所有节点，展开TOPIC、GROUP和UNGROUPED_LINES_FOLDER类型的节点
-            expandAllNodes(rootNode);
-            topicTree.updateUI();
-        });
-    }
-    
-    /**
-     * Check if all collapsible nodes are currently collapsed
-     * 检查所有可收缩的节点是否都处于收缩状态
-     */
-    public boolean areAllNodesCollapsed() {
-        return checkAllNodesCollapsed(rootNode);
-    }
-    
-    /**
-     * Recursively collapse all collapsible nodes (topics, groups, ungrouped folders)
-     * 递归收缩所有可收缩的节点（Topic、Group、Ungrouped文件夹）
-     */
-    private void collapseAllNodes(DefaultMutableTreeNode node) {
-        // 先递归处理所有子节点
-        for (int i = 0; i < node.getChildCount(); i++) {
-            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
-            collapseAllNodes(child);
-        }
-        
-        // 然后处理当前节点（从叶子节点向根节点收缩）
-        if (node instanceof TopicTreeNode) {
-            TopicTreeNode treeNode = (TopicTreeNode) node;
-            TreePath path = new TreePath(treeNode.getPath());
-            
-            switch (treeNode.getNodeType()) {
-                case TOPIC:
-                    // 收缩Topic节点
-                    topicTree.collapsePath(path);
-                    break;
-                case GROUP:
-                    // 收缩Group节点并更新TopicGroup的expanded状态
-                    topicTree.collapsePath(path);
-                    TopicGroup group = treeNode.getGroup();
-                    if (group != null) {
-                        group.setExpanded(false);
-                    }
-                    break;
-                case UNGROUPED_LINES_FOLDER:
-                    // 收缩Ungrouped Lines文件夹节点
-                    topicTree.collapsePath(path);
-                    break;
-                default:
-                    // TOPIC_LINE节点不需要收缩
-                    break;
-            }
-        }
-    }
-    
-    /**
-     * Recursively expand all collapsible nodes (topics, groups, ungrouped folders)
-     * 递归展开所有可收缩的节点（Topic、Group、Ungrouped文件夹）
-     */
-    private void expandAllNodes(DefaultMutableTreeNode node) {
-        // 先处理当前节点（从根节点向叶子节点展开）
-        if (node instanceof TopicTreeNode) {
-            TopicTreeNode treeNode = (TopicTreeNode) node;
-            TreePath path = new TreePath(treeNode.getPath());
-            
-            switch (treeNode.getNodeType()) {
-                case TOPIC:
-                    // 展开Topic节点
-                    topicTree.expandPath(path);
-                    break;
-                case GROUP:
-                    // 展开Group节点并更新TopicGroup的expanded状态
-                    topicTree.expandPath(path);
-                    TopicGroup group = treeNode.getGroup();
-                    if (group != null) {
-                        group.setExpanded(true);
-                    }
-                    break;
-                case UNGROUPED_LINES_FOLDER:
-                    // 展开Ungrouped Lines文件夹节点
-                    topicTree.expandPath(path);
-                    break;
-                default:
-                    // TOPIC_LINE节点不需要展开
-                    break;
-            }
-        }
-        
-        // 然后递归处理所有子节点
-        for (int i = 0; i < node.getChildCount(); i++) {
-            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
-            expandAllNodes(child);
-        }
-    }
-    
-    /**
-     * Recursively check if all collapsible nodes are collapsed
-     * 递归检查所有可收缩的节点是否都处于收缩状态
-     */
-    private boolean checkAllNodesCollapsed(DefaultMutableTreeNode node) {
-        // 检查当前节点
-        if (node instanceof TopicTreeNode) {
-            TopicTreeNode treeNode = (TopicTreeNode) node;
-            TreePath path = new TreePath(treeNode.getPath());
-            
-            switch (treeNode.getNodeType()) {
-                case TOPIC:
-                case GROUP:
-                case UNGROUPED_LINES_FOLDER:
-                    // 如果任何一个可收缩节点是展开的，返回false
-                    if (topicTree.isExpanded(path)) {
-                        return false;
-                    }
-                    break;
-                default:
-                    // TOPIC_LINE节点不影响判断
-                    break;
-            }
-        }
-        
-        // 递归检查所有子节点
-        for (int i = 0; i < node.getChildCount(); i++) {
-            DefaultMutableTreeNode child = (DefaultMutableTreeNode) node.getChildAt(i);
-            if (!checkAllNodesCollapsed(child)) {
-                return false;
-            }
-        }
-        
-        return true;
-    }
-
-    public TopicGroup getSelectedGroup() {
-        if (selectedNode != null && selectedNode.getNodeType() == TopicTreeNode.NodeType.GROUP) {
-            return selectedNode.getGroup();
-        }
-        return null;
-    }
-    
-    public TopicLine getSelectedTopicLine() {
-        if (selectedNode != null && selectedNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
-            return selectedNode.getTopicLine();
-        }
-        return null;
-    }
-    
-    public void selectTopic(Topic topic) {
-        TopicTreeNode node = findTopicNode(topic);
-        if (node != null) {
-            TreePath path = new TreePath(treeModel.getPathToRoot(node));
-            topicTree.setSelectionPath(path);
-            topicTree.scrollPathToVisible(path);
-        }
-    }
-    
-    /**
-     * 在整棵树中查找并选中任意位置的 TopicLine 节点（group / ungrouped / legacy）。
-     * 使用 invokeLater 确保在 loadTopics 完成后执行。
-     */
-    public void selectTopicLine(TopicLine target) {
-        if (target == null) return;
-        SwingUtilities.invokeLater(() -> {
-            if (!selectTopicLineRecursive(rootNode, target)) {
-                String uid = target.getBookmarkUid();
-                if (uid != null && !uid.isEmpty()) {
-                    selectTopicLineByUid(rootNode, uid);
-                }
-            }
-        });
-    }
-
-    private boolean selectTopicLineRecursive(javax.swing.tree.TreeNode parent, TopicLine target) {
-        for (int i = 0; i < parent.getChildCount(); i++) {
-            javax.swing.tree.TreeNode child = parent.getChildAt(i);
-            if (child instanceof TopicTreeNode) {
-                TopicTreeNode node = (TopicTreeNode) child;
-                if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE && node.getTopicLine() == target) {
-                    selectAndScrollToNode(node);
-                    return true;
-                }
-                if (node.canHaveChildren() && selectTopicLineRecursive(node, target)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean selectTopicLineByUid(javax.swing.tree.TreeNode parent, String uid) {
-        for (int i = 0; i < parent.getChildCount(); i++) {
-            javax.swing.tree.TreeNode child = parent.getChildAt(i);
-            if (child instanceof TopicTreeNode) {
-                TopicTreeNode node = (TopicTreeNode) child;
-                if (node.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE) {
-                    TopicLine tl = node.getTopicLine();
-                    if (tl != null && uid.equals(tl.getBookmarkUid())) {
-                        selectAndScrollToNode(node);
-                        return true;
-                    }
-                }
-                if (node.canHaveChildren() && selectTopicLineByUid(node, uid)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private void selectAndScrollToNode(TopicTreeNode node) {
-        TreePath path = new TreePath(treeModel.getPathToRoot(node));
-        TreePath parentPath = path.getParentPath();
-        if (parentPath != null) {
-            topicTree.expandPath(parentPath);
-            TreePath grandParent = parentPath.getParentPath();
-            if (grandParent != null) {
-                topicTree.expandPath(grandParent);
-            }
-        }
-        topicTree.setSelectionPath(path);
-        topicTree.scrollPathToVisible(path);
-    }
-
-    /**
-     * 选择Group中的特定TopicLine
-     */
-    public void selectGroupLine(TopicGroup group, TopicLine line) {
-        Topic topic = group.getParentTopic();
-        TopicTreeNode topicNode = findTopicNode(topic);
-        if (topicNode == null) {
-            return;
-        }
-        
-        // 展开Topic节点
-        TreePath topicPath = new TreePath(treeModel.getPathToRoot(topicNode));
-        topicTree.expandPath(topicPath);
-        
-        // 查找Group节点
-        for (int i = 0; i < topicNode.getChildCount(); i++) {
-            TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(i);
-            if (childNode.getNodeType() == TopicTreeNode.NodeType.GROUP && 
-                childNode.getGroup() == group) {
-                // 展开Group节点
-                TreePath groupPath = new TreePath(treeModel.getPathToRoot(childNode));
-                topicTree.expandPath(groupPath);
-                
-                // 查找TopicLine节点
-                for (int j = 0; j < childNode.getChildCount(); j++) {
-                    TopicTreeNode lineNode = (TopicTreeNode) childNode.getChildAt(j);
-                    if (lineNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE && 
-                        lineNode.getTopicLine() == line) {
-                        TreePath linePath = new TreePath(treeModel.getPathToRoot(lineNode));
-                        topicTree.setSelectionPath(linePath);
-                        topicTree.scrollPathToVisible(linePath);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-    
-    /**
-     * 选择Ungrouped中的特定TopicLine
-     */
-    public void selectUngroupedLine(Topic topic, TopicLine line) {
-        TopicTreeNode topicNode = findTopicNode(topic);
-        if (topicNode == null) {
-            return;
-        }
-        
-        // 展开Topic节点
-        TreePath topicPath = new TreePath(treeModel.getPathToRoot(topicNode));
-        topicTree.expandPath(topicPath);
-        
-        // 查找Ungrouped文件夹节点
-        for (int i = 0; i < topicNode.getChildCount(); i++) {
-            TopicTreeNode childNode = (TopicTreeNode) topicNode.getChildAt(i);
-            if (childNode.getNodeType() == TopicTreeNode.NodeType.UNGROUPED_LINES_FOLDER) {
-                // 展开Ungrouped文件夹节点
-                TreePath ungroupedPath = new TreePath(treeModel.getPathToRoot(childNode));
-                topicTree.expandPath(ungroupedPath);
-                
-                // 查找TopicLine节点
-                for (int j = 0; j < childNode.getChildCount(); j++) {
-                    TopicTreeNode lineNode = (TopicTreeNode) childNode.getChildAt(j);
-                    if (lineNode.getNodeType() == TopicTreeNode.NodeType.TOPIC_LINE && 
-                        lineNode.getTopicLine() == line) {
-                        TreePath linePath = new TreePath(treeModel.getPathToRoot(lineNode));
-                        topicTree.setSelectionPath(linePath);
-                        topicTree.scrollPathToVisible(linePath);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-    
-    private void showTrashContextMenu(MouseEvent e) {
-        TreePath path = topicTree.getPathForLocation(e.getX(), e.getY());
-        if (path == null) return;
-        
-        Object component = path.getLastPathComponent();
-        if (!(component instanceof TopicTreeNode)) return;
-        
-        TopicTreeNode node = (TopicTreeNode) component;
-        topicTree.setSelectionPath(path);
-        
+        TopicList list = node.getProjectList();
+        if (list == null) return;
         JPopupMenu menu = new JPopupMenu();
-        
         if (node.getNodeType() == TopicTreeNode.NodeType.TRASH_BIN) {
-            JMenuItem emptyTrash = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.empty"));
-            emptyTrash.addActionListener(ev -> {
-                service.getTopicList().emptyTrash();
-            });
-            menu.add(emptyTrash);
-        } else if (node.getNodeType() == TopicTreeNode.NodeType.TRASHED_LINE) {
-            TrashedLine tl = node.getTrashedLine();
-            if (tl != null) {
-                JMenuItem restore = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.restore"));
-                restore.addActionListener(ev -> {
-                    service.getTopicList().restoreFromTrash(tl);
-                });
-                menu.add(restore);
-                
-                JMenuItem permDelete = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.permanent.delete"));
-                permDelete.addActionListener(ev -> {
-                    service.getTopicList().permanentlyDelete(tl);
-                });
-                menu.add(permDelete);
-            }
-        } else {
-            return;
+            JMenuItem empty = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.empty"));
+            empty.addActionListener(e -> list.emptyTrash());
+            menu.add(empty);
+        } else if (node.getTrashedLine() != null) {
+            JMenuItem restore = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.restore"));
+            restore.addActionListener(e -> list.restoreFromTrash(node.getTrashedLine()));
+            menu.add(restore);
+            JMenuItem delete = new JMenuItem(CodeReadingNoteBundle.message("trash.bin.permanent.delete"));
+            delete.addActionListener(e -> list.permanentlyDelete(node.getTrashedLine()));
+            menu.add(delete);
         }
-        
-        menu.show(topicTree, e.getX(), e.getY());
+        if (menu.getComponentCount() > 0) menu.addSeparator();
+        for (var operation : new jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.Operation[]{
+                jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.Operation.PUSH,
+                jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.Operation.PULL,
+                jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.Operation.CHECK}) {
+            JMenuItem item = new JMenuItem(CodeReadingNoteBundle.message("notes.sync." + operation.name().toLowerCase(java.util.Locale.ROOT)));
+            item.addActionListener(e -> jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.NotesSyncUi.run(project, list, operation));
+            menu.add(item);
+        }
+        JMenuItem settings = new JMenuItem(CodeReadingNoteBundle.message("notes.sync.settings"));
+        settings.addActionListener(e -> jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.NotesSyncUi.configure(project, list, null));
+        menu.add(settings);
+        menu.show(topicTree, event.getX(), event.getY());
     }
 }

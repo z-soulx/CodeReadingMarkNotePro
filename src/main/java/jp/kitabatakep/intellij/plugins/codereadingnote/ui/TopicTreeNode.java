@@ -14,6 +14,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 public class TopicTreeNode extends DefaultMutableTreeNode {
     
     public enum NodeType {
+        PROJECT,
         TOPIC,
         GROUP, 
         TOPIC_LINE,
@@ -23,6 +24,18 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
     }
     
     private NodeType nodeType;
+    public record ProjectItem(jp.kitabatakep.intellij.plugins.codereadingnote.TopicList list, String name) {}
+
+    public jp.kitabatakep.intellij.plugins.codereadingnote.TopicList getProjectList() {
+        if (getUserObject() instanceof ProjectItem item) return item.list();
+        if (getUserObject() instanceof jp.kitabatakep.intellij.plugins.codereadingnote.TopicList list) return list;
+        Topic topic = getTopic();
+        if (topic == null && getGroup() != null) topic = getGroup().getParentTopic();
+        if (topic == null && getTopicLine() != null) topic = getTopicLine().topic();
+        if (topic == null && getTrashedLine() != null) topic = getTrashedLine().getLine().topic();
+        if (topic != null) return jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().listFor(topic);
+        return getParent() instanceof TopicTreeNode parent ? parent.getProjectList() : null;
+    }
     private boolean expanded = true;
     
     public TopicTreeNode(Object userObject, NodeType nodeType) {
@@ -91,6 +104,8 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
     
     public String getDisplayName() {
         switch (nodeType) {
+            case PROJECT:
+                return ((ProjectItem) getUserObject()).name();
             case TOPIC:
                 Topic topic = (Topic) getUserObject();
                 return topic.name() + " (" + CodeReadingNoteBundle.message("renderer.lines.count", topic.getTotalLineCount()) + ")";
@@ -156,7 +171,7 @@ public class TopicTreeNode extends DefaultMutableTreeNode {
      * Check if this node can have children
      */
     public boolean canHaveChildren() {
-        return nodeType == NodeType.TOPIC || 
+        return nodeType == NodeType.PROJECT || nodeType == NodeType.TOPIC ||
                nodeType == NodeType.GROUP || 
                nodeType == NodeType.UNGROUPED_LINES_FOLDER ||
                nodeType == NodeType.TRASH_BIN;

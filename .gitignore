@@ -9,3 +9,5 @@
 !gradle-wrapper.jar
 
 /build
+.ai/runs
+/.ai/token.txt

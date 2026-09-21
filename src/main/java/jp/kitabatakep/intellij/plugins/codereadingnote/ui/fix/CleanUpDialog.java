@@ -283,7 +283,7 @@ public class CleanUpDialog extends DialogWrapper {
             gbc.fill = GridBagConstraints.NONE;
             gbc.insets = JBUI.insets(10, 0, 0, 0);
             JButton navigateBtn = new JButton(CodeReadingNoteBundle.message("dialog.cleanup.navigate"));
-            navigateBtn.addActionListener(e -> topicLine.navigate(true));
+            navigateBtn.addActionListener(e -> topicLine.navigate(project, true));
             detailPanel.add(navigateBtn, gbc);
             row++;
         }

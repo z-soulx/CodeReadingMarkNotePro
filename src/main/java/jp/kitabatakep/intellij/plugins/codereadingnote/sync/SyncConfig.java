@@ -14,6 +14,7 @@ public abstract class SyncConfig {
     
     private boolean enabled = false;
     private boolean autoSync = false;
+    private boolean aiConfigAutoSync = false;
     private SyncProviderType providerType;
     
     /**
@@ -40,7 +41,15 @@ public abstract class SyncConfig {
     public void setAutoSync(boolean autoSync) {
         this.autoSync = autoSync;
     }
-    
+
+    public boolean isAiConfigAutoSync() {
+        return aiConfigAutoSync;
+    }
+
+    public void setAiConfigAutoSync(boolean aiConfigAutoSync) {
+        this.aiConfigAutoSync = aiConfigAutoSync;
+    }
+
     @NotNull
     public SyncProviderType getProviderType() {
         return providerType;
@@ -86,6 +95,7 @@ public abstract class SyncConfig {
     public void copyFrom(@NotNull SyncConfig other) {
         this.enabled = other.enabled;
         this.autoSync = other.autoSync;
+        this.aiConfigAutoSync = other.aiConfigAutoSync;
         this.providerType = other.providerType;
         this.properties = new HashMap<>(other.properties);
     }
@@ -97,13 +107,14 @@ public abstract class SyncConfig {
         SyncConfig that = (SyncConfig) o;
         return enabled == that.enabled &&
                 autoSync == that.autoSync &&
+                aiConfigAutoSync == that.aiConfigAutoSync &&
                 providerType == that.providerType &&
                 Objects.equals(properties, that.properties);
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(enabled, autoSync, providerType, properties);
+        return Objects.hash(enabled, autoSync, aiConfigAutoSync, providerType, properties);
     }
 }
 

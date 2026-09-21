@@ -21,12 +21,23 @@ public class TopicTreeCellRenderer extends ColoredTreeCellRenderer {
                                     boolean expanded, boolean leaf, int row, boolean hasFocus) {
         
         if (!(value instanceof TopicTreeNode)) {
+            append(String.valueOf(value), SimpleTextAttributes.REGULAR_ATTRIBUTES);
             return;
         }
         
         TopicTreeNode node = (TopicTreeNode) value;
         
         switch (node.getNodeType()) {
+            case PROJECT:
+                setIcon(AllIcons.Nodes.Module);
+                append(node.getDisplayName(), SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
+                var sync = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.getInstance().view(node.getProjectList());
+                String syncText = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.text(sync.status());
+                if (java.util.Set.of("conflict", "storage", "network", "invalid.remote", "auth", "access", "missing", "sha", "validation").contains(sync.status())) setIcon(AllIcons.General.Warning);
+                else if ("synced".equals(sync.status())) setIcon(AllIcons.General.InspectionsOK);
+                else if (java.util.Set.of("pending", "remote", "syncing").contains(sync.status())) setIcon(AllIcons.Actions.Refresh);
+                setToolTipText(node.getProjectList().context().root() + " — " + syncText);
+                break;
             case TOPIC:
                 renderTopicNode(node, selected);
                 break;

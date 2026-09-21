@@ -20,21 +20,12 @@ public class TopicLineMoveToAction extends CommonAnAction
 
     @Override
     public void update(@NotNull AnActionEvent e) {
-        e.getPresentation().setEnabled(e.getProject() != null);
+        e.getPresentation().setEnabled(e.getProject() != null && moveTo.context().equals(topicLine.topic().context()));
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e)
     {
-        topicLine.topic().removeLine(topicLine);
-        moveTo.addLine(
-            TopicLine.createByAction(
-                e.getProject(),
-                moveTo,
-                topicLine.file(),
-                topicLine.line(),
-                topicLine.note()
-            )
-        );
+        moveTo.moveLineHere(topicLine, null);
     }
 }

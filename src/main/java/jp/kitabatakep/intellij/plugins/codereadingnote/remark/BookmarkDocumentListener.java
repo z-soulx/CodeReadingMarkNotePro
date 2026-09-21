@@ -58,7 +58,7 @@ public class BookmarkDocumentListener implements DocumentListener {
 					CodeRemarkEditorInlineInlayRenderer renderer = inlay.getRenderer();
 					boolean matched = false;
 
-					String tlUid = tl.getBookmarkUid();
+					String tlUid = tl.runtimeId();
 					String rendererUid = renderer.getTopicLineUid();
 					if (tlUid != null && !tlUid.isEmpty() && rendererUid != null && !rendererUid.isEmpty()) {
 						matched = tlUid.equals(rendererUid);

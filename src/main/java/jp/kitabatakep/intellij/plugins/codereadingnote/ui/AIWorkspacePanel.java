@@ -2,6 +2,10 @@ package jp.kitabatakep.intellij.plugins.codereadingnote.ui;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.EditorSettings;
@@ -18,12 +22,14 @@ import com.intellij.util.ui.JBUI;
 import jp.kitabatakep.intellij.plugins.codereadingnote.AppConstants;
 import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.*;
+import jp.kitabatakep.intellij.plugins.codereadingnote.workspace.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.nio.file.Path;
 /**
  * Main panel for the "AI Workspace" tab, showing AI config files
  * with a tree on the left and a file preview on the right.
@@ -35,6 +41,7 @@ public class AIWorkspacePanel extends JPanel {
     private final JPanel previewPanel;
     private final JLabel statusLabel;
     private EditorEx currentEditor;
+    private MessageBusConnection messageBusConnection;
 
     public AIWorkspacePanel(@NotNull Project project) {
         super(new BorderLayout());
@@ -109,6 +116,35 @@ public class AIWorkspacePanel extends JPanel {
         });
 
         actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiworkspace.git.init"),
+            CodeReadingNoteBundle.message("aiworkspace.git.init.description"),
+            AllIcons.Actions.Commit
+        ) {
+            @Override public void actionPerformed(@NotNull AnActionEvent e) { openWorkspaceGitUi(); }
+            @Override public void update(@NotNull AnActionEvent e) {
+                boolean initialized = AIWorkspaceGitService.getInstance(project).isInitialized();
+                e.getPresentation().setText(initialized
+                        ? CodeReadingNoteBundle.message("aiworkspace.git.open")
+                        : CodeReadingNoteBundle.message("aiworkspace.git.init"));
+                e.getPresentation().setDescription(initialized
+                        ? CodeReadingNoteBundle.message("aiworkspace.git.open.description")
+                        : CodeReadingNoteBundle.message("aiworkspace.git.init.description"));
+            }
+            @Override public @NotNull ActionUpdateThread getActionUpdateThread() { return ActionUpdateThread.EDT; }
+        });
+
+        actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiworkspace.commands.manage"),
+            CodeReadingNoteBundle.message("aiworkspace.commands.manage.description"),
+            AllIcons.Actions.ListChanges
+        ) {
+            @Override public void actionPerformed(@NotNull AnActionEvent e) {
+                try { new AIWorkspaceCommandsDialog(project).show(); }
+                catch (RuntimeException ex) { Messages.showErrorDialog(project, ex.getMessage(), CodeReadingNoteBundle.message("aiworkspace.error.title")); }
+            }
+        });
+
+        actions.add(new AnAction(
             CodeReadingNoteBundle.message("aiconfig.action.add.path"),
             CodeReadingNoteBundle.message("aiconfig.action.add.path.description"),
             AllIcons.General.Add
@@ -144,30 +180,24 @@ public class AIWorkspacePanel extends JPanel {
         actions.addSeparator();
 
         actions.add(new AnAction(
+            CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all"),
+            CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all.description"),
+            AllIcons.Actions.Expandall
+        ) {
+            @Override
+            public void actionPerformed(@NotNull AnActionEvent e) {
+                treePanel.expandAll();
+            }
+        });
+
+        actions.add(new AnAction(
             CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all"),
             CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all.description"),
             AllIcons.Actions.Collapseall
         ) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
-                treePanel.toggleExpandCollapse();
-            }
-
-            @Override
-            public void update(@NotNull AnActionEvent e) {
-                boolean anyExpanded = treePanel.hasAnyExpanded();
-                e.getPresentation().setIcon(anyExpanded ? AllIcons.Actions.Collapseall : AllIcons.Actions.Expandall);
-                e.getPresentation().setText(anyExpanded
-                    ? CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all")
-                    : CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all"));
-                e.getPresentation().setDescription(anyExpanded
-                    ? CodeReadingNoteBundle.message("aiconfig.tree.action.collapse.all.description")
-                    : CodeReadingNoteBundle.message("aiconfig.tree.action.expand.all.description"));
-            }
-
-            @Override
-            public @NotNull ActionUpdateThread getActionUpdateThread() {
-                return ActionUpdateThread.EDT;
+                treePanel.collapseAll();
             }
         });
 
@@ -356,7 +386,7 @@ public class AIWorkspacePanel extends JPanel {
         pathLabel.setFont(pathLabel.getFont().deriveFont(Font.BOLD));
         leftPanel.add(pathLabel);
 
-        JLabel typeLabel = new JLabel("[" + entry.getType().getDisplayName() + "]");
+        JLabel typeLabel = new JLabel("[" + AIConfigTypeRegistry.getEffectiveDisplayName(entry.getRelativePath()) + "]");
         typeLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
         leftPanel.add(typeLabel);
 
@@ -402,13 +432,13 @@ public class AIWorkspacePanel extends JPanel {
             }
         }
 
-        AIConfigType type = AIConfigType.detectType(pathPrefix);
+        String typeName = AIConfigTypeRegistry.getEffectiveDisplayName(pathPrefix);
 
         StringBuilder info = new StringBuilder();
         info.append("<html><body style='padding:16px;font-family:sans-serif;'>");
         info.append("<h2>").append(dirPath).append("/</h2>");
         info.append("<p><b>").append(CodeReadingNoteBundle.message("aiconfig.info.type")).append(":</b> ")
-            .append(type.getDisplayName()).append("</p>");
+            .append(typeName).append("</p>");
         info.append("<p><b>").append(CodeReadingNoteBundle.message("aiconfig.info.files")).append(":</b> ")
             .append(files.size()).append("</p>");
         if (!files.isEmpty()) {
@@ -541,39 +571,87 @@ public class AIWorkspacePanel extends JPanel {
             return;
         }
 
-        int confirm = com.intellij.openapi.ui.Messages.showOkCancelDialog(
-            project,
-            CodeReadingNoteBundle.message("aiconfig.sync.pull.confirm"),
-            CodeReadingNoteBundle.message("aiconfig.action.sync.pull"),
-            CodeReadingNoteBundle.message("button.ok"),
-            CodeReadingNoteBundle.message("button.cancel"),
-            com.intellij.openapi.ui.Messages.getWarningIcon()
-        );
-        if (confirm != com.intellij.openapi.ui.Messages.OK) return;
-
+        // Phase A: fetch remote files in background
         com.intellij.openapi.progress.ProgressManager.getInstance().run(
             new com.intellij.openapi.progress.Task.Backgroundable(
                 project, CodeReadingNoteBundle.message("progress.pulling.ai.configs"), true) {
 
-                private jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult result;
+                private AIConfigSyncAdapter.FetchResult fetchResult;
 
                 @Override
                 public void run(@NotNull com.intellij.openapi.progress.ProgressIndicator indicator) {
                     indicator.setIndeterminate(true);
                     indicator.setText(CodeReadingNoteBundle.message("progress.pulling.ai.configs"));
                     AIConfigSyncAdapter adapter = AIConfigSyncAdapter.getInstance(project);
-                    result = adapter.pullAIConfigs(config, project.getName());
+                    fetchResult = adapter.fetchRemoteFiles(config, project.getName());
                 }
 
                 @Override
                 public void onSuccess() {
-                    treePanel.loadEntries();
-                    updateStatus();
-                    com.intellij.openapi.ui.Messages.showInfoMessage(project,
-                        result.getUserMessage(),
-                        result.isSuccess()
-                            ? CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title")
-                            : CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                    if (!fetchResult.isSuccess()) {
+                        jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult err = fetchResult.getErrorResult();
+                        com.intellij.openapi.ui.Messages.showErrorDialog(project,
+                            err != null ? err.getUserMessage() : "Fetch failed",
+                            CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                        return;
+                    }
+
+                    java.util.Map<String, byte[]> remoteFiles = fetchResult.getRemoteFiles();
+                    AIConfigService aiService = AIConfigService.getInstance(project);
+                    AIConfigRegistry registry = aiService.getRegistry();
+                    java.util.Map<String, String> baseHashes = aiService.getLastPushedFileHashes();
+                    String basePath = project.getBasePath();
+                    if (basePath == null) return;
+
+                    java.util.List<jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeItem> mergeItems =
+                        jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeAnalyzer.analyze(
+                            remoteFiles, registry, baseHashes, basePath);
+
+                    // If all unchanged, show a simple message
+                    boolean allUnchanged = mergeItems.stream()
+                        .allMatch(item -> item.getCategory() == jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeCategory.UNCHANGED);
+                    if (allUnchanged) {
+                        com.intellij.openapi.ui.Messages.showInfoMessage(project,
+                            CodeReadingNoteBundle.message("aiconfig.merge.no.changes"),
+                            CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title"));
+                        return;
+                    }
+
+                    // Show merge preview dialog on EDT
+                    AIConfigMergePreviewDialog mergeDialog = new AIConfigMergePreviewDialog(project, mergeItems);
+                    if (!mergeDialog.showAndGet()) return;
+
+                    // Phase B: apply merge decisions in background
+                    java.util.List<jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigMergeItem> decisions = mergeDialog.getMergeItems();
+                    jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncProvider provider = fetchResult.getProvider();
+
+                    com.intellij.openapi.progress.ProgressManager.getInstance().run(
+                        new com.intellij.openapi.progress.Task.Backgroundable(
+                            project, CodeReadingNoteBundle.message("progress.pulling.ai.configs"), true) {
+
+                            private jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult applyResult;
+
+                            @Override
+                            public void run(@NotNull com.intellij.openapi.progress.ProgressIndicator ind) {
+                                ind.setIndeterminate(true);
+                                AIConfigSyncAdapter adapter = AIConfigSyncAdapter.getInstance(project);
+                                applyResult = adapter.applyMergeDecisions(decisions, config, project.getName(), provider);
+                            }
+
+                            @Override
+                            public void onSuccess() {
+                                treePanel.loadEntries();
+                                updateStatus();
+                                showPullResultNotification(applyResult, decisions);
+                            }
+
+                            @Override
+                            public void onThrowable(@NotNull Throwable error) {
+                                com.intellij.openapi.ui.Messages.showErrorDialog(project,
+                                    error.getMessage(),
+                                    CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title"));
+                            }
+                        });
                 }
 
                 @Override
@@ -585,34 +663,77 @@ public class AIWorkspacePanel extends JPanel {
             });
     }
 
+    private void showPullResultNotification(
+            @NotNull jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncResult result,
+            @NotNull java.util.List<AIConfigMergeItem> decisions) {
+
+        int added = 0, updated = 0, deleted = 0, skipped = 0;
+        for (AIConfigMergeItem item : decisions) {
+            switch (item.getUserAction()) {
+                case ADD: added++; break;
+                case TAKE_REMOTE: updated++; break;
+                case DELETE: deleted++; break;
+                case SKIP: case KEEP_LOCAL: skipped++; break;
+            }
+        }
+
+        String summary = CodeReadingNoteBundle.message("aiconfig.sync.pull.summary",
+                added, updated, deleted, skipped);
+
+        com.intellij.notification.NotificationType type = result.isSuccess()
+                ? com.intellij.notification.NotificationType.INFORMATION
+                : com.intellij.notification.NotificationType.WARNING;
+
+        String title = result.isSuccess()
+                ? CodeReadingNoteBundle.message("aiconfig.sync.pull.success.title")
+                : CodeReadingNoteBundle.message("aiconfig.sync.pull.failed.title");
+
+        com.intellij.notification.Notification notification = new com.intellij.notification.Notification(
+                "CodeReadingNote.AIConfig", title, summary, type);
+        com.intellij.notification.Notifications.Bus.notify(notification, project);
+    }
+
     private void createNewAIConfig() {
-        AIConfigCreateDialog dialog = new AIConfigCreateDialog(project);
+        AISkeletonCreateDialog dialog = new AISkeletonCreateDialog(project);
         if (!dialog.showAndGet()) return;
 
         String basePath = project.getBasePath();
         if (basePath == null) return;
 
-        String relativePath = dialog.getRelativePath();
-        String content = dialog.getBoilerplateContent();
+        java.util.List<String> selectedDirs = dialog.getSelectedDirNames();
+        int created = 0;
 
         try {
-            File targetFile = new File(basePath, relativePath);
-            File parent = targetFile.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
+            File aiRoot = new File(basePath, ".ai");
+            if (!aiRoot.exists()) {
+                aiRoot.mkdirs();
             }
-            java.nio.file.Files.write(targetFile.toPath(), content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            AIWorkspaceCommandService.getInstance(project).ensureSeeded();
+
+            for (String dirName : selectedDirs) {
+                File subDir = new File(aiRoot, dirName);
+                if (!subDir.exists()) {
+                    subDir.mkdirs();
+                    created++;
+                }
+            }
+
+            // Force VFS refresh so rescan can discover the new dirs immediately
+            String aiRootPath = aiRoot.getAbsolutePath().replace('\\', '/');
+            VirtualFile aiVf = LocalFileSystem.getInstance().refreshAndFindFileByPath(aiRootPath);
+            if (aiVf != null) {
+                aiVf.refresh(false, true);
+            }
 
             AIConfigService aiService = AIConfigService.getInstance(project);
             aiService.rescan();
             treePanel.loadEntries();
             updateStatus();
 
-            // Open the newly created file in editor
-            VirtualFile vf = LocalFileSystem.getInstance().refreshAndFindFileByPath(
-                targetFile.getAbsolutePath().replace('\\', '/'));
-            if (vf != null) {
-                com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).openFile(vf, true);
+            if (created > 0) {
+                com.intellij.openapi.ui.Messages.showInfoMessage(project,
+                    CodeReadingNoteBundle.message("aiconfig.skeleton.success", created),
+                    CodeReadingNoteBundle.message("aiconfig.skeleton.title"));
             }
         } catch (Exception ex) {
             com.intellij.openapi.ui.Messages.showErrorDialog(project,
@@ -730,12 +851,50 @@ public class AIWorkspacePanel extends JPanel {
         int total = registry.size();
         long tracked = registry.getTrackedEntries().size();
 
-        statusLabel.setText(CodeReadingNoteBundle.message("aiconfig.status.summary", total, tracked));
+        boolean gitInitialized = AIWorkspaceGitService.getInstance(project).isInitialized();
+        String gitText = gitInitialized ? CodeReadingNoteBundle.message("aiworkspace.git.status.initialized") : CodeReadingNoteBundle.message("aiworkspace.git.status.not.initialized");
+        statusLabel.setText(CodeReadingNoteBundle.message("aiconfig.status.summary", total, tracked) + " | " + gitText);
+    }
+
+    private void openWorkspaceGitUi() {
+        AIWorkspaceGitService git = AIWorkspaceGitService.getInstance(project);
+        if (!git.isInitialized()) {
+            ProgressManager.getInstance().run(new Task.Backgroundable(project, CodeReadingNoteBundle.message("aiworkspace.git.opening"), true) {
+                private AIWorkspaceGitService.GitResult result;
+                @Override public void run(@NotNull ProgressIndicator indicator) { result = git.initialize(); }
+                @Override public void onSuccess() {
+                    if (!result.success) {
+                        Messages.showErrorDialog(project, result.output, CodeReadingNoteBundle.message("aiworkspace.error.title"));
+                        updateStatus();
+                        return;
+                    }
+                    showNativeGitUi();
+                    if (result.untrackedFromParent) AIWorkspaceVcsSupport.notifyParentUntracked(project);
+                    updateStatus();
+                }
+            });
+            return;
+        }
+        AIWorkspaceGitService.GitResult isolation = git.ensureParentIsolation();
+        if (isolation.untrackedFromParent) AIWorkspaceVcsSupport.notifyParentUntracked(project);
+        showNativeGitUi();
+    }
+
+    private void showNativeGitUi() {
+        AIWorkspaceVcsSupport.ensureDirectoryMapping(project);
+        Path root = AIWorkspaceService.getInstance(project).getWorkspaceRoot();
+        if (!java.nio.file.Files.isDirectory(root)) {
+            Messages.showErrorDialog(project, CodeReadingNoteBundle.message("aiworkspace.git.root.missing"), CodeReadingNoteBundle.message("aiworkspace.error.title"));
+            return;
+        }
+        if (!AIWorkspaceVcsSupport.openCommitUi(project)) {
+            Messages.showErrorDialog(project, CodeReadingNoteBundle.message("aiworkspace.git.ui.unavailable"), CodeReadingNoteBundle.message("aiworkspace.error.title"));
+        }
     }
 
     private void setupEventHandlers() {
-        MessageBusConnection connection = project.getMessageBus().connect();
-        connection.subscribe(AIConfigNotifier.AI_CONFIG_TOPIC, new AIConfigNotifier() {
+        messageBusConnection = project.getMessageBus().connect();
+        messageBusConnection.subscribe(AIConfigNotifier.AI_CONFIG_TOPIC, new AIConfigNotifier() {
             @Override
             public void registryUpdated() {
                 SwingUtilities.invokeLater(() -> {
@@ -756,9 +915,11 @@ public class AIWorkspacePanel extends JPanel {
                 });
             }
         });
+        messageBusConnection.subscribe(AIWorkspaceService.TOPIC, () -> SwingUtilities.invokeLater(this::updateStatus));
     }
 
     public void dispose() {
         disposeCurrentEditor();
+        if (messageBusConnection != null) { messageBusConnection.disconnect(); messageBusConnection = null; }
     }
 }

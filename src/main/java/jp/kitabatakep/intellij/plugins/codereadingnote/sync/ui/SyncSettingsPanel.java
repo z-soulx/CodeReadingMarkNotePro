@@ -29,9 +29,9 @@ public class SyncSettingsPanel {
     private final ComboBox<PluginLanguage> languageComboBox;
     private final JBLabel languageRestartNote;
     
-    // 通用配置
     private final JBCheckBox enabledCheckBox;
     private final JBCheckBox autoSyncCheckBox;
+    private final JBCheckBox aiConfigAutoSyncCheckBox;
     private final ComboBox<SyncProviderType> providerTypeComboBox;
     
     // GitHub配置
@@ -65,6 +65,7 @@ public class SyncSettingsPanel {
         // 初始化同步配置组件
         enabledCheckBox = new JBCheckBox(CodeReadingNoteBundle.message("settings.sync.enable"));
         autoSyncCheckBox = new JBCheckBox(CodeReadingNoteBundle.message("settings.sync.auto"));
+        aiConfigAutoSyncCheckBox = new JBCheckBox(CodeReadingNoteBundle.message("settings.sync.aiconfig.auto"));
         
         providerTypeComboBox = new ComboBox<>(new DefaultComboBoxModel<>(SyncProviderType.values()));
         providerTypeComboBox.setRenderer(new DefaultListCellRenderer() {
@@ -130,6 +131,7 @@ public class SyncSettingsPanel {
             .addVerticalGap(10)
             .addLabeledComponent(new JBLabel(CodeReadingNoteBundle.message("settings.sync.provider")), providerTypeComboBox, 1, false)
             .addComponent(autoSyncCheckBox, 1)
+            .addComponent(aiConfigAutoSyncCheckBox, 1)
             .addVerticalGap(10)
             .addSeparator()
             .addLabeledComponent(new JBLabel(""), new JBLabel(CodeReadingNoteBundle.message("settings.sync.configuration")), 1, false)
@@ -171,6 +173,7 @@ public class SyncSettingsPanel {
         boolean enabled = enabledCheckBox.isSelected();
         providerTypeComboBox.setEnabled(enabled);
         autoSyncCheckBox.setEnabled(enabled);
+        aiConfigAutoSyncCheckBox.setEnabled(enabled);
         repositoryField.setEnabled(enabled);
         tokenField.setEnabled(enabled);
         branchField.setEnabled(enabled);
@@ -195,6 +198,7 @@ public class SyncSettingsPanel {
         // 加载同步配置
         enabledCheckBox.setSelected(config.isEnabled());
         autoSyncCheckBox.setSelected(config.isAutoSync());
+        aiConfigAutoSyncCheckBox.setSelected(config.isAiConfigAutoSync());
         providerTypeComboBox.setSelectedItem(config.getProviderType());
         
         if (config instanceof GitHubSyncConfig) {
@@ -221,7 +225,8 @@ public class SyncSettingsPanel {
         // 保存同步配置
         config.setEnabled(enabledCheckBox.isSelected());
         config.setAutoSync(autoSyncCheckBox.isSelected());
-        
+        config.setAiConfigAutoSync(aiConfigAutoSyncCheckBox.isSelected());
+
         SyncProviderType selectedType = (SyncProviderType) providerTypeComboBox.getSelectedItem();
         if (selectedType != null) {
             config.setProviderType(selectedType);
@@ -247,6 +252,7 @@ public class SyncSettingsPanel {
         // 检查同步配置是否修改
         if (enabledCheckBox.isSelected() != config.isEnabled()) return true;
         if (autoSyncCheckBox.isSelected() != config.isAutoSync()) return true;
+        if (aiConfigAutoSyncCheckBox.isSelected() != config.isAiConfigAutoSync()) return true;
         
         SyncProviderType selectedType = (SyncProviderType) providerTypeComboBox.getSelectedItem();
         if (selectedType != config.getProviderType()) return true;

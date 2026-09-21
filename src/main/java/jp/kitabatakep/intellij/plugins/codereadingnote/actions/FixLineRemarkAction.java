@@ -64,7 +64,7 @@ public class FixLineRemarkAction extends CommonAnAction {
      */
     private LineFixResult collectFixInfo(TopicLine topicLine) {
         Map<String, Bookmark> bookmarkMap = BookmarkUtils.getStringBookmarkMap(project);
-        Bookmark bookmark = bookmarkMap.get(topicLine.getBookmarkUid());
+        Bookmark bookmark = bookmarkMap.get(topicLine.runtimeId());
         
         Integer bookmarkLine = null;
         if (bookmark != null) {

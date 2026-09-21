@@ -76,6 +76,14 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
         if (persistentState.ignorePatterns != null) {
             registry.setUserIgnorePatterns(persistentState.ignorePatterns);
         }
+        if (persistentState.customTypeDefs != null) {
+            List<AIConfigTypeRegistry.CustomAIToolDef> defs = new ArrayList<>();
+            for (CustomTypeDef ctd : persistentState.customTypeDefs) {
+                defs.add(new AIConfigTypeRegistry.CustomAIToolDef(
+                        ctd.id, ctd.displayName, ctd.pathPrefix, ctd.isDirectory));
+            }
+            AIConfigTypeRegistry.setDefinitions(defs);
+        }
     }
 
     /**
@@ -159,6 +167,9 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
                 return true;
             }
         }
+        if (AIConfigTypeRegistry.isCustomTypePath(relativePath)) {
+            return true;
+        }
         for (String customPath : registry.getCustomPaths()) {
             if (relativePath.startsWith(customPath)) {
                 return true;
@@ -171,22 +182,27 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
         for (String path : changedPaths) {
             AIConfigEntry entry = registry.findByPath(path);
             if (entry != null) {
-                registry.scan(); // Re-read hashes
+                registry.scan();
                 MessageBus messageBus = project.getMessageBus();
                 AIConfigNotifier publisher = messageBus.syncPublisher(AIConfigNotifier.AI_CONFIG_TOPIC);
                 publisher.fileChanged(entry);
-                break; // scan() already refreshes everything
+                if (entry.isTracked()) {
+                    triggerAIConfigAutoSync();
+                }
+                break;
             }
         }
     }
 
     private void notifyRegistryUpdated() {
-        // Do NOT call reconcileTrackedState() here — mergeDiscoveredEntries() already
-        // preserves tracked state on existing entries. Calling reconcile on every rescan
-        // would revert runtime changes the user hasn't saved yet.
         MessageBus messageBus = project.getMessageBus();
         AIConfigNotifier publisher = messageBus.syncPublisher(AIConfigNotifier.AI_CONFIG_TOPIC);
         publisher.registryUpdated();
+        triggerAIConfigAutoSync();
+    }
+
+    private void triggerAIConfigAutoSync() {
+        AIConfigAutoSyncScheduler.getInstance(project).scheduleAutoSync();
     }
 
     @NotNull
@@ -243,6 +259,16 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
         }
     }
 
+    @NotNull
+    public String getLastSyncedRemoteMetadataHash() {
+        return persistentState.lastSyncedRemoteMetadataHash != null
+                ? persistentState.lastSyncedRemoteMetadataHash : "";
+    }
+
+    public void setLastSyncedRemoteMetadataHash(@NotNull String hash) {
+        persistentState.lastSyncedRemoteMetadataHash = hash;
+    }
+
     /**
      * Applies tracked state from remote metadata (cross-machine sync).
      * For each remote entry, if a matching local entry exists, updates its tracked flag.
@@ -285,6 +311,15 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
             es.typeName = entry.getType().name();
             persistentState.trackedEntries.add(es);
         }
+        persistentState.customTypeDefs = new ArrayList<>();
+        for (AIConfigTypeRegistry.CustomAIToolDef def : AIConfigTypeRegistry.getDefinitions()) {
+            CustomTypeDef ctd = new CustomTypeDef();
+            ctd.id = def.id;
+            ctd.displayName = def.displayName;
+            ctd.pathPrefix = def.pathPrefix;
+            ctd.isDirectory = def.isDirectory;
+            persistentState.customTypeDefs.add(ctd);
+        }
         return persistentState;
     }
 
@@ -303,6 +338,8 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
         public List<String> trackedEmptyDirs = new ArrayList<>();
         public String lastPushedHash = "";
         public List<FileHashEntry> lastPushedFileHashes = new ArrayList<>();
+        public List<CustomTypeDef> customTypeDefs = new ArrayList<>();
+        public String lastSyncedRemoteMetadataHash = "";
     }
 
     public static class EntryState {
@@ -314,5 +351,12 @@ public final class AIConfigService implements PersistentStateComponent<AIConfigS
     public static class FileHashEntry {
         public String relativePath = "";
         public String contentHash = "";
+    }
+
+    public static class CustomTypeDef {
+        public String id = "";
+        public String displayName = "";
+        public String pathPrefix = "";
+        public boolean isDirectory = true;
     }
 }

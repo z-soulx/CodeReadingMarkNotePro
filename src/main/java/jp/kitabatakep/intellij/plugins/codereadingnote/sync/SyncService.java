@@ -113,181 +113,23 @@ public final class SyncService {
      */
     @NotNull
     public SyncResult push(@NotNull SyncConfig config) {
-        if (lastSyncStatus == SyncStatus.SYNCING) {
-            return SyncResult.failure("Sync in progress, please try again later");
-        }
-        
-        try {
-            // 标记为同步中（此时不更新 lastSyncTime）
-            lastSyncStatus = SyncStatus.SYNCING;
-            
-            // 获取同步提供者
-            SyncProvider provider = SyncProviderFactory.getProvider(config);
-            if (provider == null) {
-                return SyncResult.failure("Unsupported sync type: " + config.getProviderType());
-            }
-            
-            // 验证配置
-            SyncResult validation = provider.validateConfig(config);
-            if (!validation.isSuccess()) {
-                return validation;
-            }
-            
-            // 获取当前项目的数据
-            CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
-            TopicList topicList = service.getTopicList();
-            
-            if (topicList == null || topicList.getTopics().isEmpty()) {
-                return SyncResult.failure("No data to sync");
-            }
-            
-            // 导出为XML
-            Element topicsElement = TopicListExporter.export(topicList.getTopics().iterator());
-            String xmlData = JDOMUtil.writeElement(topicsElement);
-            
-            if (xmlData == null || xmlData.isEmpty()) {
-                return SyncResult.failure("Failed to export data");
-            }
-            
-            // 生成项目标识符
-            String projectIdentifier = generateProjectIdentifier(project);
-            
-            // 执行推送到远端
-            SyncResult result = provider.push(project, config, xmlData, projectIdentifier);
-            
-            if (result.isSuccess()) {
-                // ✅ Push 成功后才更新状态和时间
-                SyncStatusService statusService = SyncStatusService.getInstance(project);
-                
-                // 1. 更新同步时间（表示成功推送到远端的时间）
-                long syncTime = System.currentTimeMillis();
-                statusService.updateLastSyncTime(syncTime);
-                
-                // 2. 更新 MD5（表示当前已同步的数据状态）
-                String currentMd5 = calculateLocalDataMd5();
-                statusService.updateLastLocalDataMd5(currentMd5);
-                
-                // 3. 更新内部状态
-                lastSyncStatus = SyncStatus.SUCCESS;
-                lastSyncMessage = "Pushed successfully";
-            } else {
-                // ❌ Push 失败，不更新时间和 MD5
-                LOG.warn("Push failed: " + result.getMessage());
-                lastSyncStatus = SyncStatus.FAILED;
-                lastSyncMessage = result.getMessage();
-            }
-            
-            return result;
-            
-        } catch (Exception e) {
-            LOG.error("Push failed", e);
-            lastSyncStatus = SyncStatus.FAILED;
-            lastSyncMessage = "Push failed: " + e.getMessage();
-            return SyncResult.failure("Push failed", e);
-        } finally {
-            if (lastSyncStatus == SyncStatus.SYNCING) {
-                lastSyncStatus = SyncStatus.IDLE;
-            }
-        }
+        var result = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.getInstance()
+                .submit(project, CodeReadingNoteService.getInstance(project).getTopicList(),
+                        jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.Operation.PUSH, null).join();
+        String message = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.text(result.status());
+        return result.success() ? SyncResult.success(message) : SyncResult.failure(message);
     }
-    
     /**
      * 从远程拉取笔记数据到当前项目
      */
     @NotNull
     public SyncResult pull(@NotNull SyncConfig config, boolean merge) {
-        if (lastSyncStatus == SyncStatus.SYNCING) {
-            return SyncResult.failure("Sync in progress, please try again later");
-        }
-        
-        try {
-            lastSyncStatus = SyncStatus.SYNCING;
-            
-            // 获取同步提供者
-            SyncProvider provider = SyncProviderFactory.getProvider(config);
-            if (provider == null) {
-                return SyncResult.failure("Unsupported sync type: " + config.getProviderType());
-            }
-            
-            // 验证配置
-            SyncResult validation = provider.validateConfig(config);
-            if (!validation.isSuccess()) {
-                return validation;
-            }
-            
-            // 生成项目标识符
-            String projectIdentifier = generateProjectIdentifier(project);
-            
-            // 执行拉取
-            SyncResult result = provider.pull(project, config, projectIdentifier);
-            
-            if (!result.isSuccess()) {
-                lastSyncStatus = SyncStatus.FAILED;
-                lastSyncMessage = result.getMessage();
-                return result;
-            }
-            
-            // 获取远程数据
-            String xmlData = result.getData();
-            if (xmlData == null || xmlData.isEmpty()) {
-                lastSyncStatus = SyncStatus.FAILED;
-                lastSyncMessage = "No remote data";
-                return SyncResult.failure("No remote data");
-            }
-            
-            // 解析XML数据
-            Element topicsElement = JDOMUtil.load(new StringReader(xmlData));
-            
-            ArrayList<Topic> remoteTopics = TopicListImporter.importElement(project, topicsElement);
-            if (remoteTopics == null || remoteTopics.isEmpty()) {
-                lastSyncStatus = SyncStatus.FAILED;
-                lastSyncMessage = "Failed to parse remote data or no remote data";
-                return SyncResult.failure("Failed to parse remote data or no remote data");
-            }
-            
-            // 应用到本地
-            CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
-            TopicList localTopicList = service.getTopicList();
-            
-            if (merge) {
-                // 合并模式：保留本地数据，添加远程数据
-                mergeTopics(localTopicList, remoteTopics);
-            } else {
-                // 覆盖模式：清除本地数据，添加远程数据
-                localTopicList.setTopics(remoteTopics);
-                // 触发加载通知
-                project.getMessageBus().syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC).topicsLoaded();
-            }
-            
-            // ✅ Pull 成功后才更新状态和时间
-            SyncStatusService statusService = SyncStatusService.getInstance(project);
-            
-            // 1. 更新同步时间（表示成功从远端拉取的时间）
-            long syncTime = System.currentTimeMillis();
-            statusService.updateLastSyncTime(syncTime);
-            
-            // 2. 更新 MD5（表示当前已同步的数据状态）
-            String currentMd5 = calculateLocalDataMd5();
-            statusService.updateLastLocalDataMd5(currentMd5);
-            
-            // 3. 更新内部状态
-            lastSyncStatus = SyncStatus.SUCCESS;
-            lastSyncMessage = merge ? "Pulled and merged successfully" : "Pulled successfully";
-            
-            return SyncResult.success(lastSyncMessage);
-            
-        } catch (Exception e) {
-            LOG.error("Pull failed", e);
-            lastSyncStatus = SyncStatus.FAILED;
-            lastSyncMessage = "Pull failed: " + e.getMessage();
-            return SyncResult.failure("Pull failed", e);
-        } finally {
-            if (lastSyncStatus == SyncStatus.SYNCING) {
-                lastSyncStatus = SyncStatus.IDLE;
-            }
-        }
+        var result = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.getInstance()
+                .submit(project, CodeReadingNoteService.getInstance(project).getTopicList(),
+                        jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.Operation.PULL, null).join();
+        String message = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.WorkspaceNotesSyncCoordinator.text(result.status());
+        return result.success() ? SyncResult.success(message) : SyncResult.failure(message);
     }
-    
     /**
      * 检查远程是否有更新
      */
@@ -335,7 +177,8 @@ public final class SyncService {
         }
         
         // 触发加载通知
-        project.getMessageBus().syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC).topicsLoaded();
+        local.setTopics(local.getTopics()); // bind imported topics to the root's runtime owner
+        project.getMessageBus().syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC).topicsLoaded(local);
     }
     
     /**

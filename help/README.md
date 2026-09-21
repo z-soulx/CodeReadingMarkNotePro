@@ -18,15 +18,18 @@ Code Reading Mark Note Pro 帮助你在阅读源码时创建笔记和书签，�
 | **Gutter Marks / Gutter 标记** | Note icons in editor gutter with hover preview & edit / 编辑器左侧显示笔记图标，悬浮查看/编辑 |
 | **Search / 搜索** | Global search across all notes / 全局搜索笔记内容 |
 | **GitHub Sync / GitHub 同步** | Push/pull notes to a dedicated GitHub repo for cross-device sync / 笔记数据推送/拉取到独立 GitHub 仓库，跨设备同步 |
-| **AI Workspace / AI 工作空间** | Manage personal AI config files (Cursor Rules, Claude, Codex, etc.) with independent sync, ignore rules, empty dir support / 管理个人 AI 配置文件（Cursor Rules、Claude、Codex 等），独立同步、忽略规则、空目录管理 |
+| **AI Workspace / AI 工作空间** | Manage personal AI config files, an opt-in `.ai` Git repo with IDEA Commit UI, Semver `.ai/VERSION`, and custom Terminal commands / 管理个人 AI 配置文件、可选 `.ai` Git 仓库（含 IDEA 提交界面）、Semver `.ai/VERSION` 以及自定义 Terminal 命令 |
 | **Multi-language / 多语言** | Chinese/English UI, runtime switching / 中文/英文 UI，运行时切换 |
 
 ---
 
 ## Guides / 详细指南
 
+- **[Workspace Notes / 多项目工作空间笔记](WORKSPACE_NOTES_GUIDE.md)** — Automatically discover nested note projects, edit locally, and resolve disk conflicts / 自动发现子项目笔记、本地编辑及磁盘冲突处理
+
+- **[Usage Tutorial / 完整使用教程](USAGE_TUTORIAL.md)** — All features, shortcuts, workflows, and FAQ / 所有功能、快捷键、工作流程和常见问题
 - **[Sync Guide / 同步功能指南](SYNC_GUIDE.md)** — GitHub sync setup, push/pull, merge strategies, remote repo structure / GitHub 同步配置、推送拉取、合并策略、远程仓库结构
-- **[AI Workspace Guide / AI 工作空间指南](AI_WORKSPACE_GUIDE.md)** — AI config management, file tree, sync status, quick create, ignore rules / AI 配置管理、文件树、同步状态、快速新建、忽略规则
+- **[AI Workspace Guide / AI 工作空间指南](AI_WORKSPACE_GUIDE.md)** — AI config management, `.ai` Git/version, custom Terminal commands, file tree, sync / AI 配置管理、`.ai` Git/版本、自定义 Terminal 命令、文件树、同步
 
 ---
 
@@ -80,15 +83,15 @@ Stored locally in `.idea/CodeReadingNote.xml`. Sync pushes data to your configur
 
 ### Q: Which IDEs are supported? / 支持哪些 IDE？
 
-All IDEs based on IntelliJ Platform 2024.3+: IntelliJ IDEA, WebStorm, PyCharm, GoLand, etc.
+All IDEs based on IntelliJ Platform 2024.3+ (no upper version limit): IntelliJ IDEA, WebStorm, PyCharm, GoLand, etc.
 
-所有基于 IntelliJ Platform 2024.3+ 的 IDE：IntelliJ IDEA、WebStorm、PyCharm、GoLand 等。
+所有基于 IntelliJ Platform 2024.3+ 的 IDE（无版本上限）：IntelliJ IDEA、WebStorm、PyCharm、GoLand 等。
 
 ### Q: Does the plugin modify project code? / 插件会影响项目代码吗？
 
-No. Note data is stored in `.idea/` directory and does not modify source files.
+No. Note data is stored in `.idea/CodeReadingNote.xml` and does not modify source files. AI Workspace writes under `.ai/` when you use skeleton, Git, or custom commands. Creating `.ai/` (or opening a project that already has it) also writes `workspace-commands.json` once if that file is missing.
 
-不会。笔记数据存储在 `.idea/` 目录中，不会修改源码文件。
+不会。笔记数据存储在 `.idea/CodeReadingNote.xml`，不修改源码。骨架创建、`.ai` Git 或自定义命令会在项目的 `.ai/` 下写入文件。创建 `.ai/`（或打开已有 `.ai/` 的项目）时，若还没有 `workspace-commands.json`，也会写入一次。
 
 ---
 

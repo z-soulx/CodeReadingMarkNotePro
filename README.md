@@ -37,7 +37,9 @@ Expectation: Co-maintenance, welcome PR, Issues, ongoing maintenance (期望：�
 - Gutter note popup: Click gutter icon to edit/locate/delete notes inline (Gutter笔记弹窗：点击行首图标内联编辑/定位/删除笔记)
 - Reverse locate: Select note in TreeView from editor cursor (反定位：从编辑器光标定位到TreeView笔记节点)
 - Trash bin: Deleted notes go to recoverable trash instead of permanent delete (废纸篓：删除的笔记进入可恢复的废纸篓)
+- Trash bin: Deleted notes go to recoverable trash instead of permanent delete (废纸篓：删除的笔记进入可恢复的废纸篓)
 - Distinctive inline annotations: End-of-line note annotations in teal color (行尾注释高亮：行尾笔记注释使用青色显示)
+- AI Workspace (3.7.5): Manage AI config files, opt-in `.ai` Git with IDEA Commit UI, and custom IDEA Terminal commands including Silent Terminal (AI 工作空间：管理 AI 配置、可选 `.ai` Git 与 IDEA 提交界面、自定义 Terminal/静默终端命令)
 
 ## Display (展示)
 ![img.png](img.png)

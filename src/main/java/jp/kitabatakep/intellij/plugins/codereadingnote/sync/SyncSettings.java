@@ -51,6 +51,7 @@ public class SyncSettings implements PersistentStateComponent<SyncSettings.State
         // 加载配置
         config.setEnabled(state.enabled);
         config.setAutoSync(state.autoSync);
+        config.setAiConfigAutoSync(state.aiConfigAutoSync);
         config.setProviderType(state.providerType);
         
         // 逐个设置properties，使用setProperty确保正确保存
@@ -67,6 +68,7 @@ public class SyncSettings implements PersistentStateComponent<SyncSettings.State
     public void setSyncConfig(@NotNull SyncConfig config) {
         state.enabled = config.isEnabled();
         state.autoSync = config.isAutoSync();
+        state.aiConfigAutoSync = config.isAiConfigAutoSync();
         state.providerType = config.getProviderType();
         state.properties.clear();
         
@@ -103,6 +105,7 @@ public class SyncSettings implements PersistentStateComponent<SyncSettings.State
     public static class State {
         public boolean enabled = false;
         public boolean autoSync = false;
+        public boolean aiConfigAutoSync = false;
         public SyncProviderType providerType = SyncProviderType.GITHUB;
         public Map<String, String> properties = new HashMap<>();
     }

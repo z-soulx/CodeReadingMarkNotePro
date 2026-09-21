@@ -22,7 +22,7 @@ public class AIConfigRegistry {
 
     /** Built-in ignore patterns that are always active */
     private static final List<String> BUILTIN_IGNORE_PATTERNS = Arrays.asList(
-        ".DS_Store", "Thumbs.db", "desktop.ini",
+        ".DS_Store", "Thumbs.db", "desktop.ini", ".git",".idea",
         "*.swp", "*.swo", "*.tmp", "*.bak"
     );
 
@@ -60,6 +60,18 @@ public class AIConfigRegistry {
             if (type.isDirectory() && target.isDirectory()) {
                 String dirRel = getRelativePath(target, basePath);
                 discoveredDirs.add(dirRel);
+                collectFilesRecursively(target, basePath, discoveredPaths);
+            } else if (!target.isDirectory()) {
+                discoveredPaths.add(getRelativePath(target, basePath));
+            }
+        }
+
+        for (AIConfigTypeRegistry.CustomAIToolDef def : AIConfigTypeRegistry.getDefinitions()) {
+            if (def.pathPrefix == null || def.pathPrefix.isEmpty()) continue;
+            VirtualFile target = projectRoot.findFileByRelativePath(def.pathPrefix);
+            if (target == null || !target.isValid()) continue;
+            if (def.isDirectory && target.isDirectory()) {
+                discoveredDirs.add(getRelativePath(target, basePath));
                 collectFilesRecursively(target, basePath, discoveredPaths);
             } else if (!target.isDirectory()) {
                 discoveredPaths.add(getRelativePath(target, basePath));

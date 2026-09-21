@@ -50,7 +50,6 @@ public class TopicLineAddAction extends CommonAnAction {
         } else {
             CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
             event.getPresentation().setEnabled(
-                    service.getTopicList().iterator().hasNext() &&
                             (CommonDataKeys.EDITOR.getData(dataContext) != null ||
                                     CommonDataKeys.VIRTUAL_FILE.getData(dataContext) != null));
         }
@@ -71,9 +70,19 @@ public class TopicLineAddAction extends CommonAnAction {
 
         VirtualFile file = event.getData(PlatformDataKeys.VIRTUAL_FILE);
         Editor editor = event.getData(PlatformDataKeys.EDITOR);
-        int line = editor.getCaretModel().getLogicalPosition().line;
+        if (file == null || file.isDirectory()) return;
+        int line = editor == null ? 0 : editor.getCaretModel().getLogicalPosition().line;
 
-        TopicList topicList = service.getTopicList();
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).isReady()) return;
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).forFile(file);
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(topicList)) return;
+        if (topicList.getTopics().isEmpty()) {
+            String name = com.intellij.openapi.ui.Messages.showInputDialog(project,
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("workspace.first.topic", topicList.context().root()),
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.topic.title"), null);
+            if (name == null || name.isBlank()) return;
+            topicList.addTopic(name.trim());
+        }
         Iterator<Topic> iterator = topicList.iterator();
         ArrayList<Topic> topics = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -132,7 +141,16 @@ public class TopicLineAddAction extends CommonAnAction {
         Editor editor = event.getData(PlatformDataKeys.EDITOR);
         CaretModel caretModel = editor.getCaretModel();
         int line = caretModel.getLogicalPosition().line;
-        TopicList topicList = service.getTopicList();
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).isReady()) return;
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).forFile(file);
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(topicList)) return;
+        if (topicList.getTopics().isEmpty()) {
+            String name = com.intellij.openapi.ui.Messages.showInputDialog(project,
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("workspace.first.topic", topicList.context().root()),
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.topic.title"), null);
+            if (name == null || name.isBlank()) return;
+            topicList.addTopic(name.trim());
+        }
         Iterator<Topic> iterator = topicList.iterator();
         ArrayList<Topic> topics = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -234,9 +252,19 @@ public class TopicLineAddAction extends CommonAnAction {
 
         VirtualFile file = event.getData(PlatformDataKeys.VIRTUAL_FILE);
         Editor editor = event.getData(PlatformDataKeys.EDITOR);
-        int line = editor.getCaretModel().getLogicalPosition().line;
+        if (file == null || file.isDirectory()) return;
+        int line = editor == null ? 0 : editor.getCaretModel().getLogicalPosition().line;
 
-        TopicList topicList = service.getTopicList();
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).isReady()) return;
+        TopicList topicList = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).forFile(file);
+        if (!jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(topicList)) return;
+        if (topicList.getTopics().isEmpty()) {
+            String name = com.intellij.openapi.ui.Messages.showInputDialog(project,
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("workspace.first.topic", topicList.context().root()),
+                    jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("dialog.create.topic.title"), null);
+            if (name == null || name.isBlank()) return;
+            topicList.addTopic(name.trim());
+        }
         Iterator<Topic> iterator = topicList.iterator();
         ArrayList<Topic> topics = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -284,12 +312,18 @@ public class TopicLineAddAction extends CommonAnAction {
         noteInputField.setPreferredSize(new JBDimension(250, 200));
         notePanel.add(noteInputField, BorderLayout.CENTER);
         
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton addButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.add.to.topic"));
-        JButton cancelButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.cancel"));
-        buttonPanel.add(addButton);
-        buttonPanel.add(cancelButton);
+        // Button panel with shortcut hints
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        JPanel buttonsRight = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton addButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.add.to.topic") + " (Ctrl+Enter)");
+        JButton cancelButton = new JButton(jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle.message("button.cancel") + " (Esc)");
+        addButton.setMnemonic(KeyEvent.VK_A);
+        cancelButton.setMnemonic(KeyEvent.VK_C);
+        addButton.setToolTipText("Ctrl+Enter");
+        cancelButton.setToolTipText("Esc");
+        buttonsRight.add(addButton);
+        buttonsRight.add(cancelButton);
+        buttonPanel.add(buttonsRight, BorderLayout.EAST);
         
         // Layout main panel
         JPanel topGroupPanel = new JPanel(new BorderLayout());
@@ -383,11 +417,30 @@ public class TopicLineAddAction extends CommonAnAction {
             dialog.dispose();
         });
 
+        // ESC key to close dialog
+        dialog.getRootPane().registerKeyboardAction(
+            e -> { dialog.setVisible(false); dialog.dispose(); },
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Ctrl+Enter to trigger Add action
+        dialog.getRootPane().registerKeyboardAction(
+            e -> addButton.doClick(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Auto-select first topic so shortcuts work immediately
+        if (!topics.isEmpty()) {
+            topicJList.setSelectedIndex(0);
+        }
+
         // Show dialog
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
                 SwingUtilities.invokeLater(() -> {
                     dialog.pack();
-                    dialog.setLocationRelativeTo(editor.getComponent());
+                    dialog.setLocationRelativeTo(editor == null ? null : editor.getComponent());
                     dialog.setVisible(true);
                 });
         });

@@ -5,14 +5,15 @@
     
     <!-- 插件描述和分类 -->
     <category>Code tools</category>
-    <version>3.7.0</version>
-    <!-- 版本兼容性：最低支持2024.3，兼容到2025.3 -->
-    <idea-version since-build="243" until-build="253.*"/>
+    <version>3.7.8</version>
+    <!-- 版本兼容性：最低支持2024.3，无上限 -->
+    <idea-version since-build="243"/>
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->
     <!-- 插件依赖：明确声明所需的IntelliJ模块 -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
+    <depends optional="true">org.jetbrains.plugins.terminal</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService" />
@@ -21,14 +22,17 @@
         <!-- TopicLineOperationService, BookmarkRepairService, LineNumberUpdateService are auto-registered -->
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncSettings" />
         <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings" />
-        <applicationService serviceImplementation="jp.kitabatakep.intellij.plugins.codereadingnote.aiconfig.AIConfigTemplateService" />
         <projectConfigurable parentId="tools" instance="jp.kitabatakep.intellij.plugins.codereadingnote.sync.ui.SyncConfigurable"
                              id="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncConfigurable"
                              displayName="Code Reading Note Sync"/>
-        <toolWindow icon="MyIcons.PLUGIN" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
+        <toolWindow icon="/icons/codeReadingMarkNote.svg" id="Code Reading Mark Note Pro" anchor="bottom" factoryClass="jp.kitabatakep.intellij.plugins.codereadingnote.ManagementToolWindowFactory" />
         <editorFactoryDocumentListener implementation="jp.kitabatakep.intellij.plugins.codereadingnote.remark.BookmarkDocumentListener"/>
-        <!-- Startup activity for sync conflict detection -->
+        <!-- ProjectActivity: sync conflict check after project open -->
         <postStartupActivity implementation="jp.kitabatakep.intellij.plugins.codereadingnote.sync.SyncStartupActivity"/>
+        <postStartupActivity implementation="jp.kitabatakep.intellij.plugins.codereadingnote.workspace.AIWorkspaceVcsStartupActivity"/>
+        <postStartupActivity implementation="jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesStartupActivity"/>
+        <notificationGroup id="CodeReadingNote.Workspace" displayType="BALLOON"/>
+        <notificationGroup id="CodeReadingNote.AIConfig" displayType="BALLOON"/>
     </extensions>
     <projectListeners>
     <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"
@@ -37,7 +41,7 @@
     <actions>
         <!-- Editor context menu action: Add to Topic (Alt+M) -->
         <action
-                icon="MyIcons.PLUGIN"
+                icon="/icons/codeReadingMarkNote.svg"
                 id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction"
                 class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.TopicLineAddAction">
             <keyboard-shortcut keymap="$default" first-keystroke="alt M"/>
@@ -46,7 +50,7 @@
 
         <!-- Navigate to note at current line (Alt+G) -->
         <action
-                icon="MyIcons.PLUGIN"
+                icon="/icons/codeReadingMarkNote.svg"
                 id="jp.kitabatakep.intellij.plugins.codereadingnote.actions.NavigateToNoteAction"
                 class="jp.kitabatakep.intellij.plugins.codereadingnote.actions.NavigateToNoteAction"
                 text="Navigate to Note"

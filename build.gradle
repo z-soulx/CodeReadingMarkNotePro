@@ -10,7 +10,7 @@ plugins {
 }
 
 group 'jp.kitabatakep'
-version '3.7.0'  // 插件版本号 - 发布新版本时更新此行
+version '3.7.8'  // 插件版本号 - 发布新版本时更新此行
 
 sourceCompatibility = 17
 targetCompatibility = 17
@@ -76,9 +76,9 @@ patchPluginXml {
         stripTag(stripTag(file(path).text, "html"), "body")
     }
 
-    // 设置版本兼容范围 - 向前兼容（最低2024.3，兼容到2025.3）
+    // 设置版本兼容范围 - 最低2024.3，无上限
     sinceBuild.set('243')    // 最低支持版本：2024.3 (构建号243)
-    untilBuild.set('253.*')  // 最高支持版本：2025.3.x (需要时可手动更新到更高版本)
+    untilBuild.set('')       // 不设上限，兼容所有未来版本
     
     pluginDescription.set(provider{ bodyInnerHTML("src/main/resources/META-INF/description.html") })
     changeNotes.set(provider{ bodyInnerHTML("src/main/resources/META-INF/changeNotes.html") } )
@@ -87,9 +87,56 @@ patchPluginXml {
 // 插件验证配置 - 验证向前兼容性
 runPluginVerifier {
     // 测试版本：覆盖支持的版本范围
-    ideVersions.set(['2024.3', '2025.1', '2025.2'])
+    ideVersions.set(['2024.3', '2025.1', '2025.2', '2026.1'])
     // 设置失败级别，只关注严重的兼容性问题
     failureLevel.set(['COMPATIBILITY_PROBLEMS'])
     // 下载目录配置
     downloadDir.set("${project.buildDir}/pluginVerifier/ides")
+}
+
+// Marketplace 一键发布：.\gradlew.bat publishPlugin
+// Token：环境变量 PUBLISH_TOKEN，或用户级 ~/.gradle/gradle.properties 的 intellijPublishToken
+// 签名（可选）：未配置时 signPlugin 会跳过；配置后会在 publishPlugin 前自动签名
+publishPlugin {
+    token.set(providers.environmentVariable("PUBLISH_TOKEN")
+            .orElse(providers.gradleProperty("intellijPublishToken")))
+    if (project.hasProperty("publishChannel")) {
+        channels.set([project.property("publishChannel").toString()])
+    }
+}
+
+signPlugin {
+    def chainFile = findProperty("certificateChainFile")
+    def keyFile = findProperty("privateKeyFile")
+    def chain = System.getenv("CERTIFICATE_CHAIN")
+    def key = System.getenv("PRIVATE_KEY")
+    if ((chainFile && !keyFile) || (keyFile && !chainFile)) {
+        throw new GradleException("Set both certificateChainFile and privateKeyFile / 请同时配置证书链和私钥文件")
+    }
+    if (!chainFile && !keyFile && ((chain && !key) || (key && !chain))) {
+        throw new GradleException("Set both CERTIFICATE_CHAIN and PRIVATE_KEY / 请同时配置证书链和私钥环境变量")
+    }
+    if (chainFile && keyFile) {
+        certificateChainFile.set(file(chainFile.toString()))
+        privateKeyFile.set(file(keyFile.toString()))
+        def pass = findProperty("privateKeyPassword")
+        if (pass) {
+            password.set(pass.toString())
+        }
+    } else {
+        if (chain && key) {
+            certificateChain.set(chain)
+            privateKey.set(key)
+            def pass = System.getenv("PRIVATE_KEY_PASSWORD")
+            if (pass) {
+                password.set(pass)
+            }
+        } else {
+            // IntelliJ Gradle 1.17 adds this dependency even when signing is skipped.
+            // Remove only this edge; explicit signer download/verification stays available.
+            setDependsOn(getDependsOn().findAll { it != 'downloadZipSigner' })
+            // The CLI convention also carries an implicit dependency on the download task.
+            cliPath.set(providers.provider { null })
+        }
+    }
 }

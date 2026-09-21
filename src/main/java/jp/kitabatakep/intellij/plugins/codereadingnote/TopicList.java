@@ -11,19 +11,35 @@ import java.util.Iterator;
 public class TopicList
 {
     private Project project;
+    private final jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context;
+    public jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context() { return context; }
+    public TopicList(Project project, jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context) {
+        this.project = project;
+        this.context = context;
+    }
+    public void rebind(Project project) {
+        this.project = project;
+        for (Topic topic : topics) topic.rebind(project);
+        for (TrashedLine trash : trashedLines) trash.getLine().rebind(project);
+    }
     private ArrayList<Topic> topics = new ArrayList<>();
     private ArrayList<TrashedLine> trashedLines = new ArrayList<>();
+    private org.jdom.Element xmlTemplate = new org.jdom.Element("topics");
+    public org.jdom.Element xmlTemplate() { return xmlTemplate.clone(); }
+    public void setXmlTemplate(org.jdom.Element value) { xmlTemplate = value.clone(); }
 
     public TopicList(Project project)
     {
-        this.project = project;
+        this(project, new jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext(java.nio.file.Path.of(project.getBasePath())));
     }
 
     public void addTopic(String name)
     {
         int order = topics.size();
-        Topic topic = new Topic(project, name, new Date(), order);
+        Topic topic = new Topic(project, context, name, new Date(), order);
+        topic.ownerList = this;
         topics.add(topic);
+        context.changed();
 
         MessageBus messageBus = project.getMessageBus();
         TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
@@ -32,7 +48,8 @@ public class TopicList
 
     public void removeTopic(Topic topic)
     {
-        topics.remove(topic);
+        if (!topics.remove(topic)) return;
+        context.changed();
         MessageBus messageBus = project.getMessageBus();
         TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
         publisher.topicRemoved(topic);
@@ -46,7 +63,7 @@ public class TopicList
     }
 
     public void restoreFromTrash(TrashedLine trashedLine) {
-        trashedLines.remove(trashedLine);
+        if (!trashedLines.contains(trashedLine)) return;
         Topic target = null;
         for (Topic t : topics) {
             if (t.name().equals(trashedLine.getOriginalTopicName())) {
@@ -54,11 +71,13 @@ public class TopicList
                 break;
             }
         }
-        if (target == null && !topics.isEmpty()) {
-            target = topics.get(0);
+        if (target == null) {
+            addTopic(trashedLine.getOriginalTopicName());
+            target = topics.get(topics.size() - 1);
         }
         if (target != null) {
             target.addLine(trashedLine.getLine());
+            trashedLines.remove(trashedLine);
         }
         notifyTrashChanged();
     }
@@ -78,13 +97,15 @@ public class TopicList
     }
 
     public void setTrashedLines(ArrayList<TrashedLine> trashedLines) {
+        for (TrashedLine trash : trashedLines) trash.getLine().topic().adoptContext(context);
         this.trashedLines = trashedLines;
     }
 
     private void notifyTrashChanged() {
         MessageBus messageBus = project.getMessageBus();
         TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
-        publisher.topicsLoaded();
+        context.changed();
+        publisher.trashChanged(this);
     }
 
     public Iterator<Topic> iterator()
@@ -124,11 +145,13 @@ public class TopicList
         // 发送通知以触发持久化保存
         MessageBus messageBus = project.getMessageBus();
         TopicListNotifier publisher = messageBus.syncPublisher(TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC);
-        publisher.topicsReordered();
+        context.changed();
+        publisher.topicsReordered(this);
     }
 
     public void setTopics(ArrayList<Topic> topics)
     {
+        for (Topic topic : topics) { topic.adoptContext(context); topic.ownerList = this; }
         this.topics = topics;
     }
 

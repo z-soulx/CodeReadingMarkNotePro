@@ -1,24 +1,70 @@
 <html>
 <body>
+<h1>3.7.8</h1>
+<ul>
+    <li><b>Bug Fix:</b> Workspace projects reached through macOS/Linux symbolic links or Windows junctions are now discovered and routed correctly. Multiple aliases to the same directory share one project state. / <b>问题修复：</b>现在可以正确发现并路由通过 macOS/Linux 符号链接或 Windows 目录联接访问的工作区项目；指向同一目录的多个别名共享同一份项目状态。</li>
+    <li><b>Improvement:</b> Child directories appear as notes projects only when <code>.idea/CodeReadingNote.xml</code> exists, keeping projects without plugin note data out of the workspace. / <b>改进：</b>子目录仅在存在 <code>.idea/CodeReadingNote.xml</code> 时才显示为笔记项目，避免没有插件标签数据的项目出现在工作区中。</li>
+</ul>
+<h1>3.7.7</h1>
+<ul>
+    <li><b>Bug Fix (#15):</b> Update existing GitHub notes using the configured branch and its file SHA. Failed version reads stop the upload; error messages preserve escaped quotes and show actionable guidance. / <b>修复（#15）：</b>使用配置分支及对应文件 SHA 更新已有 GitHub 笔记，版本读取失败时停止上传；错误信息完整显示转义引号与具体处理建议，无需删除远端文件。</li>
+    <li><b>Feature:</b> Push or pull any notes project from its parent workspace. Select projects in the sync overview to manage bindings, policies, and individual results. / <b>新功能：</b>在父工作空间直接推拉任一项目笔记，通过同步总览选择项目，管理远端绑定、自动策略和逐项目结果。</li>
+    <li><b>Automatic sync:</b> Choose manual, auto push, or safe bidirectional sync per project. Background checks fetch remote-only changes without opening child projects separately. / <b>自动同步：</b>各项目可选择仅手动、自动推送或安全双向；后台检查可自动拉取远端单边更新，无需独立打开子项目。</li>
+    <li><b>Data protection:</b> Content baselines and conditional remote writes detect concurrent edits. Conflicts pause only the affected project, with comparison and backups before replacement. Sync includes trash and empty collections. / <b>数据保护：</b>内容基线及远端条件写入检测并发修改，冲突仅暂停对应项目，支持对比和替换前备份；同步包含回收站和空集合。</li>
+
+    <li><b>Feature:</b> Open a parent directory to discover and edit notes from nested projects, with separate project trees, trash, search results, navigation, and gutter editing. / <b>新功能：</b>打开父目录即可自动发现和编辑各层子项目笔记，支持独立项目树、回收站、跨项目搜索、导航及行标记编辑。</li>
+    <li><b>Data protection:</b> Each project keeps its compatible notes file. External edit conflicts offer disk reload or backup before saving local changes; unresolved local changes are retained for recovery. / <b>数据保护：</b>各项目保留兼容的独立笔记文件；外部修改冲突支持重新加载磁盘或备份后保存，未解决的本地修改保留供恢复。</li>
+    <li><b>Improvement:</b> Moves preserve note identity and missing-file paths within their project. Child edits stay outside root GitHub sync. / <b>改进：</b>同项目移动保留笔记标识和暂时缺失的文件路径，子项目编辑不会进入根项目 GitHub 同步。</li>
+</ul>
+<h1>3.7.6</h1>
+<ul>
+    <li><b>Bug Fix:</b> Restored the plugin icon in the Tool Window stripe and in the Add to Topic and Navigate to Note editor actions. / <b>Bug 修复：</b>恢复 Tool Window 边栏以及“添加到主题”和“导航到笔记”编辑器操作中的插件图标。</li>
+    <li><b>Bug Fix:</b> Manage Custom Commands now sizes itself from the platform controls so Add, Save, Delete, and Run remain fully visible on macOS and high-DPI displays. / <b>Bug 修复：</b>“管理自定义命令”现在根据平台控件自动确定窗口尺寸，确保在 macOS 和高 DPI 显示器上完整显示添加、保存、删除和运行按钮。</li>
+</ul>
+<h1>3.7.5</h1>
+<ul>
+    <li><b>.ai Git UI:</b> Isolate <code>.ai</code> from the parent Git root, untrack indexed <code>.ai</code> files, and use one toolbar button that initializes then opens IDEA Commit (later clicks only open). After the first mapping, the project Commit window keeps the <code>.ai</code> root. / <b>.ai Git 界面：</b>从父仓库隔离并取消跟踪 <code>.ai</code>。工具栏一个按钮：未初始化则初始化并打开 Commit，已初始化则打开。第一次登记 mapping 之后，项目 Commit 窗口会一直带上 <code>.ai</code>。</li>
+    <li><b>Built-in commands:</b> The first time <code>.ai/workspace-commands.json</code> is missing, the plugin writes Cursor and Typora silent commands. Users can delete them; an existing file is never re-seeded. / <b>内置命令：</b>第一次没有 <code>.ai/workspace-commands.json</code> 时写入 Cursor 与 Typora 静默命令。用户可删除；已有文件不会再次注入。</li>
+</ul>
+<h1>3.7.4</h1>
+<ul>
+    <li><b>Custom Commands:</b> Manage all commands in one list/form dialog, save them in <code>.ai/workspace-commands.json</code>, and run them in IDEA Terminal (PowerShell on Windows, default shell on macOS). Save writes immediately with no OK/Cancel footer and no confirmation. <code>$FilePath$</code> / <code>$FileDir$</code> / <code>$FileName$</code> can use the Project tree selection (file need not be open) or the open editor file. / <b>自定义命令：</b>在统一列表/表单中管理命令，保存到 <code>.ai/workspace-commands.json</code>，通过 IDEA Terminal 执行（Windows 为 PowerShell，macOS 为默认 shell）。保存立即写入，无底部确定/取消、无二次确认。<code>$FilePath$</code> 等变量可使用项目树选中（不必打开）或编辑器已打开的文件。</li>
+    <li><b>Silent Terminal:</b> Silent mode uses the same Terminal shell without focusing the tool window, and starts the session immediately so Cursor, Typora, and shell built-ins such as <code>cd</code> actually run. On Windows, <code>wt</code>/<code>wt.exe</code> receives an explicit <code>-d</code> working directory. / <b>静默终端：</b>静默模式使用同一 Terminal shell 但不抢焦点，并立即启动会话，因此 Cursor、Typora 以及 <code>cd</code> 等内置命令会真正执行。Windows 上 <code>wt</code>/<code>wt.exe</code> 会显式传入 <code>-d</code> 工作目录。</li>
+    <li><b>Skeleton Scopes:</b> Create a Workspace, Notes Space, or All layout. Quick Reference explains the bilingual <code>context</code>, <code>adr</code>, <code>specs</code>, <code>runs</code>, and <code>docs</code> structure. / <b>骨架范围：</b>可创建 Workspace、Notes Space 或 All 布局。快速参考说明双语的 <code>context</code>、<code>adr</code>、<code>specs</code>、<code>runs</code>、<code>docs</code> 结构。</li>
+    <li><b>AI Workspace Git and Versioning:</b> Manage an independent <code>.ai</code> Git repository, docs root, <code>.ai/VERSION</code> patch upgrades, and quick commits without moving the existing project <code>docs/</code> directory. / <b>AI 工作区 Git 与版本管理：</b>支持独立 <code>.ai</code> Git 仓库、文档根目录、<code>.ai/VERSION</code> 补丁升级和快捷提交，不移动项目现有 <code>docs/</code> 目录。</li>
+    <li><b>Workspace Safety:</b> Git operations are restricted to <code>.ai</code>; the generated ignore file excludes tokens, runs, and local temporary files. / <b>工作区安全：</b>Git 操作限定在 <code>.ai</code>，自动生成的忽略文件排除 token、runs 和本地临时文件。</li>
+</ul>
+<h1>3.7.3</h1>
+<ul>
+    <li><b>Dialog Keyboard Shortcuts:</b> "Add to Topic" dialog now supports <code>Ctrl+Enter</code> to confirm, <code>Esc</code> to close, and <code>Alt+A</code>/<code>Alt+C</code> button mnemonics. First topic auto-selected on open（<b>对话框快捷键：</b>"添加到主题"对话框支持 <code>Ctrl+Enter</code> 确认、<code>Esc</code> 关闭、<code>Alt+A</code>/<code>Alt+C</code> 按钮助记键，打开时自动选中第一个主题）</li>
+    <li><b>IDE 2026.1 Compatibility:</b> Removed <code>until-build</code> version cap — plugin now supports all future IDE versions without manual updates（<b>IDE 2026.1 兼容：</b>移除 <code>until-build</code> 版本上限，插件自动兼容所有未来 IDE 版本）</li>
+    <li><b>Usage Tutorial:</b> Added comprehensive usage tutorial covering all features, shortcuts, and workflows（<b>使用教程：</b>新增完整使用教程，涵盖所有功能、快捷键和工作流程）</li>
+</ul>
+<h1>3.7.2</h1>
+<ul>
+    <li><b>Diff Preview:</b> Double-click any file in merge preview to view line-level local vs remote diff（<b>差异预览：</b>合并预览中双击文件即可查看本地与远端行级差异）</li>
+    <li><b>AI Config Auto-Sync:</b> Auto-push on file change with remote conflict detection. Conflicts show a modal dialog with Pull/Force Push/Cancel actions, same pattern as topic sync（<b>AI 配置自动同步：</b>文件变更自动推送，含远端冲突检测。冲突时弹出模态对话框，支持拉取/强制推送/取消操作，与笔记同步冲突对话框一致）</li>
+    <li><b>Custom AI Tool Types:</b> Register custom AI tools (e.g., Amazon Q) with custom paths at runtime（<b>自定义 AI 工具类型：</b>运行时注册自定义 AI 工具及路径）</li>
+    <li><b>Pull Notification:</b> Pull results shown as balloon notification instead of modal dialog（<b>拉取通知：</b>拉取结果以气泡通知替代弹窗）</li>
+    <li><b>Fix:</b> Binary file sync corruption; AI config not updating after pull; incorrect pull success report（<b>修复：</b>二进制文件同步损坏；拉取后配置未更新；拉取结果误报成功）</li>
+</ul>
+<h1>3.7.1</h1>
+<ul>
+    <li><b>AI Config Merge Pull:</b> Pull now shows a per-file merge preview dialog with three-way hash comparison (local/remote/base). Files are categorized as New, Deleted, Remote Changed, Local Changed, Both Changed, or Unchanged — each with smart default actions. Bulk "Accept All Remote" / "Keep All Local" buttons for quick decisions（<b>AI 配置合并拉取：</b>拉取时显示逐文件合并预览对话框，基于三方哈希比较。文件分类为新增、已删除、远端修改、本地修改、双方修改或无变化，每类带智能默认操作。支持批量"全部使用远端"/"全部保留本地"）</li>
+    <li><b>AI Skeleton Creator:</b> "New AI Config" replaced with ".ai/ Skeleton Creator" — creates directory structures only (no files). Includes preset templates (Custom/Minimal/Standard/Full) and a collapsible Quick Reference guide explaining each directory's purpose（<b>AI 骨架创建器：</b>"新建 AI 配置"替换为".ai/ 骨架创建器"— 仅创建目录结构。内含预设模板（自定义/最小/标准/完整）和可折叠快速参考指南）</li>
+    <li><b>Fix:</b> Split expand/collapse toggle into two separate buttons to fix unreliable state detection（<b>修复：</b>将展开/收缩切换拆分为两个独立按钮，修复状态检测不可靠的问题）</li>
+    <li><b>Fix:</b> Improved skeleton folder creation speed by forcing VFS refresh before rescan（<b>修复：</b>通过强制 VFS 刷新提升骨架文件夹创建速度）</li>
+</ul>
 <h1>3.7.0</h1>
 <ul>
     <li><b>AI Workspace:</b> New dedicated tab for managing AI config files (Cursor Rules, Claude, Windsurf, Codex, Copilot) with hierarchical file tree, sync status indicators (NEW/MODIFIED/SYNCED), and per-file checkbox tracking（<b>AI 工作空间：</b>新增独立标签页管理 AI 配置文件，提供层级文件树、同步状态标记和逐文件追踪复选框）</li>
     <li><b>Independent AI Config Sync:</b> Push/pull AI config files independently from code notes with incremental MD5-based change detection — only changed files are pushed（<b>独立 AI 配置同步：</b>AI 配置推送/拉取独立于代码笔记，基于 MD5 增量推送，仅推送变更文件）</li>
-    <li><b>Detailed Push Reports:</b> Every push shows a structured report dialog with summary statistics and collapsible detail sections (pushed, skipped, failed with reasons, deleted, empty dirs). Force Push button integrated directly in the report（<b>详细推送报告：</b>每次推送弹出结构化报告，含汇总统计和可折叠详情（已推送、已跳过、失败原因、已删除、空目录），强制推送按钮集成在报告中）</li>
-    <li><b>Force Push:</b> Force push re-uploads all tracked files regardless of MD5 status — available directly from the push report dialog（<b>强制推送：</b>强制推送忽略 MD5 重新上传所有追踪文件，直接从推送报告中触发）</li>
-    <li><b>Remote Deletion:</b> Untracking files and pushing now deletes them from remote; tracking state changes (add/remove) are detected and trigger appropriate add/delete operations（<b>远端删除：</b>取消追踪后推送自动从远端删除；追踪状态变更（新增/移除）被检测并触发相应操作）</li>
-    <li><b>Empty Directory Sync:</b> Check empty directories in the tree to sync them as .gitkeep placeholders on remote. Unchecking removes them. State persisted across IDE restarts（<b>空目录同步：</b>在树中勾选空目录将作为 .gitkeep 同步到远端，取消勾选则删除，状态跨重启持久化）</li>
     <li><b>Cross-Platform Workspace State:</b> Tracked entries, custom paths, ignore patterns, push hashes, and empty dir tracking are synced as metadata — share your full workspace configuration across machines（<b>跨平台工作空间状态：</b>追踪条目、自定义路径、忽略规则、推送哈希和空目录追踪作为元数据同步，多设备共享完整工作空间配置）</li>
-    <li><b>Smart Error Messages:</b> GitHub API errors are parsed and classified (HTTP status, actionable advice). HTML responses stripped and decoded. Errors labeled as remote vs. local（<b>智能错误提示：</b>GitHub API 错误被解析分类（HTTP 状态码、可操作建议），HTML 响应自动清理解码，区分远端/本地错误）</li>
-    <li><b>URL Encoding:</b> Non-ASCII characters (e.g., Chinese) in file paths are properly URL-encoded for GitHub API calls（<b>URL 编码：</b>文件路径中的非 ASCII 字符（如中文）正确 URL 编码）</li>
     <li><b>Adaptive Expand/Collapse:</b> Single toggle button that auto-detects tree state — shows "Collapse" when any node is expanded, "Expand" when all collapsed（<b>自适应展开/收缩：</b>单一切换按钮自动检测树状态 — 有展开节点时显示收缩，全部折叠时显示展开）</li>
     <li><b>Configurable Ignore Rules:</b> .gitignore-style ignore patterns for AI workspace with built-in + user-configurable rules（<b>可配置忽略规则：</b>AI 工作空间类似 .gitignore 的忽略规则，内置 + 用户自定义）</li>
     <li><b>Quick Create & Custom Paths:</b> One-click AI config creation with skeleton content; track any directory beyond built-in defaults（<b>快速新建 & 自定义路径：</b>一键创建 AI 配置文件并生成骨架内容；追踪默认路径之外的任意目录）</li>
     <li><b>Bilingual Help Docs:</b> All help documentation includes both English and Chinese（<b>双语帮助文档：</b>所有帮助文档含英文和中文）</li>
     <li><b>Bug Fix:</b> Fixed gutter icons showing TopicLine marks from other files in the same topic — now only marks for the current file are displayed（<b>Bug 修复：</b>修复 Gutter 图标错误显示同 Topic 其他文件的标记 — 现仅显示当前文件的标记）</li>
-    <li><b>Bug Fix:</b> Fixed checkbox tree propagation — unchecking a single file no longer unchecks parent and sibling files（<b>Bug 修复：</b>修复复选框树传播逻辑 — 取消单个文件不再影响父目录和兄弟文件）</li>
-    <li><b>Bug Fix:</b> Fixed tracked state persistence across IDE restarts（<b>Bug 修复：</b>修复追踪状态持久化，重启后保留）</li>
-    <li><b>Bug Fix:</b> Fixed pull metadata application order — remote configuration now applies correctly after pull and rescan（<b>Bug 修复：</b>修复拉取元数据应用顺序，远端配置在拉取和重扫描后正确生效）</li>
 </ul>
 <h1>3.6.9</h1>
 <ul>

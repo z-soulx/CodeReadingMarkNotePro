@@ -41,6 +41,9 @@ public class ExportAction extends CommonAnAction
         );
     }
 
+    private java.util.function.Supplier<jp.kitabatakep.intellij.plugins.codereadingnote.TopicList> selection;
+    public ExportAction(java.util.function.Supplier<jp.kitabatakep.intellij.plugins.codereadingnote.TopicList> selection) { this(); this.selection = selection; }
+
     @Override
     public void update(@NotNull AnActionEvent e) {
         e.getPresentation().setEnabled(e.getProject() != null);
@@ -49,6 +52,9 @@ public class ExportAction extends CommonAnAction
     @Override
     public void actionPerformed(@NotNull AnActionEvent e)
     {
+        jp.kitabatakep.intellij.plugins.codereadingnote.TopicList target = jp.kitabatakep.intellij.plugins.codereadingnote.ui.WorkspaceProjectChooser.choose(e.getProject(), selection);
+        if (target == null || !jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesCoordinator.getInstance().canEdit(target)) return;
+
         Project project = e.getProject();
         CodeReadingNoteService service = CodeReadingNoteService.getInstance(project);
         FileSaverDescriptor fsd = new FileSaverDescriptor(
@@ -96,9 +102,9 @@ public class ExportAction extends CommonAnAction
 
 //        XMLOutputter xmlOutput = new XMLOutputter();
 //        xmlOutput.setFormat(Format.getPrettyFormat());
-        Element state = TopicListExporter.export(service.getTopicList().iterator());
-        try {
-            JDOMUtil.write(new Document(state), fileOutputStream);
+        Element state = TopicListExporter.export(target.iterator(), target.getTrashedLines());
+        try (FileOutputStream output = fileOutputStream) {
+            JDOMUtil.write(new Document(state), output);
 //            xmlOutput.output(new Document(state), fileOutputStream);
         } catch (IOException ex) {
             ex.printStackTrace();

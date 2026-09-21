@@ -24,6 +24,44 @@ import java.util.stream.Collectors;
 public class BookmarkUtils {
     private static final Logger LOG = Logger.getInstance(BookmarkUtils.class);
     public static Bookmark addBookmark(Project project, @NotNull VirtualFile file, int line, String note, String uid) {
+        return addBookmark(project, file, line, note, uid, AppConstants.appName);
+    }
+
+    public static String groupName(Project project, jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NoteProjectContext context) {
+        return context.root().equals(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceDiscovery.identity(java.nio.file.Path.of(project.getBasePath())))
+                ? AppConstants.appName : AppConstants.appName + " [" + context.id() + "]";
+    }
+
+    public static Bookmark addBookmark(Project project, TopicLine line) {
+        if (!line.isValid()) return null;
+        return addBookmark(project, line.file(), line.line(), line.note(), line.getBookmarkUid(), groupName(project, line.topic().context()));
+    }
+
+    public static void updateBookmarkDescription(Project project, TopicLine line, String description) {
+        BookmarkGroup group = BookmarksManager.getInstance(project).getGroup(groupName(project, line.topic().context()));
+        Bookmark bookmark = machBookmark(line, group);
+        if (bookmark != null) group.setDescription(bookmark, description + "$" + line.getBookmarkUid());
+    }
+
+    /** Remove only this workspace's owned links, including edits made through another open window. */
+    public static void pruneWorkspaceBookmarks(Project project, jp.kitabatakep.intellij.plugins.codereadingnote.TopicList list) {
+        if (list.context().root().equals(jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceDiscovery.identity(java.nio.file.Path.of(project.getBasePath())))) return;
+        BookmarkGroup group = BookmarksManager.getInstance(project).getGroup(groupName(project, list.context()));
+        if (group == null) return;
+        for (Bookmark bookmark : new java.util.ArrayList<>(group.getBookmarks())) {
+            String uid = StringUtils.extractUUID(group.getDescription(bookmark));
+            if (uid == null) continue;
+            boolean exists = list.getTopics().stream().flatMap(topic -> topic.getLines().stream()).anyMatch(line -> {
+                String url = line.inProject() ? com.intellij.openapi.vfs.VfsUtilCore.pathToUrl(
+                        jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.NotePaths.resolve(list.context().root(), line.relativePath()).toString()) : line.url();
+                return uid.equals(line.getBookmarkUid()) && url.equals(bookmark.getAttributes().get("url"));
+            });
+            if (!exists) group.remove(bookmark);
+        }
+    }
+
+    private static Bookmark addBookmark(Project project, VirtualFile file, int line, String note, String uid, String groupName) {
+        if (file == null || !file.isValid() || line < 0) return null;
 
         Document document = FileDocumentManager.getInstance().getDocument(file);
 
@@ -45,11 +83,11 @@ public class BookmarkUtils {
                 return null;
             }
             
-            if(null == instance.getGroup(AppConstants.appName)) {
-                instance.addGroup(AppConstants.appName, false);
+            if(null == instance.getGroup(groupName)) {
+                instance.addGroup(groupName, false);
             }
             
-            instance.getGroup(AppConstants.appName).add(bookmark1, BookmarkType.DEFAULT, bookmark.getDescription());
+            instance.getGroup(groupName).add(bookmark1, BookmarkType.DEFAULT, bookmark.getDescription());
             
             return bookmark1;
             // 执行自定义逻辑
@@ -79,7 +117,8 @@ public class BookmarkUtils {
             String description = group.getDescription(bookmark);
             String bookmarkUuid = StringUtils.extractUUID(description);
             
-            if (bookmarkUuid != null && bookmarkUuid.equals(targetUuid)) {
+            if (bookmarkUuid != null && bookmarkUuid.equals(targetUuid)
+                    && _topicLine.file() != null && _topicLine.file().getUrl().equals(bookmark.getAttributes().get("url"))) {
                 return bookmark;
             }
         }
@@ -89,13 +128,13 @@ public class BookmarkUtils {
     }
 
     public static Bookmark machBookmark(TopicLine _topicLine, Project project) {
-        BookmarkGroup group = BookmarksManager.getInstance(project).getGroup(AppConstants.appName);
+        BookmarkGroup group = BookmarksManager.getInstance(project).getGroup(groupName(project, _topicLine.topic().context()));
         Bookmark bookmark = BookmarkUtils.machBookmark(_topicLine, group);
         return bookmark;
     }
     public static  boolean removeMachBookmark(TopicLine _topicLine, Project project) {
         BookmarksManager manager = BookmarksManager.getInstance(project);
-        BookmarkGroup group = manager.getGroup(AppConstants.appName);
+        BookmarkGroup group = manager.getGroup(groupName(project, _topicLine.topic().context()));
         Bookmark bookmark = machBookmark(_topicLine, group);
         
         if (bookmark != null) {
@@ -123,7 +162,7 @@ public class BookmarkUtils {
     @NotNull
     public static Consumer<TopicLine> consumerLine(Map<String, Bookmark> collect) {
         return topicLine -> {
-            Bookmark bookmark = collect.get(topicLine.getBookmarkUid());
+            Bookmark bookmark = collect.get(topicLine.runtimeId());
             if (bookmark != null) {
                 String newline = bookmark.getAttributes().get("line").toString();
                 if (StringUtils.isNotEmpty(newline) && !newline.equals(String.valueOf(topicLine.line()))) {
@@ -134,20 +173,17 @@ public class BookmarkUtils {
     }
     @NotNull
     public static Map<String, Bookmark> getStringBookmarkMap(Project project) {
-        List<Bookmark> allBookmark = BookmarkUtils.getAllBookmark(project);
-        BookmarkGroup group = BookmarkUtils.getGroup(project);
-        if (allBookmark == null || group == null) {
-            return java.util.Collections.emptyMap();
+        Map<String, Bookmark> result = new java.util.HashMap<>();
+        for (var list : jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).projects()) {
+            BookmarkGroup group = BookmarksManager.getInstance(project).getGroup(groupName(project, list.context()));
+            if (group == null) continue;
+            for (var topic : list.getTopics()) for (TopicLine line : topic.getLines()) {
+                Bookmark match = machBookmark(line, group);
+                if (match != null) result.put(line.runtimeId(), match);
+            }
         }
-        return allBookmark.stream()
-                .filter(b -> StringUtils.extractUUID(group.getDescription(b)) != null)
-                .collect(Collectors.toMap(
-                        r -> StringUtils.extractUUID(group.getDescription(r)),
-                        value -> value,
-                        (existing, replacement) -> existing  // 处理重复键：保留已存在的
-                ));
+        return result;
     }
-    
     /**
      * Check if a bookmark already exists at the specified line in the file.
      * Uses native bookmark attributes ("url" and "line") to detect duplicates.
@@ -192,7 +228,7 @@ public class BookmarkUtils {
     public static boolean hasTopicLineAtSameFileLine(@NotNull Project project, @NotNull VirtualFile file, int line) {
         jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService service = 
                 jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteService.getInstance(project);
-        java.util.Iterator<jp.kitabatakep.intellij.plugins.codereadingnote.Topic> iterator = service.getTopicList().iterator();
+        java.util.Iterator<jp.kitabatakep.intellij.plugins.codereadingnote.Topic> iterator = jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).forFile(file).iterator();
         while (iterator.hasNext()) {
             jp.kitabatakep.intellij.plugins.codereadingnote.Topic topic = iterator.next();
             for (TopicLine tl : topic.getLines()) {
