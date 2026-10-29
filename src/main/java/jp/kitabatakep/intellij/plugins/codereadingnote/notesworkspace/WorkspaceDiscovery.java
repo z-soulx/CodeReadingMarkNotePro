@@ -16,21 +16,26 @@ public final class WorkspaceDiscovery {
         Set<Path> candidates = new TreeSet<>();
         candidates.add(root);
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
+            private void addProject(Path path) {
+                try {
+                    if (isProjectRoot(path)) candidates.add(path.toAbsolutePath().normalize());
+                } catch (IOException error) { errors.accept(path, error); }
+            }
             @Override public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
                 if (Thread.currentThread().isInterrupted()) return FileVisitResult.TERMINATE;
                 if (!dir.equals(root) && EXCLUDED.contains(dir.getFileName().toString())) return FileVisitResult.SKIP_SUBTREE;
                 if (!dir.equals(root) && isLink(dir)) {
-                    if (isProjectRoot(dir)) candidates.add(dir.toAbsolutePath().normalize());
+                    addProject(dir);
                     return FileVisitResult.SKIP_SUBTREE;
                 }
-                if (isProjectRoot(dir)) candidates.add(dir.toAbsolutePath().normalize());
+                if (!dir.equals(root)) addProject(dir);
                 return FileVisitResult.CONTINUE;
             }
             @Override public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 // Unix symbolic links are files when the tree is walked without FOLLOW_LINKS.
                 if (Files.isSymbolicLink(file) && !EXCLUDED.contains(file.getFileName().toString())
-                        && Files.isDirectory(file) && isProjectRoot(file)) {
-                    candidates.add(file.toAbsolutePath().normalize());
+                        && Files.isDirectory(file)) {
+                    addProject(file);
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -47,7 +52,8 @@ public final class WorkspaceDiscovery {
     private static boolean isProjectRoot(Path path) throws IOException {
         Path idea = path.resolve(".idea");
         return Files.isDirectory(idea) && !isDirectLink(idea)
-                && Files.isRegularFile(idea.resolve("CodeReadingNote.xml"), LinkOption.NOFOLLOW_LINKS);
+                && Files.isRegularFile(idea.resolve("CodeReadingNote.xml"), LinkOption.NOFOLLOW_LINKS)
+                && WorkspaceXmlStore.hasTopics(identity(path).resolve(".idea/CodeReadingNote.xml"));
     }
 
     private static boolean isDirectLink(Path path) throws IOException {

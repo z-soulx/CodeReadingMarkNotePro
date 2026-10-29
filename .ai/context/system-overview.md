@@ -26,7 +26,7 @@ notes in a recoverable trash bin.
 ## Components
 
 Workspace notes (3.7.7): `notesworkspace.WorkspaceNotesService` discovers nested projects with an
-existing `.idea/CodeReadingNote.xml` and
+nonempty `.idea/CodeReadingNote.xml` topic collections and
 direct linked project roots while retaining workspace-relative aliases; `WorkspaceNotesCoordinator`
 shares data per real filesystem root across aliases and open windows; `WorkspaceXmlStore`
 stores child XML with conflict detection and atomic replacement. `NoteProjectContext` carries runtime
@@ -39,7 +39,7 @@ the IDEA configuration directory's `CodeReadingNote/workspace-recovery/`.
 | Domain | `Topic`, `TopicLine`, `TopicList`, `TrashedLine` | Business entities and operations |
 | Sync | `WorkspaceNotesSyncCoordinator`, `NotesSyncBinding`, `NotesSyncDecision`, `NotesSyncSchedule`, `GitHubNotesRemote`; root `SyncService` facade | Per-project manual/bidirectional notes sync, baseline comparison, conditional SHA writes; AI uses existing provider channel |
 | AI Config | `AIConfigService`, `AIConfigRegistry`, `AIConfigSyncAdapter`, `AIConfigAutoSyncScheduler`, `AIConfigMergeAnalyzer` | AI config discovery, tracking, independent sync, three-way merge |
-| AI Workspace | `AIWorkspaceService`, `AIWorkspaceGitService`, `AIWorkspaceVcsSupport`, `AIWorkspaceChangeListService`, `AIWorkspaceVersionService`, `AIWorkspaceCommandService` | `.ai/docs` knowledge workspace, opt-in `.ai` Git, parent `/.ai/` ignore and untrack, IDEA Directory Mapping + `.ai` changelist + native Commit UI, Semver VERSION, Terminal or silent-unfocused Terminal commands with IDEA file macros |
+| AI Workspace | `AIWorkspaceService`, `AIWorkspaceGitService`, `AIWorkspaceVcsSupport`, `AIWorkspaceChangeListService`, `AIWorkspaceVersionService`, `AIWorkspaceCommandService` | `.ai/docs` knowledge workspace, opt-in `.ai` Git without changing parent ignore/index, IDEA Directory Mapping + `.ai` changelist + native Commit UI, Semver VERSION, Terminal or silent-unfocused Terminal commands with IDEA file macros |
 | UI | `ManagementPanel`, `TopicDetailPanel`, `AIWorkspacePanel`, `PushReportDialog` | ToolWindow panels (tabs: tree / search / AI workspace) |
 | Gutter | `NoteGutterIconRenderer`, `NotePopupHelper` | Custom gutter icon + interactive edit popup |
 | Actions | `TopicLineAddAction`, `NavigateToNoteAction`, etc. | User operations |

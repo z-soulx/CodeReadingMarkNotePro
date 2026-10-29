@@ -43,6 +43,7 @@ public class CodeReadingNoteService implements PersistentStateComponent<Element>
     private Element failedState;
     private volatile boolean rootDataModified;
     public void workspaceDataModified() { onDataModified(); }
+    public void workspaceDataReloaded() { failedState = null; rootDataModified = false; }
 
     String lastExportDir = "";
     String lastImportDir = "";

@@ -27,6 +27,7 @@ public final class WorkspaceNotesService implements Disposable {
     private volatile boolean disposed;
     private volatile boolean ready;
     private ScheduledFuture<?> refresh;
+    private boolean reloadRequested;
     private final java.util.Set<LocalFileSystem.WatchRequest> watches = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final java.util.Set<Path> watchedPaths = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private volatile Map<Path, Path> displayPaths = Map.of();
@@ -96,13 +97,31 @@ public final class WorkspaceNotesService implements Disposable {
         if (refresh != null) refresh.cancel(false);
         refresh = scanner.schedule(this::discover, 400, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
+    /** Refresh file references recursively, then rediscover projects and safely reload their notes. */
+    public void refreshAndReload() {
+        if (disposed || project.isDisposed()) return;
+        synchronized (this) { reloadRequested = true; }
+        Set<Path> roots = new LinkedHashSet<>(eventRoots);
+        roots.add(workspacePath);
+        List<VirtualFile> files = roots.stream()
+                .map(path -> LocalFileSystem.getInstance().findFileByNioFile(path))
+                .filter(Objects::nonNull).toList();
+        com.intellij.openapi.vfs.newvfs.RefreshQueue.getInstance().refresh(true, true, this::refresh, files);
+    }
     private void discover() {
         if (disposed) return;
+        boolean reload;
+        synchronized (this) { reload = reloadRequested; reloadRequested = false; }
         try {
             List<Path> logicalPaths = WorkspaceDiscovery.discover(workspacePath, (path, error) ->
                     WorkspaceNotesCoordinator.report(project, path, "workspace.scan.failed", error));
             Map<Path, Path> resolved = new LinkedHashMap<>();
             for (Path path : logicalPaths) resolved.putIfAbsent(WorkspaceDiscovery.identity(path), path.toAbsolutePath().normalize());
+            // Never hide unsaved edits or an unresolved conflict when the disk file disappears or becomes empty.
+            for (TopicList list : projects) if (coordinator.retainForRefresh(list)) {
+                Path path = list.context().root();
+                resolved.putIfAbsent(path, displayPaths.getOrDefault(path, path));
+            }
             List<Path> paths = List.copyOf(resolved.keySet());
             List<Path> observed = java.util.stream.Stream.concat(resolved.keySet().stream(), resolved.values().stream()).distinct().toList();
             for (Map.Entry<Path, Path> entry : resolved.entrySet()) if (!entry.getKey().equals(entry.getValue())) watch(entry.getKey());
@@ -119,13 +138,13 @@ public final class WorkspaceNotesService implements Disposable {
                 found.add(coordinator.acquire(project, path));
                 LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path.resolve(".idea"));
                 LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path.resolve(".idea/CodeReadingNote.xml"));
-                coordinator.refresh(project, path);
             }
-            ApplicationManager.getApplication().invokeLater(() -> {
+            coordinator.refreshAll(project, paths, reload, () -> {
                 if (disposed || project.isDisposed()) return;
                 displayPaths = Map.copyOf(resolved);
                 eventRoots = observed;
-                projects = List.copyOf(found);
+                projects = found.stream().filter(list -> list.context().root().equals(root)
+                        || !list.getTopics().isEmpty() || coordinator.retainForRefresh(list)).toList();
                 ready = true;
                 project.getMessageBus().syncPublisher(WorkspaceNotesNotifier.TOPIC).changed(projects.get(0).context());
             });

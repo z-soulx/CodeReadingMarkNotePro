@@ -23,10 +23,43 @@ public class WorkspaceDiscoveryTest {
         assertFalse(found.contains(root.resolve("empty")));
         assertFalse(Files.exists(root.resolve("empty/.idea/CodeReadingNote.xml")));
         Path notes = root.resolve("empty/.idea/CodeReadingNote.xml");
-        Files.writeString(notes, "<topics/>");
+        createNotesProject(root.resolve("empty"));
         assertTrue(WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())).contains(root.resolve("empty")));
         Files.delete(notes);
         assertFalse(WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())).contains(root.resolve("empty")));
+    }
+    @Test public void emptyNotesFilesAndMissingTopicContainersAreNotProjects() throws Exception {
+        Path root = temporary.getRoot().toPath();
+        List<String> empty = List.of("", " \n\t", "<project/>",
+                "<project><component name='Other'><topics><topic/></topics></component></project>",
+                "<project><component name='CodeReadingNote'/></project>",
+                "<CodeReadingNote><topics/></CodeReadingNote>",
+                "<component name='CodeReadingNote'><topics><trash/><extension/></topics></component>");
+        for (int i = 0; i < empty.size(); i++) {
+            Path child = createNotesProject(root.resolve("empty" + i));
+            Files.writeString(child.resolve(".idea/CodeReadingNote.xml"), empty.get(i));
+        }
+        Path nonempty = createNotesProject(root.resolve("with-topic-no-lines"));
+        assertEquals(List.of(root, nonempty), WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())));
+    }
+    @Test public void rescanningDetectsAddedClearedAndRestoredTopics() throws Exception {
+        Path root = temporary.getRoot().toPath();
+        Path child = createNotesProject(root.resolve("child"));
+        Path notes = child.resolve(".idea/CodeReadingNote.xml");
+        assertEquals(List.of(root, child), WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())));
+        Files.writeString(notes, "<CodeReadingNote><topics><trash/></topics></CodeReadingNote>");
+        assertEquals(List.of(root), WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())));
+        createNotesProject(child);
+        assertEquals(List.of(root, child), WorkspaceDiscovery.discover(root, (path, error) -> fail(error.toString())));
+    }
+    @Test public void malformedChildIsReportedWithoutHidingValidSiblings() throws Exception {
+        Path root = temporary.getRoot().toPath();
+        Path bad = createNotesProject(root.resolve("bad"));
+        Files.writeString(bad.resolve(".idea/CodeReadingNote.xml"), "<broken");
+        Path good = createNotesProject(root.resolve("good"));
+        List<Path> errors = new ArrayList<>();
+        assertEquals(List.of(root, good), WorkspaceDiscovery.discover(root, (path, error) -> errors.add(path)));
+        assertEquals(List.of(bad), errors);
     }
     @Test public void closestRootOwnsFilesWithIdenticalRelativeNames() {
         Path root = temporary.getRoot().toPath();
@@ -69,7 +102,8 @@ public class WorkspaceDiscoveryTest {
         Path emptyProject = temporary.newFolder("empty-project").toPath();
         createNotesProject(project);
         createNotesProject(container.resolve("nested"));
-        Files.createDirectories(emptyProject.resolve(".idea"));
+        createNotesProject(emptyProject);
+        Files.writeString(emptyProject.resolve(".idea/CodeReadingNote.xml"), "<CodeReadingNote><topics/></CodeReadingNote>");
         Path projectLink = createDirectoryLink(root.resolve("linked-project"), project);
         Path containerLink = createDirectoryLink(root.resolve("linked-container"), container);
         Path emptyLink = createDirectoryLink(root.resolve("linked-empty"), emptyProject);
@@ -105,7 +139,8 @@ public class WorkspaceDiscoveryTest {
     }
     private Path createNotesProject(Path root) throws Exception {
         Path notes = Files.createDirectories(root.resolve(".idea")).resolve("CodeReadingNote.xml");
-        Files.writeString(notes, "<topics/>");
+        Files.writeString(notes, "<project><component name='CodeReadingNote'><topics><topic><name>Topic</name>"
+                + "<updatedAt>2026-10-29 00:00:00</updatedAt></topic></topics></component></project>");
         return root;
     }
 }

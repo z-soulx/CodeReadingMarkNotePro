@@ -228,11 +228,82 @@ public final class WorkspaceNotesCoordinator implements Disposable {
         entry.viewers.add(project);
         return entry.list;
     }
+
+    boolean retainForRefresh(TopicList list) {
+        Entry entry = entries.get(list.context().root());
+        return entry != null && (entry.dirty || entry.conflict || entry.failed);
+    }
+
+    /** Discovery submits all IO to the same queue as saves; completion follows model application on EDT. */
+    void refreshAll(Project project, Collection<Path> roots, boolean reload, Runnable complete) {
+        // Capture on EDT before entering IO: project close waits for IO, so IO must never wait for EDT here.
+        ApplicationManager.getApplication().invokeLater(() -> {
+            if (project.isDisposed()) return;
+            Map<Path, ReloadSnapshot> snapshots = new HashMap<>();
+            if (reload) for (Path root : roots) {
+                Entry entry = entry(project, root);
+                if (entry.standalone != null && !entry.modelProject.isDisposed()) {
+                    try { snapshots.put(root, new ReloadSnapshot(TopicListExporter.export(entry.list), entry.revision.get())); }
+                    catch (Exception error) { report(entry, "workspace.load.failed", error); }
+                }
+            }
+            io.execute(() -> {
+                for (Path root : roots) {
+                    if (project.isDisposed()) return;
+                    ReloadSnapshot snapshot = snapshots.get(root);
+                    if (snapshot != null) refreshStandalone(entry(project, root), snapshot);
+                    else refresh(project, root);
+                }
+                ApplicationManager.getApplication().invokeLater(complete);
+            });
+        });
+    }
+
+    private record ReloadSnapshot(Element topics, long revision) {}
+
+    private void refreshStandalone(Entry entry, ReloadSnapshot snapshot) {
+        try {
+            synchronized (entry) {
+                if (entry.modelProject.isDisposed() || entry.reloading || entry.conflict) return;
+                Element topics = new WorkspaceXmlStore(entry.context.storage()).load();
+                String digest = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.NotesSyncXml.digest(topics);
+                String modelDigest = jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.NotesSyncXml.digest(snapshot.topics());
+                if (digest.equals(modelDigest)) {
+                    entry.store.load();
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        if (entry.revision.get() == snapshot.revision()) entry.dirty = false;
+                    });
+                    return;
+                }
+                if (entry.dirty || entry.revision.get() != snapshot.revision()) {
+                    // An older IDE save is expected while edits are pending. Unknown disk data is a conflict.
+                    if (!entry.rootSerialized.contains(digest)) {
+                        entry.store.load();
+                        preserve(entry, snapshot.topics());
+                        conflict(entry);
+                    }
+                    return;
+                }
+                entry.reloading = true;
+                topics = entry.store.load();
+                if (!digest.equals(jp.kitabatakep.intellij.plugins.codereadingnote.sync.workspace.NotesSyncXml.digest(topics))) {
+                    entry.reloading = false;
+                    conflict(entry);
+                    return;
+                }
+                applyLater(entry, topics, false, snapshot.revision(), true);
+            }
+        } catch (Exception error) {
+            entry.reloading = false;
+            entry.failed = true;
+            report(entry, "workspace.load.failed", error);
+        }
+    }
     /** Runs on the serial IO queue. Applying models and reading live model snapshots always uses EDT. */
     void refresh(Project project, Path root) {
         Entry entry = entry(project, root);
         synchronized (entry) {
-            if (entry.standalone != null || project.isDisposed()) return;
+            if (entry.standalone != null || project.isDisposed() || entry.reloading || entry.conflict) return;
             try {
                 if (entry.dirty) {
                     if (entry.store.externallyChanged()) conflict(entry);
@@ -252,9 +323,12 @@ public final class WorkspaceNotesCoordinator implements Disposable {
         }
     }
     private void applyLater(Entry entry, Element topics, boolean reload, long revision) {
+        applyLater(entry, topics, reload, revision, reload);
+    }
+    private void applyLater(Entry entry, Element topics, boolean reload, long revision, boolean allowStandalone) {
         ApplicationManager.getApplication().invokeLater(() -> {
             entry.reloading = false;
-            if (entry.modelProject.isDisposed() || entry.standalone != null && !reload) return;
+            if (entry.modelProject.isDisposed() || entry.standalone != null && !allowStandalone) return;
             if (entry.revision.get() != revision || entry.dirty && !reload) {
                 entry.conflict = false;
                 conflict(entry);
@@ -266,7 +340,13 @@ public final class WorkspaceNotesCoordinator implements Disposable {
                 entry.list.setTopics(imported);
                 entry.list.setTrashedLines(trash);
                 entry.list.setXmlTemplate(topics);
-                if (entry.standalone != null) { entry.rootSerialized.clear(); rootSerialized(entry.list, topics); }
+                entry.revision.incrementAndGet();
+                if (entry.standalone != null) {
+                    entry.rootSerialized.clear(); rootSerialized(entry.list, topics);
+                    entry.rootHadDisk = Files.exists(entry.context.storage());
+                    CodeReadingNoteService service = CodeReadingNoteService.getInstance(entry.standalone);
+                    if (service != null) service.workspaceDataReloaded();
+                }
                 entry.loaded = true;
                 entry.failed = false;
                 entry.dirty = false;

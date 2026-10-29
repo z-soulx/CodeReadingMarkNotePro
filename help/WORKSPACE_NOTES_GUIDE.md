@@ -1,8 +1,8 @@
 # 多项目工作空间笔记 / Workspace Notes
 
-在 IDEA 中打开包含多个项目的父目录。插件会自动发现各层实际存在 `.idea/CodeReadingNote.xml` 的子目录，加载它们的主题、分组、笔记和回收站，无需逐个打开或导入。只有 `.idea` 而没有插件笔记文件的目录不会显示为笔记子项目。
+在 IDEA 中打开包含多个项目的父目录。插件会自动发现各层 `.idea/CodeReadingNote.xml` 中含有主题的子目录，加载它们的主题、分组、笔记和回收站，无需逐个打开或导入。只有 `.idea`、笔记文件缺失或为空、XML 中没有任何主题的子目录不会显示为笔记子项目。主题没有笔记行也会加载，根项目始终保留。
 
-Open the parent directory in IDEA. The plugin discovers nested directories that already contain `.idea/CodeReadingNote.xml` and loads their topics, groups, notes, and trash without opening additional IDE projects. A directory with only `.idea` is not shown as a note project.
+Open the parent directory in IDEA. The plugin discovers nested directories whose `.idea/CodeReadingNote.xml` contains topics and loads their topics, groups, notes, and trash without opening additional IDE projects. Children with missing or empty notes files, or XML with no topics, are not shown as note projects. A topic without note lines still counts; the root project remains available.
 
 ```text
 工作空间 / Workspace
@@ -14,9 +14,9 @@ Open the parent directory in IDEA. The plugin discovers nested directories that 
    └─ Topics → Groups → Notes
 ```
 
-同名主题属于各自项目；同名目录通过相对路径区分。没有笔记子项目时保持单项目视图。子项目需先实际存在插件笔记文件才会被发现。
+同名主题属于各自项目；同名目录通过相对路径区分。没有笔记子项目时保持单项目视图。子项目需先在插件笔记文件中有主题才会被发现。
 
-Identical topic names stay separate. Relative project paths distinguish directories with the same name. With no discovered note projects, the original single-project view remains. A child project appears only after its plugin notes file exists.
+Identical topic names stay separate. Relative project paths distinguish directories with the same name. With no discovered note projects, the original single-project view remains. A child project appears once its plugin notes file contains a topic.
 
 ## 日常操作 / Everyday use
 
@@ -24,9 +24,9 @@ Identical topic names stay separate. Relative project paths distinguish director
 2. 编辑器 `Alt+M` 根据代码文件最近的项目根选择归属；该项目没有主题时先提示创建主题。根目录直属文件属于根项目。
 3. 搜索覆盖工作空间全部笔记，结果显示来源项目。双击结果或树中笔记在当前 IDEA 窗口打开代码。左侧行标记及弹窗可直接编辑来源笔记。
 4. 删除笔记后，在所属项目的回收站右键恢复或永久删除。移动笔记和主题限于同一项目。
-5. 目录或笔记文件变化会自动刷新，也可点击工具栏“刷新工作空间”。代码文件暂时缺失时，笔记保留并显示无法定位，文件恢复后可继续跳转。
+5. 目录或笔记文件变化会自动刷新，也可点击工具栏“刷新并重新加载工作空间”，刷新文件引用、重新扫描项目并加载磁盘笔记（含当前根项目）。清空主题的子项目会从列表移除；有未保存修改或冲突时保留数据并提示处理。代码文件暂时缺失时，笔记保留并显示无法定位，文件恢复后可继续跳转。
 
-Select a project or one of its notes before creating topics, importing, or exporting. `Alt+M` uses the nearest project root for the code file. Search spans all note projects and shows each result's source. Tree navigation and gutter editing use the current IDEA window. Trash and moves stay within their owning project. Use **Refresh Workspace** to rescan after directory or file changes.
+Select a project or one of its notes before creating topics, importing, or exporting. `Alt+M` uses the nearest project root for the code file. Search spans all note projects and shows each result's source. Tree navigation and gutter editing use the current IDEA window. Trash and moves stay within their owning project. Use **Refresh and Reload Workspace** to refresh file references, rescan projects and reload notes from disk, including the current root. Cleared child projects leave the list; pending edits and conflicts are preserved.
 
 扫描跳过 `.git`、`.idea` 内部、`node_modules`、`build`、`target`、`out`、`.gradle`。直接链接到含 `.idea/CodeReadingNote.xml` 项目根的 macOS/Linux 符号链接和 Windows junction 会显示为独立项目；普通链接目录不会递归扫描。同一真实项目存在多个 link 时只加载一次，并使用排序靠前的 workspace 相对名称显示。
 

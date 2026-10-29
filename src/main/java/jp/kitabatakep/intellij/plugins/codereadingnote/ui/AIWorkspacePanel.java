@@ -869,14 +869,11 @@ public class AIWorkspacePanel extends JPanel {
                         return;
                     }
                     showNativeGitUi();
-                    if (result.untrackedFromParent) AIWorkspaceVcsSupport.notifyParentUntracked(project);
                     updateStatus();
                 }
             });
             return;
         }
-        AIWorkspaceGitService.GitResult isolation = git.ensureParentIsolation();
-        if (isolation.untrackedFromParent) AIWorkspaceVcsSupport.notifyParentUntracked(project);
         showNativeGitUi();
     }
 

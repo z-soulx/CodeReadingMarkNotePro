@@ -244,7 +244,7 @@ public class ManagementPanel extends JPanel
         DefaultActionGroup actions = new DefaultActionGroup();
         actions.add(new AnAction(() -> CodeReadingNoteBundle.message("workspace.refresh"), AllIcons.Actions.Refresh) {
             @Override public void actionPerformed(@org.jetbrains.annotations.NotNull AnActionEvent event) {
-                jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).refresh();
+                jp.kitabatakep.intellij.plugins.codereadingnote.notesworkspace.WorkspaceNotesService.getInstance(project).refreshAndReload();
             }
         });
         actions.add(new TopicAddAction(topicTreePanel::getSelectedProjectList));

@@ -91,7 +91,7 @@
 # 3.7.5 .ai Git UI 发布检查
 
 - 确认 `build.gradle` 与 `plugin.xml` 版本均为 `3.7.5`。
-- 初始化 `.ai` Git 后项目根 `.gitignore` 含 `/.ai/`，父仓库 Commit 不再把 `.ai/**` 列为未跟踪文件。
+- 当前版本验收：启动、初始化及打开 `.ai` Git 均不修改父仓库 `.gitignore` 或索引；历史忽略规则不自动删除（已取消 3.7.5 的自动隔离行为）。
 - Directory Mappings 含 `.ai` → Git；重新打开项目后 mapping 仍在。
 - 工具栏只有一个 Git 按钮：未初始化则 init 并打开 Commit，已初始化则打开。第一次之后 IDEA 自己的 Commit 窗口也会一直有 `.ai` mapping。
 - 发布前确认 `changeNotes.html` 含 3.7.5，并运行 `./gradlew test`。

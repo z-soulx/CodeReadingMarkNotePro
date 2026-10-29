@@ -31,8 +31,8 @@ watch root，监听目录/文件变化并防抖扫描。订阅和 watch 随服�
 `SyncStartupActivity` 实现 `ProjectActivity`（不再使用已过时的 `StartupActivity`），
 注册在 `com.intellij.postStartupActivity`。3.7.7 将窗口注册到应用级 `WorkspaceNotesSyncCoordinator`，该服务根据各项目绑定和自动策略后台检查。根项目同步使用 `StoreUtil.saveSettings` 后验证磁盘；子项目同步使用共享串行 XML 存储，两者都以实际保存结果为准。
 
-`AIWorkspaceVcsStartupActivity` 同样是 `ProjectActivity`：只要存在 `.ai/` 目录，就确保项目根
-`.gitignore` 含 `/.ai/`，并把父仓库索引中的 `.ai` 路径 `git rm --cached`（不自动提交）。
+`AIWorkspaceVcsStartupActivity` 同样是 `ProjectActivity`：不改父仓库忽略规则或索引。
+笔记工具栏显式刷新先异步递归刷新 VFS，再串行读取磁盘笔记，在 EDT 应用模型并更新树和搜索。
 若 `.ai/.git` 已存在，再用 `ProjectLevelVcsManager.setDirectoryMappings` 登记 `.ai` → Git，
 并把 `.ai` 变更移到独立 changelist。打开 Commit UI 走平台 action `CheckinFiles`，不编译依赖 Git4Idea。
 

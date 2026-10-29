@@ -9,6 +9,10 @@
 
 工作空间按项目推拉及自动双向同步：见 [同步域](domain/sync/README.md) 和 [用户帮助](../help/WORKSPACE_NOTES_GUIDE.md)。变更验收记录见 `.ai/specs/202609-workspace-project-notes-sync/`。
 
+工作空间空数据过滤、刷新重载见 [笔记领域](domain/notes/README.md)；`.ai` Git 的用户控制范围见 [AI 配置工作台](domain/ai-config/README.md)。本次变更单元为 `.ai/specs/202610-workspace-refresh/`。
+
+3.7.9 发布验收记录见 `.ai/specs/202610-release-3-7-9/`，发布操作遵循 [发布指南](runbooks/release.md)。
+
 GitHub 已有文件更新和错误诊断见 [GitHub 同步边界](domain/sync/github.md)；issue #15 修复验收记录位于 `.ai/specs/202609-issue-15-existing-remote-push/`。
 
 发布时 JDK 选择及可选签名排障见 [发布指南](runbooks/release.md)；变更记录位于 `.ai/specs/202609-optional-publish-signing/`。

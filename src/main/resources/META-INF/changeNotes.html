@@ -1,5 +1,11 @@
 <html>
 <body>
+<h1>3.7.9</h1>
+<ul>
+    <li><b>Improvement:</b> The plugin no longer automatically ignores or untracks <code>.ai</code> in the parent Git repository. Existing ignore rules remain under your control. / <b>改进：</b>插件不再自动修改父仓库的忽略规则或取消跟踪 <code>.ai</code>，已有忽略规则由用户自行管理。</li>
+    <li><b>Bug Fix:</b> Child projects with empty notes files or no topics stay out of the workspace, even when <code>CodeReadingNote.xml</code> exists. Topics without note lines still load normally. / <b>问题修复：</b>即使存在 <code>CodeReadingNote.xml</code>，文件为空或没有任何主题的子项目也不再加载到工作空间；有主题但没有笔记行的项目仍正常加载。</li>
+    <li><b>Improvement:</b> Refresh now updates file references, rescans projects, and reloads notes from disk, including the current project. Unsaved edits and conflicting changes remain protected. / <b>改进：</b>刷新现在会更新文件引用、重新扫描项目并加载磁盘笔记，包括当前项目，同时保留未保存修改和冲突保护。</li>
+</ul>
 <h1>3.7.8</h1>
 <ul>
     <li><b>Bug Fix:</b> Workspace projects reached through macOS/Linux symbolic links or Windows junctions are now discovered and routed correctly. Multiple aliases to the same directory share one project state. / <b>问题修复：</b>现在可以正确发现并路由通过 macOS/Linux 符号链接或 Windows 目录联接访问的工作区项目；指向同一目录的多个别名共享同一份项目状态。</li>

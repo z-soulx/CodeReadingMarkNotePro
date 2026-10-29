@@ -1,8 +1,5 @@
 package jp.kitabatakep.intellij.plugins.codereadingnote.workspace;
 
-import com.intellij.notification.Notification;
-import com.intellij.notification.NotificationType;
-import com.intellij.notification.Notifications;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionPlaces;
 import com.intellij.openapi.actionSystem.ActionUiKind;
@@ -16,13 +13,11 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vcs.ProjectLevelVcsManager;
 import com.intellij.openapi.vcs.VcsDirectoryMapping;
-import com.intellij.openapi.vcs.changes.VcsDirtyScopeManager;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowId;
 import com.intellij.openapi.wm.ToolWindowManager;
-import jp.kitabatakep.intellij.plugins.codereadingnote.CodeReadingNoteBundle;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Path;
@@ -57,22 +52,6 @@ public final class AIWorkspaceVcsSupport {
         List<VcsDirectoryMapping> mappings = new ArrayList<>(vcsManager.getDirectoryMappings());
         mappings.add(new VcsDirectoryMapping(path, GIT_VCS_NAME));
         vcsManager.setDirectoryMappings(mappings);
-    }
-
-    public static void refreshParentVcs(@NotNull Project project) {
-        if (project.isDisposed()) return;
-        Path projectRoot = AIWorkspaceService.getInstance(project).getProjectRoot();
-        VirtualFile vf = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(projectRoot);
-        if (vf != null) VcsDirtyScopeManager.getInstance(project).dirDirtyRecursively(vf);
-    }
-
-    public static void notifyParentUntracked(@NotNull Project project) {
-        Notification notification = new Notification(
-                "CodeReadingNote.AIConfig",
-                CodeReadingNoteBundle.message("aiworkspace.git.parent.untracked.title"),
-                CodeReadingNoteBundle.message("aiworkspace.git.parent.untracked"),
-                NotificationType.INFORMATION);
-        Notifications.Bus.notify(notification, project);
     }
 
     public static boolean openCommitUi(@NotNull Project project) {

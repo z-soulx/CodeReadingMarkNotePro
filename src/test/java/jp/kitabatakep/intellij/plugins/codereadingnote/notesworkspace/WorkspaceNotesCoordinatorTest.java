@@ -11,7 +11,7 @@ import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import java.lang.reflect.Proxy;
 import java.nio.file.*;
-import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Queue;
 import static org.junit.Assert.*;
 
@@ -24,11 +24,24 @@ public class WorkspaceNotesCoordinatorTest {
     @Before public void setup() {
         applicationLifetime = Disposer.newDisposable();
         coordinator = new WorkspaceNotesCoordinator();
+        var language = new jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings();
+        language.setSelectedLanguage(jp.kitabatakep.intellij.plugins.codereadingnote.settings.PluginLanguage.ENGLISH);
+        MessageBus applicationBus = project(temporary.getRoot().toPath()).getMessageBus();
+        var notifications = new com.intellij.notification.NotificationsManager() {
+            @Override public void showNotification(com.intellij.notification.Notification notification, Project project) {}
+            @Override public void expire(com.intellij.notification.Notification notification) {}
+            @Override @SuppressWarnings("unchecked") public <T extends com.intellij.notification.Notification> T[] getNotificationsOfType(Class<T> type, Project project) {
+                return (T[]) java.lang.reflect.Array.newInstance(type, 0);
+            }
+        };
         Application application = (Application) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{Application.class}, (p, method, args) -> {
             if (method.getName().equals("invokeLater")) { edt.add((Runnable) args[0]); return null; }
             if (method.getName().equals("invokeAndWait")) { ((Runnable) args[0]).run(); return null; }
             if (method.getName().equals("isDispatchThread")) return true;
             if (method.getName().equals("getService") && args[0] == WorkspaceNotesCoordinator.class) return coordinator;
+            if (method.getName().equals("getService") && args[0] == jp.kitabatakep.intellij.plugins.codereadingnote.settings.LanguageSettings.class) return language;
+            if (method.getName().equals("getService") && args[0] == com.intellij.notification.NotificationsManager.class) return notifications;
+            if (method.getName().equals("getMessageBus")) return applicationBus;
             if (method.getReturnType() == boolean.class) return false;
             return null;
         });
@@ -38,8 +51,7 @@ public class WorkspaceNotesCoordinatorTest {
     private Project project(Path root) {
         MessageBus bus = (MessageBus) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{MessageBus.class}, (p, method, args) -> {
             if (method.getName().equals("syncPublisher")) {
-                Class<?> type = args[0] == TopicListNotifier.TOPIC_LIST_NOTIFIER_TOPIC ? TopicListNotifier.class
-                        : args[0] == TopicNotifier.TOPIC_NOTIFIER_TOPIC ? TopicNotifier.class : WorkspaceNotesNotifier.class;
+                Class<?> type = ((com.intellij.util.messages.Topic<?>) args[0]).getListenerClass();
                 return Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{type}, (p2, method2, args2) -> null);
             }
             return null;
@@ -51,10 +63,108 @@ public class WorkspaceNotesCoordinatorTest {
             case "hashCode" -> System.identityHashCode(p);
             case "equals" -> p == args[0];
             case "toString" -> root.toString();
-            default -> null;
+            default -> method.getReturnType() == boolean.class ? false : null;
         });
     }
     private void drainEdt() { Runnable task; while ((task = edt.poll()) != null) task.run(); }
+    private void reload(Project project, Path root) throws Exception {
+        java.util.concurrent.CountDownLatch complete = new java.util.concurrent.CountDownLatch(1);
+        coordinator.refreshAll(project, List.of(root), true, complete::countDown);
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+        while (complete.getCount() != 0 && System.nanoTime() < deadline) {
+            drainEdt();
+            Thread.yield();
+        }
+        assertEquals("Reload completion must follow model application", 0, complete.getCount());
+        drainEdt();
+    }
+    private String xml(String name) {
+        return "<project><component name='CodeReadingNote'><topics><topic><name>" + name
+                + "</name><updatedAt>2026-10-29 00:00:00</updatedAt></topic></topics></component></project>";
+    }
+    @Test public void refreshReloadsExternalChildChangesAndClearingWithoutReopening() throws Exception {
+        Path root = temporary.getRoot().toPath(), child = root.resolve("child");
+        Path notes = Files.createDirectories(child.resolve(".idea")).resolve("CodeReadingNote.xml");
+        Files.writeString(notes, xml("before"));
+        Project window = project(root);
+        TopicList list = coordinator.acquire(window, child);
+        coordinator.refresh(window, child); drainEdt();
+        assertEquals("before", list.getTopics().get(0).name());
+        long revision = coordinator.syncRevision(list);
+        Files.writeString(notes, xml("after"));
+        reload(window, child);
+        assertEquals("after", list.getTopics().get(0).name());
+        assertTrue(coordinator.syncRevision(list) > revision);
+        Files.writeString(notes, "<CodeReadingNote><topics/></CodeReadingNote>");
+        reload(window, child);
+        assertTrue(list.getTopics().isEmpty());
+        assertFalse(coordinator.retainForRefresh(list));
+    }
+    @Test public void explicitRefreshReloadsStandaloneRootData() throws Exception {
+        Path root = temporary.getRoot().toPath(), child = root.resolve("root-notes");
+        Path notes = Files.createDirectories(child.resolve(".idea")).resolve("CodeReadingNote.xml");
+        Files.writeString(notes, xml("before"));
+        Project window = project(root), standalone = project(child);
+        TopicList list = coordinator.acquire(window, child);
+        coordinator.refresh(window, child); drainEdt();
+        coordinator.attachRoot(standalone);
+        Files.writeString(notes, xml("after"));
+        // A background discovery leaves standalone ownership to the platform.
+        coordinator.refresh(window, child); drainEdt();
+        assertEquals("before", list.getTopics().get(0).name());
+        reload(window, child);
+        assertEquals("after", list.getTopics().get(0).name());
+        Disposer.dispose(standalone);
+    }
+    @Test public void rootRefreshPreservesPendingEditsAndRecognizesSavedModel() throws Exception {
+        Path root = temporary.getRoot().toPath(), child = root.resolve("pending-root");
+        Path notes = Files.createDirectories(child.resolve(".idea")).resolve("CodeReadingNote.xml");
+        Files.writeString(notes, xml("before"));
+        Project window = project(root), standalone = project(child);
+        TopicList list = coordinator.acquire(window, child);
+        coordinator.refresh(window, child); drainEdt();
+        list.addTopic("local");
+        coordinator.attachRoot(standalone);
+        reload(window, child);
+        assertEquals(2, list.getTopics().size());
+        assertTrue(coordinator.retainForRefresh(list));
+        WorkspaceXmlStore disk = new WorkspaceXmlStore(notes); disk.load(); disk.save(TopicListExporter.export(list), false);
+        reload(window, child);
+        assertFalse(coordinator.retainForRefresh(list));
+        Files.writeString(notes, xml("external"));
+        reload(window, child);
+        assertEquals("external", list.getTopics().get(0).name());
+        Disposer.dispose(standalone);
+    }
+    @Test public void refreshKeepsUnsavedChildDataWhenDiskIsUnchanged() throws Exception {
+        Path root = temporary.getRoot().toPath(), child = root.resolve("pending-child");
+        Files.createDirectories(child.resolve(".idea"));
+        Project window = project(root); TopicList list = coordinator.acquire(window, child);
+        coordinator.refresh(window, child); drainEdt();
+        list.addTopic("pending");
+        assertTrue(coordinator.retainForRefresh(list));
+        reload(window, child);
+        assertEquals("pending", list.getTopics().get(0).name());
+    }
+    @Test public void conflictingRootRefreshPreservesLocalModelAndExternalDisk() throws Exception {
+        Path root = temporary.getRoot().toPath(), child = root.resolve("conflicting-root");
+        Path notes = Files.createDirectories(child.resolve(".idea")).resolve("CodeReadingNote.xml");
+        Files.writeString(notes, xml("before"));
+        Project window = project(root), standalone = project(child);
+        TopicList list = coordinator.acquire(window, child);
+        coordinator.refresh(window, child); drainEdt();
+        list.addTopic("local");
+        coordinator.attachRoot(standalone);
+        String external = xml("external");
+        Files.writeString(notes, external);
+        reload(window, child);
+        assertEquals(2, list.getTopics().size());
+        assertEquals("local", list.getTopics().get(1).name());
+        assertEquals(external, Files.readString(notes));
+        assertTrue(coordinator.persistencePaused(list));
+        assertTrue(coordinator.retainForRefresh(list));
+        Disposer.dispose(standalone);
+    }
     @Test public void multipleWindowsAndIndependentProjectShareOneList() throws Exception {
         Path root = temporary.getRoot().toPath(), child = root.resolve("child");
         Files.createDirectories(child.resolve(".idea"));

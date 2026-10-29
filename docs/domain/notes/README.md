@@ -23,12 +23,15 @@ CodeReadingNoteService（项目级单例）
 
 ### 工作空间多项目（3.7.7）
 
-`notesworkspace.WorkspaceNotesService` 在父目录下递归发现实际存在 `.idea/CodeReadingNote.xml` 的项目，聚合各自的
+`notesworkspace.WorkspaceNotesService` 在父目录下递归发现 `.idea/CodeReadingNote.xml` 中含有主题的项目，聚合各自的
 `TopicList`。后台扫描排除 `.git`、`.idea` 内部、`node_modules`、`build`、`target`、`out`、
-`.gradle`。只有 `.idea` 而没有插件笔记文件的目录不进入项目树，也不会因扫描自动创建文件。
+`.gradle`。只有 `.idea`、笔记文件缺失、空文件或 XML 没有任何 `topic` 的子项目不进入项目树，也不会因扫描自动创建文件。
+只要存在主题，即使主题没有笔记行，也会加载；根项目始终保留，方便新建主题。解析错误单独报告，不阻断其他项目发现。
 直接指向含真实 `.idea/CodeReadingNote.xml` 项目根的符号链接或 junction 会作为项目入口加载，但普通
 链接目录不会递归扫描；同一真实目录的多个 alias 只加载一次。通过 VFS 监听和防抖刷新发现动态变化；显式刷新入口
-位于笔记工具栏。
+位于笔记工具栏。该入口先递归刷新 VFS，再重新发现项目，并通过统一串行 IO 队列重新加载磁盘上的笔记，
+包括当前根项目及已独立打开的子项目；模型应用完成后更新树、搜索和编辑器标记。新增项目进入列表，已清空的子项目退出列表。
+有未保存修改或未解决冲突的项目保留在列表中，刷新不会覆盖这些修改；磁盘和本地同时变化时沿用冲突处理。
 
 `NoteProjectContext` 是不写入 XML 的运行时归属，以真实绝对路径标识项目；工作空间树仍显示
 发现入口的相对 alias。TopicList、

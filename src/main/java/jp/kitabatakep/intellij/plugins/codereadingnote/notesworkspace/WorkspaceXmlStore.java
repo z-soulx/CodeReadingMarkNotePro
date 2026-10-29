@@ -26,6 +26,18 @@ public final class WorkspaceXmlStore {
     public Path path() { return path; }
     public Path pendingPath() { return recovery; }
 
+    /** Read-only eligibility check; missing containers and whitespace-only files have no topics. */
+    static boolean hasTopics(Path path) throws IOException {
+        byte[] bytes;
+        try { bytes = Files.readAllBytes(path); }
+        catch (NoSuchFileException missing) { return false; }
+        if (new String(bytes, java.nio.charset.StandardCharsets.UTF_8).isBlank()) return false;
+        Document parsed = parse(bytes);
+        Element component = component(parsed, false);
+        Element topics = component == null ? null : component.getChild("topics");
+        return topics != null && !topics.getChildren("topic").isEmpty();
+    }
+
     public synchronized Element load() throws IOException {
         validatePath();
         byte[] bytes = readBytes();
