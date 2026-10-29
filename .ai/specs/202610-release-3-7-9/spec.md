@@ -1,6 +1,6 @@
 # 发布 3.7.9
 
-Status: In progress
+Status: Frozen — 2026-10-29，3.7.9 已提交、推送并上传 Marketplace；等待审核上架。
 
 ## 目标
 
@@ -9,7 +9,7 @@ Status: In progress
 
 ## 验收
 
-- [ ] build.gradle 与 plugin.xml 均为 3.7.9，中英文变更说明覆盖三项修改。
-- [ ] 测试和完整构建通过，安装包描述符版本核验通过。
-- [ ] 本次修改提交到 3.7.9 分支并推送到同名远端分支。
-- [ ] Marketplace 接受 3.7.9 默认通道上传，明确记录审核状态和真实 IDEA 验收限制。
+- [x] build.gradle 与 plugin.xml 均为 3.7.9，中英文变更说明覆盖三项修改。
+- [x] 77 项测试和完整构建通过，安装包描述符版本、插件 ID 和发布说明核验通过。
+- [x] 本次修改提交到 3.7.9 分支并推送到同名远端分支，发布代码提交为 8a3d4af。
+- [x] Marketplace 接受 3.7.9 默认通道上传，更新 ID 1206186；核验时 approve=false、listed=false，等待审核上架。未执行真实 IDEA 安装、界面及多窗口验收。

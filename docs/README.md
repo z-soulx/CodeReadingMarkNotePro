@@ -11,7 +11,7 @@
 
 工作空间空数据过滤、刷新重载见 [笔记领域](domain/notes/README.md)；`.ai` Git 的用户控制范围见 [AI 配置工作台](domain/ai-config/README.md)。本次变更单元为 `.ai/specs/202610-workspace-refresh/`。
 
-3.7.9 发布验收记录见 `.ai/specs/202610-release-3-7-9/`，发布操作遵循 [发布指南](runbooks/release.md)。
+3.7.9 已于 2026-10-29 上传 Marketplace 默认通道，更新 ID 1206186，核验时等待审核上架。发布验收记录见 `.ai/specs/202610-release-3-7-9/`，发布操作遵循 [发布指南](runbooks/release.md)。
 
 GitHub 已有文件更新和错误诊断见 [GitHub 同步边界](domain/sync/github.md)；issue #15 修复验收记录位于 `.ai/specs/202609-issue-15-existing-remote-push/`。
 
